@@ -136,33 +136,6 @@ jobs:
             echo "Created android/.build_version"
           fi
 
-      - name: Patch build.gradle to remove .import files before resource merge
-        run: |
-          if [ -f android/build/build.gradle ]; then
-            python3 << 'PYEOF'
-          with open("android/build/build.gradle", "r") as f:
-              content = f.read()
-
-          # Add a doFirst hook to delete .import files from res/ before mergeReleaseResources runs
-          gradle_hook = """
-          tasks.whenTaskAdded { task ->
-              if (task.name == 'mergeReleaseResources' || task.name == 'mergeDebugResources') {
-                  task.doFirst {
-                      delete fileTree(dir: 'res', include: '**/*.import')
-                  }
-              }
-          }
-          """
-
-          # Insert the hook after the plugins block
-          content = content.replace("\nrepositories {", gradle_hook + "\nrepositories {", 1)
-
-          with open("android/build/build.gradle", "w") as f:
-              f.write(content)
-          print("Patched build.gradle with .import cleanup hook")
-          PYEOF
-          fi
-
       - name: Export Android APK (unsigned, via Xvfb + OpenGL3)
         run: |
           export DISPLAY=:99
@@ -175,13 +148,6 @@ jobs:
 
           echo "Exporting Android APK (unsigned)..."
           ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
-
-          # If APK was not created, check if .import files were re-created and causing issues
-          if [ ! -f build/android/phitieudichchuyen-unsigned.apk ]; then
-            echo "APK not found, cleaning .import files from android/build and retrying..."
-            find android/build -name "*.import" -type f -delete 2>/dev/null || true
-            ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
-          fi
 
       - name: Generate Debug Keystore and Sign APK
         run: |
