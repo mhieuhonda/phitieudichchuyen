@@ -136,6 +136,13 @@ jobs:
             echo "Created android/.build_version"
           fi
 
+      - name: Clean .import files from Android build directory
+        run: |
+          echo "Cleaning .import files from android/build directory..."
+          find android/build -name "*.import" -type f -delete 2>/dev/null || true
+          echo "Cleaned .import files. Remaining files in android/build/res:"
+          find android/build/res -name "*.import" 2>/dev/null || echo "No .import files found"
+
       - name: Export Android APK (unsigned, via Xvfb + OpenGL3)
         run: |
           export DISPLAY=:99
