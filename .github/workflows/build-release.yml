@@ -89,24 +89,30 @@ jobs:
           echo "Installing Android build template..."
           # Try the Godot CLI command first (may fail if project has script errors)
           ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
-          # Verify: Godot 4.2 extracts android_source.zip to android/ directory
-          # The expected structure is android/build.gradle, android/res/, etc.
-          if [ -f "android/build.gradle" ]; then
+          # Godot 4.2 checks for res://android/build/build.gradle specifically
+          if [ -f "android/build/build.gradle" ]; then
             echo "Android build template installed successfully!"
-            ls -la android/
+            ls -la android/build/
           else
             echo "CLI command didn't work, trying manual extraction..."
             ANDROID_SOURCE="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip"
             if [ -f "$ANDROID_SOURCE" ]; then
               echo "Found android_source.zip, extracting manually..."
-              # Godot 4.2 extracts android_source.zip to the android/ directory
+              # Godot 4.2 expects android/build/ directory with build.gradle inside
+              # The ZIP contains files at top level that go into android/build/
               rm -rf android
-              mkdir -p android
-              unzip -o "$ANDROID_SOURCE" -d android/
+              mkdir -p android/build
+              unzip -o "$ANDROID_SOURCE" -d android/build/
+              # Create .build_version file (Godot checks this)
+              echo "${GODOT_VERSION}.stable" > android/.build_version
+              # Create .gdignore to prevent Godot from scanning android/build/
+              touch android/build/.gdignore
               echo "Manual extraction done:"
-              ls -la android/
+              ls -la android/build/
               echo "Checking for build.gradle..."
-              ls android/build.gradle 2>/dev/null && echo "build.gradle found!" || echo "WARNING: build.gradle NOT found"
+              ls android/build/build.gradle 2>/dev/null && echo "build.gradle found!" || echo "WARNING: build.gradle NOT found"
+              echo "Checking .build_version..."
+              cat android/.build_version
             else
               echo "ERROR: android_source.zip not found in export templates!"
               find ~/.local/share/godot/export_templates/ -name "*android*" -type f 2>/dev/null || true
