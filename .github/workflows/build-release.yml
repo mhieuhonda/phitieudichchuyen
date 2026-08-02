@@ -149,6 +149,23 @@ jobs:
           echo "Exporting Android APK (unsigned)..."
           ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
 
+          # If export failed, try cleaning .import files from android/build/res and retry
+          if [ ! -f build/android/phitieudichchuyen-unsigned.apk ]; then
+            echo "APK export failed, cleaning .import files from android/build/res and retrying..."
+            find android/build/res -name "*.import" -type f -delete 2>/dev/null || true
+            # Use Gradle directly to build the APK
+            cd android/build
+            chmod +x gradlew
+            ./gradlew assembleRelease 2>&1
+            cd ../..
+            # Find the built APK
+            APK_PATH=$(find android/build/build/outputs -name "*.apk" -type f 2>/dev/null | head -1)
+            if [ -n "$APK_PATH" ]; then
+              cp "$APK_PATH" build/android/phitieudichchuyen-unsigned.apk
+              echo "APK built via Gradle directly!"
+            fi
+          fi
+
       - name: Generate Debug Keystore and Sign APK
         run: |
           echo "Generating debug keystore..."
