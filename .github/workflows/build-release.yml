@@ -69,8 +69,6 @@ jobs:
             -keypass android \
             -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
             -validity 10000
-          echo "Keystore generated at $(pwd)/debug.keystore"
-          ls -la debug.keystore
 
       - name: Create editor settings with Android SDK path
         run: |
@@ -147,21 +145,12 @@ jobs:
             echo "Created android/.build_version"
           fi
 
-      - name: Verify export_presets.cfg keystore settings
-        run: |
-          echo "=== Checking export_presets.cfg ==="
-          grep -E "(keystore|key_alias|use_custom_keystore|signed_custom)" export_presets.cfg
-          echo "=== Checking keystore file ==="
-          ls -la debug.keystore
-          echo "=== Keystore absolute path ==="
-          realpath debug.keystore
-
-      - name: Export Android APK
+      - name: Export Android APK (via Xvfb + OpenGL3)
         run: |
           export DISPLAY=:99
           mkdir -p build/android
           echo "Exporting Android APK..."
-          ./godot_editor --headless --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
+          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
 
       - name: Verify Android APK
         run: |
@@ -174,12 +163,12 @@ jobs:
             exit 1
           fi
 
-      - name: Export Windows Desktop
+      - name: Export Windows Desktop (via Xvfb + OpenGL3)
         run: |
           export DISPLAY=:99
           mkdir -p build/windows
           echo "Exporting Windows Desktop..."
-          ./godot_editor --headless --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
+          ./godot_editor --rendering-driver opengl3 --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
 
       - name: Verify Windows build
         run: |
@@ -198,12 +187,12 @@ jobs:
           zip -r ../../phitieudichchuyen-windows.zip .
           cd ../..
 
-      - name: Export Linux/X11
+      - name: Export Linux/X11 (via Xvfb + OpenGL3)
         run: |
           export DISPLAY=:99
           mkdir -p build/linux
           echo "Exporting Linux/X11..."
-          ./godot_editor --headless --path . --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
+          ./godot_editor --rendering-driver opengl3 --path . --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
 
       - name: Verify Linux build
         run: |
