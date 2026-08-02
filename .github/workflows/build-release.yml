@@ -73,6 +73,7 @@ jobs:
               f.write('[gd_resource type="EditorSettings" format=3]\n\n')
               f.write('[resource]\n\n')
               f.write('export/android/android_sdk_path = "/usr/local/lib/android/sdk"\n')
+              f.write('export/android/java_sdk_path = "/usr/lib/jvm/temurin-17-jdk-amd64"\n')
           print("Editor settings created at", settings_path)
           with open(settings_path, "r") as f:
               print(f.read())
