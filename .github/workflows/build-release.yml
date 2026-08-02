@@ -87,8 +87,8 @@ jobs:
       - name: Install Android Build Template
         run: |
           echo "Installing Android build template..."
-          # Try the Godot CLI command first
-          ./godot_editor --headless --path . --install-android-build-template 2>&1
+          # Try the Godot CLI command first (may fail if project has script errors)
+          ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
           # Verify the android/build directory was created
           if [ -d "android/build" ]; then
             echo "Android build template installed successfully!"
