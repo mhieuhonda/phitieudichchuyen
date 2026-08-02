@@ -127,3 +127,31 @@ offset_right = 550.0
 offset_bottom = 130.0
 text = "Tự respawn sau 3s..."
 horizontal_alignment = 1
+
+[node name="FPSLabel" type="Label" parent="."]
+visible = false
+offset_left = 1160.0
+offset_top = 690.0
+offset_right = 1270.0
+offset_bottom = 720.0
+text = "FPS: 60"
+horizontal_alignment = 2
+
+[node name="DeviceLabel" type="Label" parent="."]
+visible = false
+offset_left = 1160.0
+offset_top = 665.0
+offset_right = 1270.0
+offset_bottom = 690.0
+text = ""
+horizontal_alignment = 2
+
+[node name="QualityNotice" type="Label" parent="."]
+visible = false
+offset_left = 400.0
+offset_top = 350.0
+offset_right = 880.0
+offset_bottom = 380.0
+text = "Tu dong chon do hoa: Trung Binh"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.3, 0.8, 1, 1)

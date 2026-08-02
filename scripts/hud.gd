@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 ## HUD - Giao diện người chơi
-## Hiển thị điểm, máu, số phi tiêu, combo, vòng bo, mini-map
+## Hiển thị điểm, máu, số phi tiêu, combo, vòng bo, mini-map, FPS, device info
 
 @onready var score_label: Label = $ScoreLabel
 @onready var hp_bar: ProgressBar = $HpBar
@@ -18,10 +18,15 @@ extends CanvasLayer
 @onready var size_label: Label = $SizeLabel
 @onready var time_label: Label = $TimeLabel
 @onready var mid_flight_hint: Label = $MidFlightHint
+@onready var fps_label: Label = $FPSLabel
+@onready var device_label: Label = $DeviceLabel
+@onready var quality_notice: Label = $QualityNotice
 
 var player: CharacterBody2D = null
 var zone_shrink_timer: float = 0.0
 var combo_display_timer: float = 0.0
+var fps_update_timer: float = 0.0
+var quality_notice_timer: float = 0.0
 
 func _ready():
 	GameManager.player_score_changed.connect(_on_score_changed)
@@ -43,6 +48,23 @@ func _ready():
 	zone_warning.visible = false
 	combo_label.visible = false
 	mid_flight_hint.visible = false
+	
+	# FPS counter
+	fps_label.visible = SettingsManager.show_fps
+	
+	# Device info label
+	_show_device_info()
+	
+	# Show quality auto-detect notice
+	if SettingsManager.was_auto_detected:
+		quality_notice.visible = true
+		quality_notice.text = "Tự động chọn đồ họa: %s" % SettingsManager.get_quality_name()
+		quality_notice_timer = 4.0
+
+func _show_device_info():
+	if device_label:
+		device_label.visible = SettingsManager.show_fps
+		device_label.text = "%s | %s" % [SettingsManager.get_device_tier_name(), SettingsManager.get_quality_name()]
 
 func set_player(p: CharacterBody2D):
 	player = p
@@ -93,6 +115,21 @@ func _process(delta):
 		combo_display_timer -= delta
 		if combo_display_timer <= 0:
 			combo_label.visible = false
+	
+	# FPS counter - cập nhật mỗi 0.5s
+	fps_label.visible = SettingsManager.show_fps
+	device_label.visible = SettingsManager.show_fps
+	if SettingsManager.show_fps:
+		fps_update_timer -= delta
+		if fps_update_timer <= 0:
+			fps_update_timer = 0.5
+			fps_label.text = "FPS: %d" % Engine.get_frames_per_second()
+	
+	# Quality notice tự ẩn
+	if quality_notice.visible:
+		quality_notice_timer -= delta
+		if quality_notice_timer <= 0:
+			quality_notice.visible = false
 
 func _get_dart_info() -> String:
 	var flying = 0

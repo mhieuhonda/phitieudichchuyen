@@ -1,7 +1,7 @@
 extends Control
 
 ## SettingsMenu - Menu cài đặt
-## Đồ họa từ cực thấp đến cao, âm thanh, joystick
+## Đồ họa từ cực thấp đến cao, âm thanh, joystick, device info
 
 @onready var back_button: Button = $BackButton
 @onready var quality_label: Label = $QualityLabel
@@ -16,6 +16,7 @@ extends Control
 @onready var music_slider: HSlider = $MusicSlider
 @onready var sound_label: Label = $SoundLabel
 @onready var music_label: Label = $MusicLabel
+@onready var device_info_label: Label = $DeviceInfoLabel
 
 func _ready():
 	back_button.pressed.connect(_on_back_pressed)
@@ -39,6 +40,7 @@ func _load_current_settings():
 	music_slider.value = SettingsManager.music_volume
 	_update_quality_buttons()
 	_update_sound_labels()
+	_update_device_info()
 
 func _update_quality_buttons():
 	quality_label.text = "Chất lượng đồ họa: %s" % SettingsManager.get_quality_name()
@@ -55,6 +57,15 @@ func _update_quality_buttons():
 func _update_sound_labels():
 	sound_label.text = "Âm thanh: %d%%" % int(SettingsManager.sound_volume * 100)
 	music_label.text = "Nhạc: %d%%" % int(SettingsManager.music_volume * 100)
+
+func _update_device_info():
+	if device_info_label:
+		var gpu_name = RenderingServer.get_video_adapter_name()
+		var cpu_cores = OS.get_processor_count()
+		var os_name = OS.get_name()
+		var tier_name = SettingsManager.get_device_tier_name()
+		var auto_str = " (tự động)" if SettingsManager.was_auto_detected else ""
+		device_info_label.text = "Thiết bị: %s | CPU: %d core | GPU: %s | OS: %s%s" % [tier_name, cpu_cores, gpu_name, os_name, auto_str]
 
 func _on_back_pressed():
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")
