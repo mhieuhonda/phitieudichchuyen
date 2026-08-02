@@ -1,110 +1,125 @@
 name: Build & Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 env:
-  GODOT_VERSION: "4.2.2"
+  GODOT_VERSION: 4.2.2
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
-      # ─── Checkout ──────────────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 1. Checkout
+      # ──────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # ─── System deps (headless Godot needs these on Ubuntu) ───
+      # ──────────────────────────────────────────────
+      # 2. System dependencies (headless Godot needs these)
+      # ──────────────────────────────────────────────
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get update
+          sudo apt-get install -y \
             libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev \
-            libgl1-mesa-dev libxi-dev libasound2-dev zip unzip wget
+            libgl1-mesa-dev libglu1-mesa-dev libasound2-dev \
+            libpulse-dev libudev-dev libxi-dev libxext-dev \
+            wayland-protocols libwayland-dev \
+            xvfb
 
-      # ─── Java (needed for Android Gradle build) ───────────────
+      # ──────────────────────────────────────────────
+      # 3. Java 17 (required for Android Gradle build)
+      # ──────────────────────────────────────────────
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # ─── Android SDK ──────────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 4. Android SDK
+      # ──────────────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install Android build tools & platform
         run: |
-          sdkmanager --install "build-tools;33.0.2"
-          sdkmanager --install "platforms;android-33"
+          sdkmanager --install "build-tools;33.0.2" "platforms;android-33" "platform-tools"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_HOME"
 
-      # ─── Godot Editor ─────────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 5. Download Godot Editor
+      # ──────────────────────────────────────────────
       - name: Download Godot Editor
         run: |
-          GODOT_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
-          echo "Downloading Godot from: $GODOT_URL"
-          wget -q "$GODOT_URL" -O godot-editor.zip
-          unzip -o godot-editor.zip
-          EDITOR_BIN=$(find . -maxdepth 1 -name 'Godot_v*_linux.x86_64' -not -name '*.zip' | head -1)
-          if [ -z "$EDITOR_BIN" ]; then
-            echo "ERROR: Could not find Godot editor binary after unzip"
-            ls -la
-            exit 1
-          fi
-          mv "$EDITOR_BIN" godot_editor
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -O godot_editor.zip
+          unzip -q godot_editor.zip
+          # Godot 4.2.2 zip contains: Godot_v4.2.2-stable_linux.x86_64
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot_editor
           chmod +x godot_editor
-          echo "Godot editor ready: $(./godot_editor --version 2>&1 || true)"
+          ./godot_editor --version-headless || true
+          echo "Godot editor ready: $(./godot_editor --version 2>/dev/null || echo 'version check skipped')"
 
-      # ─── Export Templates ─────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 6. Download & Install Export Templates
+      # ──────────────────────────────────────────────
       - name: Download Godot Export Templates
         run: |
-          TEMPLATES_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          echo "Downloading templates from: $TEMPLATES_URL"
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -O export_templates.tpz
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          wget -q "$TEMPLATES_URL" -O templates.tpz
-          unzip -o templates.tpz
-          ls templates/
-          cp templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          unzip -q export_templates.tpz -d extracted_templates
+          # The tpz contains a "templates/" folder with the actual template files
+          cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed:"
           ls ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
 
-      # ─── Install Android Build Template BEFORE import ─────────
-      # Godot 4.2+ REQUIRES this for Gradle build. Must be done BEFORE
-      # the import step so Godot sees android/build/ during project scan.
-      - name: Install Android Build Template
+      # ──────────────────────────────────────────────
+      # 7. Configure Godot Editor Settings (CRITICAL for Android export)
+      #    Godot reads Android SDK path from editor_settings, NOT env vars
+      # ──────────────────────────────────────────────
+      - name: Configure Godot Editor Settings
         run: |
-          echo "Installing Android build template..."
-          # Extract android_source.zip manually (CLI command needs project import first)
-          ANDROID_SOURCE="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip"
-          if [ -f "$ANDROID_SOURCE" ]; then
-            echo "Found android_source.zip, extracting..."
-            mkdir -p android/build
-            unzip -o "$ANDROID_SOURCE" -d android/build/
-            echo "${GODOT_VERSION}.stable" > android/.build_version
-            touch android/build/.gdignore
-            echo "Android build template installed:"
-            ls -la android/build/ | head -15
-            ls android/build/build.gradle 2>/dev/null && echo "build.gradle found!" || echo "WARNING: build.gradle NOT found"
-          else
-            echo "ERROR: android_source.zip not found in export templates!"
-            find ~/.local/share/godot/export_templates/ -name "*android*" -type f 2>/dev/null || true
-            exit 1
-          fi
+          mkdir -p ~/.config/godot/
+          cat > ~/.config/godot/editor_settings-4.tres << 'EOF'
+          [resource]
 
-      # ─── Import Project (critical for headless export) ────────
+          export/android/android_sdk_path = "/usr/local/lib/android/sdk"
+          export/android/debug_keystore = ""
+          export/android/debug_keystore_pass = ""
+          export/android/debug_keystore_user = ""
+          export/android/force_system_user = false
+          network/http_proxy/host = ""
+          network/http_proxy/port = 0
+          text_editor/theme/color_theme = "Default"
+          EOF
+          echo "=== Editor settings created ==="
+          cat ~/.config/godot/editor_settings-4.tres
+
+      # ──────────────────────────────────────────────
+      # 8. Import project (generates .godot/ cache)
+      # ──────────────────────────────────────────────
       - name: Import Godot Project
         run: |
-          echo "Importing project..."
-          timeout 60 ./godot_editor --headless --import --path . 2>&1 || true
-          echo "Import completed (or timed out — that's OK)"
+          echo "Running headless import..."
+          timeout 60 ./godot_editor --headless --import . 2>&1 || true
+          echo "Import step completed"
+          # Verify .godot folder was created
+          ls -la .godot/ 2>/dev/null || echo "Warning: .godot/ not created"
 
-      # ─── Debug Keystore ───────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 9. Generate Debug Keystore
+      # ──────────────────────────────────────────────
       - name: Generate Debug Keystore
         run: |
           keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
@@ -113,11 +128,13 @@ jobs:
             -keypass android \
             -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
             -validity 10000
+          echo "Keystore created: $(ls -la debug.keystore)"
 
-      # ─── Update export_presets.cfg for CI keystore ────────────
+      # ──────────────────────────────────────────────
+      # 10. Patch export_presets.cfg with keystore
+      # ──────────────────────────────────────────────
       - name: Configure Keystore in Export Presets
         run: |
-          echo "Patching keystore settings..."
           python3 -c "
           with open('export_presets.cfg', 'r') as f:
               content = f.read()
@@ -133,9 +150,6 @@ jobs:
           for old, new in replacements.items():
               content = content.replace(old, new)
 
-          # Embed PCK for Windows & Linux (single-file distribution)
-          content = content.replace('binary_format/embed_pck=false', 'binary_format/embed_pck=true')
-
           with open('export_presets.cfg', 'w') as f:
               f.write(content)
           print('Patched successfully')
@@ -143,101 +157,104 @@ jobs:
           echo "=== Patched export_presets.cfg (Android section) ==="
           sed -n '/\[preset.0\]/,/^\[preset.1\]/p' export_presets.cfg
 
-      # ─── Export Android APK ───────────────────────────────────
-      - name: Verify Android build template before export
-        run: |
-          echo "=== Checking android/build/ ==="
-          ls -la android/build/ | head -15
-          echo "=== build.gradle ==="
-          ls -la android/build/build.gradle 2>/dev/null || echo "NOT FOUND!"
-          echo "=== .build_version ==="
-          cat android/.build_version 2>/dev/null || echo "NOT FOUND!"
-          echo "=== .gdignore ==="
-          cat android/build/.gdignore 2>/dev/null || echo "NOT FOUND!"
-          echo "=== .godot exists? ==="
-          ls -la .godot/ 2>/dev/null | head -5 || echo "No .godot dir"
-
+      # ──────────────────────────────────────────────
+      # 11. Export Android APK
+      # ──────────────────────────────────────────────
       - name: Export Android APK
         run: |
           mkdir -p build/android
           echo "Exporting Android APK..."
           ./godot_editor --headless --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
-          echo "Export command finished"
+          echo "Export command finished with exit code: $?"
 
       - name: Verify Android APK
         run: |
-          if [ -f "build/android/phitieudichchuyen.apk" ]; then
-            SIZE=$(stat -c%s "build/android/phitieudichchuyen.apk")
-            echo "APK built successfully! Size: $SIZE bytes"
-            ls -la build/android/phitieudichchuyen.apk
+          if [ -f build/android/phitieudichchuyen.apk ]; then
+            echo "APK built successfully!"
+            ls -lh build/android/phitieudichchuyen.apk
           else
-            echo "ERROR: APK not found!"
-            echo "=== Listing build directory ==="
-            find build/ -type f 2>/dev/null || true
+            echo "ERROR: APK not found at build/android/phitieudichchuyen.apk"
+            echo "Listing build directory:"
+            find build/ -type f 2>/dev/null || echo "No build directory"
             exit 1
           fi
 
-      # ─── Export Windows ───────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 12. Export Windows Desktop
+      # ──────────────────────────────────────────────
       - name: Export Windows Desktop
         run: |
           mkdir -p build/windows
           echo "Exporting Windows Desktop..."
           ./godot_editor --headless --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
-          echo "Windows export command finished"
+          echo "Export command finished with exit code: $?"
 
+      - name: Verify Windows build
+        run: |
+          if [ -f build/windows/phitieudichchuyen.exe ]; then
+            echo "Windows EXE built successfully!"
+            ls -lh build/windows/phitieudichchuyen.exe
+          else
+            echo "ERROR: Windows EXE not found"
+            find build/windows/ -type f 2>/dev/null || echo "No windows build dir"
+            exit 1
+          fi
+
+      # ──────────────────────────────────────────────
+      # 13. Package Windows build
+      # ──────────────────────────────────────────────
       - name: Package Windows build
         run: |
           cd build/windows
-          if [ -f "phitieudichchuyen.exe" ]; then
-            echo "Windows .exe found, creating ZIP..."
-            zip -j ../../phitieudichchuyen-windows.zip ./*
-            cd ../..
-            echo "Windows ZIP created:"
-            ls -la phitieudichchuyen-windows.zip
-          else
-            echo "WARNING: Windows .exe not found, skipping ZIP"
-            cd ../..
-            echo "Windows build contents:"
-            find build/windows/ -type f 2>/dev/null || true
-          fi
+          zip -r ../../phitieudichchuyen-windows.zip .
+          cd ../..
+          echo "Windows ZIP created: $(ls -lh phitieudichchuyen-windows.zip)"
 
-      # ─── Export Linux ─────────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 14. Export Linux/X11
+      # ──────────────────────────────────────────────
       - name: Export Linux/X11
         run: |
           mkdir -p build/linux
           echo "Exporting Linux/X11..."
           ./godot_editor --headless --path . --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
-          echo "Linux export command finished"
+          echo "Export command finished with exit code: $?"
 
+      - name: Verify Linux build
+        run: |
+          if [ -f build/linux/phitieudichchuyen.x86_64 ]; then
+            echo "Linux binary built successfully!"
+            ls -lh build/linux/phitieudichchuyen.x86_64
+          else
+            echo "ERROR: Linux binary not found"
+            find build/linux/ -type f 2>/dev/null || echo "No linux build dir"
+            exit 1
+          fi
+
+      # ──────────────────────────────────────────────
+      # 15. Package Linux build
+      # ──────────────────────────────────────────────
       - name: Package Linux build
         run: |
           cd build/linux
-          if [ -f "phitieudichchuyen.x86_64" ]; then
-            echo "Linux binary found, creating ZIP..."
-            zip -j ../../phitieudichchuyen-linux.zip ./*
-            cd ../..
-            echo "Linux ZIP created:"
-            ls -la phitieudichchuyen-linux.zip
-          else
-            echo "WARNING: Linux binary not found, skipping ZIP"
-            cd ../..
-            echo "Linux build contents:"
-            find build/linux/ -type f 2>/dev/null || true
-          fi
+          zip -r ../../phitieudichchuyen-linux.zip .
+          cd ../..
+          echo "Linux ZIP created: $(ls -lh phitieudichchuyen-linux.zip)"
 
-      # ─── Collect all artifacts ────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 16. List all build artifacts
+      # ──────────────────────────────────────────────
       - name: List all build artifacts
         run: |
           echo "=== All build artifacts ==="
-          find build/ -type f 2>/dev/null || true
-          echo ""
-          echo "=== ZIP files ==="
-          ls -la *.zip 2>/dev/null || echo "No ZIP files"
-          echo ""
-          echo "=== APK ==="
-          ls -la build/android/*.apk 2>/dev/null || echo "No APK"
+          find build/ -type f -exec ls -lh {} \;
+          echo "=== ZIP packages ==="
+          ls -lh *.zip 2>/dev/null || echo "No ZIP packages"
+          ls -lh build/android/*.apk 2>/dev/null || echo "No APK"
 
-      # ─── Upload to Release ────────────────────────────────────
+      # ──────────────────────────────────────────────
+      # 17. Upload to GitHub Release
+      # ──────────────────────────────────────────────
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -248,7 +265,7 @@ jobs:
 
       - name: Upload Windows ZIP to Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') && hashFiles('phitieudichchuyen-windows.zip') != ''
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: phitieudichchuyen-windows.zip
         env:
@@ -256,7 +273,7 @@ jobs:
 
       - name: Upload Linux ZIP to Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') && hashFiles('phitieudichchuyen-linux.zip') != ''
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: phitieudichchuyen-linux.zip
         env:
