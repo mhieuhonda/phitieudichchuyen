@@ -1,0 +1,36 @@
+[gd_scene load_steps=2 format=3 uid="uid://aiplayer001"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ai"]
+radius = 20.0
+
+[node name="AIPlayer" type="CharacterBody2D" groups=["ai_players"]]
+collision_layer = 8
+collision_mask = 20
+script = ExtResource("res://scripts/ai_player.gd")
+
+[node name="Sprite" type="ColorRect" parent="."]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(1, 0.3, 0.3, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_ai")
+
+[node name="HpBar" type="ProgressBar" parent="."]
+offset_left = -25.0
+offset_top = -35.0
+offset_right = 25.0
+offset_bottom = -28.0
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = -30.0
+offset_top = -55.0
+offset_right = 30.0
+offset_bottom = -40.0
+text = "Bot"
+horizontal_alignment = 1

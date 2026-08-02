@@ -1,0 +1,22 @@
+[gd_scene load_steps=1 format=3 uid="uid://map001"]
+
+[node name="Map" type="Node2D"]
+script = ExtResource("res://scripts/map.gd")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 2000.0
+offset_bottom = 2000.0
+color = Color(0.15, 0.15, 0.2, 1)
+
+[node name="Grid" type="ColorRect" parent="."]
+visible = false
+offset_right = 2000.0
+offset_bottom = 2000.0
+color = Color(0.2, 0.2, 0.25, 1)
+
+[node name="ZoneCircle" type="Line2D" parent="."]
+width = 3.0
+default_color = Color(1, 0.3, 0.3, 0.8)
+
+[node name="ZoneFill" type="ColorRect" parent="."]
+visible = false
