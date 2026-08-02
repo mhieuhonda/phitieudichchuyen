@@ -51,7 +51,6 @@ jobs:
           echo "Downloading Godot from: $GODOT_URL"
           wget -q "$GODOT_URL" -O godot-editor.zip
           unzip -o godot-editor.zip
-          # The zip contains a file like Godot_v4.2.2-stable_linux.x86_64
           EDITOR_BIN=$(find . -maxdepth 1 -name 'Godot_v*_linux.x86_64' -not -name '*.zip' | head -1)
           if [ -z "$EDITOR_BIN" ]; then
             echo "ERROR: Could not find Godot editor binary after unzip"
@@ -70,7 +69,6 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           wget -q "$TEMPLATES_URL" -O templates.tpz
           unzip -o templates.tpz
-          # The tpz contains a "templates/" folder with all template files
           ls templates/
           cp templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed:"
@@ -82,6 +80,36 @@ jobs:
           echo "Importing project..."
           timeout 60 ./godot_editor --headless --import --path . 2>&1 || true
           echo "Import completed (or timed out — that's OK)"
+
+      # ─── Install Android Build Template ───────────────────────
+      # Godot 4.2+ REQUIRES this step for Gradle build.
+      # It extracts android_source.zip from export templates into android/build/
+      - name: Install Android Build Template
+        run: |
+          echo "Installing Android build template..."
+          # Try the Godot CLI command first
+          ./godot_editor --headless --path . --install-android-build-template 2>&1
+          # Verify the android/build directory was created
+          if [ -d "android/build" ]; then
+            echo "Android build template installed successfully!"
+            ls -la android/build/
+          else
+            echo "CLI command didn't create android/build/, trying manual extraction..."
+            # Fallback: manually extract android_source.zip from export templates
+            ANDROID_SOURCE="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip"
+            if [ -f "$ANDROID_SOURCE" ]; then
+              echo "Found android_source.zip, extracting manually..."
+              mkdir -p android/build
+              unzip -o "$ANDROID_SOURCE" -d android/build/
+              echo "Manual extraction done:"
+              ls -la android/build/
+            else
+              echo "ERROR: android_source.zip not found in export templates!"
+              echo "Looking for alternative files..."
+              find ~/.local/share/godot/export_templates/ -name "*android*" -type f 2>/dev/null || true
+              exit 1
+            fi
+          fi
 
       # ─── Debug Keystore ───────────────────────────────────────
       - name: Generate Debug Keystore
@@ -96,17 +124,11 @@ jobs:
       # ─── Update export_presets.cfg for CI keystore ────────────
       - name: Configure Keystore in Export Presets
         run: |
-          echo "=== export_presets.cfg BEFORE ==="
-          cat export_presets.cfg
-          echo ""
           echo "Patching keystore settings..."
-          # Use Python for reliable INI-style patching
           python3 -c "
-          import re
           with open('export_presets.cfg', 'r') as f:
               content = f.read()
 
-          # Patch Android keystore fields
           replacements = {
               'package/keystore=\"\"': 'package/keystore=\"debug.keystore\"',
               'package/keystore_passwd=\"\"': 'package/keystore_passwd=\"android\"',
@@ -125,9 +147,8 @@ jobs:
               f.write(content)
           print('Patched successfully')
           "
-          echo ""
-          echo "=== export_presets.cfg AFTER ==="
-          cat export_presets.cfg
+          echo "=== Patched export_presets.cfg (Android section) ==="
+          sed -n '/\[preset.0\]/,/^\[preset.1\]/p' export_presets.cfg
 
       # ─── Export Android APK ───────────────────────────────────
       - name: Export Android APK
@@ -147,8 +168,6 @@ jobs:
             echo "ERROR: APK not found!"
             echo "=== Listing build directory ==="
             find build/ -type f 2>/dev/null || true
-            echo "=== Listing .godot folder ==="
-            ls -la .godot/ 2>/dev/null || true
             exit 1
           fi
 
