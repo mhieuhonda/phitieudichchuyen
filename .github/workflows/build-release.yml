@@ -27,8 +27,7 @@ jobs:
             libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev \
             libgl1-mesa-dev libglu1-mesa-dev libasound2-dev \
             libpulse-dev libudev-dev libxi-dev libxext-dev \
-            wayland-protocols libwayland-dev \
-            xvfb
+            wayland-protocols libwayland-dev
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -59,73 +58,22 @@ jobs:
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed"
 
-      # KEY FIX: Run Godot editor with Xvfb to let it create editor_settings
-      # in the correct ConfigFile format. Then patch Android SDK path.
-      - name: Initialize Godot and configure Android SDK
+      # KEY FIX: Create editor_settings-4.tres in proper .tres format
+      # Godot 4.2.2 saves editor_settings as a Resource (not ConfigFile!)
+      # Uses ResourceSaver/ResourceLoader - format=3 for Godot 4.2.x
+      - name: Create editor settings with Android SDK path
         run: |
-          # Start Godot editor with Xvfb - it will create editor_settings-4.tres
-          echo "Starting Godot editor to create editor settings..."
-          timeout 30 xvfb-run -a ./godot_editor --editor --path . 2>&1 || true
-          sleep 2
-
-          # Check if editor settings were created
-          SETTINGS_FILE="$HOME/.config/godot/editor_settings-4.tres"
-          if [ -f "$SETTINGS_FILE" ]; then
-            echo "Editor settings file found! Patching Android SDK path..."
-            echo "=== Before patch ==="
-            cat "$SETTINGS_FILE" | head -30
-          else
-            echo "Editor settings NOT found. Creating from scratch..."
-            mkdir -p "$(dirname "$SETTINGS_FILE")"
-            # Write in ConfigFile format (INI-style, NOT .tres)
-            # Godot 4.2.2 uses this format for editor_settings
-            cat > "$SETTINGS_FILE" << 'SETTINGS_EOF'
-          [export/android]
-
-          android_sdk_path="/usr/local/lib/android/sdk"
-          debug_keystore=""
-          debug_keystore_pass=""
-          debug_keystore_user=""
-          force_system_user=false
-
-          [network/http_proxy]
-
-          host=""
-          port=0
-
-          [text_editor/theme]
-
-          color_theme="Default"
-          SETTINGS_EOF
-          fi
-
-          # Patch Android SDK path using Python (handles both formats)
+          mkdir -p ~/.config/godot/
+          # Godot 4.2.2 uses format=3 for .tres resources
+          # The EditorSettings class uses ResourceLoader::load() to read this file
           python3 << 'PYEOF'
-          import os, re
+          import os
           settings_path = os.path.expanduser("~/.config/godot/editor_settings-4.tres")
-          with open(settings_path, "r") as f:
-              content = f.read()
-
-          # If android_sdk_path exists but is empty or wrong
-          if "android_sdk_path" in content:
-              content = re.sub(
-                  r'android_sdk_path\s*=\s*"[^"]*"',
-                  'android_sdk_path="/usr/local/lib/android/sdk"',
-                  content
-              )
-          elif "[export/android]" in content:
-              content = content.replace(
-                  "[export/android]\n",
-                  '[export/android]\n\nandroid_sdk_path="/usr/local/lib/android/sdk"\n'
-              )
-          else:
-              # Add section at the end
-              content += '\n[export/android]\n\nandroid_sdk_path="/usr/local/lib/android/sdk"\n'
-
           with open(settings_path, "w") as f:
-              f.write(content)
-          print("Patched Android SDK path")
-          print("=== Final editor settings ===")
+              f.write('[gd_resource type="EditorSettings" format=3]\n\n')
+              f.write('[resource]\n\n')
+              f.write('export/android/android_sdk_path = "/usr/local/lib/android/sdk"\n')
+          print("Editor settings created at", settings_path)
           with open(settings_path, "r") as f:
               print(f.read())
           PYEOF
