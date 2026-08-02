@@ -2,6 +2,67 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [0.7] - 2026-08-02
+
+### Fixed
+- **[CRITICAL] Fix game không full màn hình**: `project.godot` có `window/size/mode=2` (MAXIMIZED) thay vì 3 (FULLSCREEN). Giờ set mode=3 + runtime enforce fullscreen qua `DisplayServer.window_set_mode()` trong `settings_manager._ready()`
+- **[CRITICAL] Fix hướng màn hình sai (portrait thay vì landscape)**: `project.godot` có `window/handheld/orientation=1` (PORTRAIT). Giờ set =4 (SENSOR_LANDSCAPE) + runtime enforce `DisplayServer.screen_set_orientation(SCREEN_SENSOR_LANDSCAPE)` trên mobile
+- **[CRITICAL] Fix game trông "nhỏ" trên màn hình**: `Camera2D.zoom=0.6` làm game world chỉ hiện 60% kích thước thật. Giờ zoom=1.0 (full size)
+- **[CRITICAL] Fix mobile controls không hiện trên iOS**: visibility check chỉ có `OS.has_feature("mobile") or OS.has_feature("android")`, thiếu iOS. Giờ thêm `OS.has_feature("ios") or DisplayServer.is_touchscreen_available()`
+- **[CRITICAL] Fix touch index không track khi nhấn nút throw**: `mobile_controls.gd` dùng `button_down`/`button_up` signal nhưng không biết được touch index nào đã nhấn. Giờ track touch index trực tiếp trong `_input()` bằng cách check `InputEventScreenTouch` press trong rect của nút
+- Fix `_get_active_touch_pos()` luôn trả về Vector2.ZERO (dead code) - removed trong refactor mobile_controls
+- Fix `virtual_joystick.gd._ready()` chỉ tính `center_pos` 1 lần - sai khi resize/rotation. Giờ refresh mỗi frame trong `_process` và mỗi input
+- Fix `ai_player.take_damage_from` dùng single-line if có semicolon `if current_hp <= 0: current_hp = 0; kill(attacker)` khó đọc. Giờ multi-line block
+- Fix `dart.gd._ready()` set `sprite.scale = Vector2(0.5, 0.5)` trùng với .tscn (redundant)
+- Fix `player.tscn` AimLine color vàng (1,1,0,0.8) thay vì đỏ như user yêu cầu. Giờ Color(1, 0.15, 0.15, 0.9)
+- Fix HUD controls hint không mô tả cơ chế mobile mới
+
+### Added
+- **Nút bắn phi tiêu mới (Mobile v0.7)**: Cơ chế "hold-rotate-release":
+  - Ấn giữ nút → kere chỉ màu ĐỎ xuất hiện từ player
+  - Kéo ngón tay quanh nút để xoay hướng bắn
+  - Kéo xa hơn = lực mạnh hơn (min → max throw power)
+  - Thả nút → bắn phi tiêu theo hướng đã ngắm
+- `player.start_aim_mobile()`, `update_aim_mobile(direction, power)`, `throw_dart_mobile(direction, power)` - public API cho mobile
+- `player.aim_direction`, `player.aim_power` fields cho direction-based aim (thay vì slingshot)
+- `player.aim_touch_index` field để distinguish desktop vs mobile aim mode
+- `player._spawn_dart(direction, power)` helper chia sẻ giữa desktop/mobile
+- `mobile_controls.throw_started`, `throw_aim_updated`, `throw_ended` signals (không còn pass position, pass direction + power)
+- `settings_manager._is_touch_device()` helper - check mobile/android/ios/touchscreen
+- `settings_manager._apply_display_settings()` - enforce fullscreen + landscape at runtime
+- Mobile controls hit area mở rộng 20px mỗi chiều để dễ chạm hơn
+- Joystick hit area mở rộng 80px padding để dễ chạm bằng ngón cái
+- `config/version="0.7"` trong project.godot
+
+### Changed
+- `project.godot`: window mode 2 → 3 (fullscreen), orientation 1 → 4 (sensor_landscape)
+- `scenes/main.tscn`: Camera2D zoom 0.6 → 1.0
+- `scenes/player.tscn`: AimLine width 3.0 → 4.0, color vàng → đỏ
+- `scenes/mobile_controls.tscn`: dùng anchors bottom-right thay vì absolute offset, button size 80x80, stretch_mode=0 (SCALE)
+- `scenes/virtual_joystick.tscn`: dùng anchors bottom-left thay vì absolute offset, base fills container, stick anchored center
+- `scenes/hud.tscn`: tất cả elements dùng anchors (top-left, top-right, bottom, center) thay vì absolute pixel offsets
+- `scenes/menu.tscn`: tất cả buttons/labels dùng anchor center, responsive trên mọi màn hình
+- `scenes/settings.tscn`: dùng HBoxContainer cho quality buttons, anchors center cho các controls khác
+- `scenes/loading.tscn`: dùng anchor center cho tất cả elements
+- `scripts/mobile_controls.gd`: hoàn toàn rewrite với direction-based aim mechanic + touch index tracking
+- `scripts/virtual_joystick.gd`: refresh center_pos mỗi frame, dùng `stick.global_position` thay vì `stick.position`, hit area padding 80px
+- `scripts/player.gd`: tách aim logic thành desktop slingshot (`_start_aim_desktop`, `_throw_dart_desktop`) và mobile direction-based (`start_aim_mobile`, `update_aim_mobile`, `throw_dart_mobile`)
+- `scripts/main.gd`: wire up `throw_aim_updated` signal mới
+- `scripts/settings_manager.gd`: thêm `_is_touch_device()`, `_apply_display_settings()`, enforce fullscreen + landscape
+- `scripts/hud.gd`: controls hint mô tả cơ chế mobile mới (hold-red line-rotate-release)
+- `scripts/menu.gd`: version_label = "v0.7 - Full-screen + Mobile Aim", new_feature_label mô tả v0.7
+- `scripts/settings_menu.gd`: `$QualityVeryLow` → `$QualityButtons/QualityVeryLow` (do dùng HBoxContainer)
+- `export_presets.cfg`: version/code 6 → 7, version/name "0.6" → "0.7", file_version "0.6.0.0" → "0.7.0.0"
+- `README.md`: cập nhật badge v0.7, thêm section "Lỗi đã fix trong v0.7", cập nhật "Cách chơi" cho mobile aim mới
+
+### Removed
+- `mobile_controls._get_active_touch_pos()` (dead code)
+- `mobile_controls._on_throw_down`, `_on_throw_up` (button_down/up signals không còn dùng, thay bằng `_input` tracking)
+- `mobile_controls.aim_start_pos`, `aim_current_pos`, `active_throw_touch_index` (thay bằng `aim_touch_index`, `aim_touch_pos`)
+- `player._start_aiming()`, `player._throw_dart()` (public, replaced by `_start_aim_desktop`/`_throw_dart_desktop` for desktop + `start_aim_mobile`/`throw_dart_mobile` for mobile)
+- `player._update_aim_line()` color logic (Color(t, 1.0-t, 0.0) gradient) - replaced by fixed red color
+- `player._calculate_power()` (slingshot power) - renamed to `_calculate_power_slingshot()` for clarity
+
 ## [0.6] - 2026-08-02
 
 ### Fixed

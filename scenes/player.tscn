@@ -17,8 +17,8 @@ shape = SubResource("CircleShape2D_player")
 
 [node name="AimLine" type="Line2D" parent="."]
 visible = false
-width = 3.0
-default_color = Color(1, 1, 0, 0.8)
+width = 4.0
+default_color = Color(1, 0.15, 0.15, 0.9)
 
 [node name="HpBar" type="ProgressBar" parent="."]
 offset_left = -25.0

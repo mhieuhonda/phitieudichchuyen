@@ -17,6 +17,11 @@ const KILLER_NONE := ""
 
 var is_alive: bool = true
 var is_aiming: bool = false
+# Hướng ngắm (world-space direction, normalized)
+var aim_direction: Vector2 = Vector2.RIGHT
+# Lực ném (0..1)
+var aim_power: float = 0.5
+# Legacy fields (chỉ còn dùng cho desktop slingshot)
 var aim_start_pos: Vector2 = Vector2.ZERO
 var aim_current_pos: Vector2 = Vector2.ZERO
 var all_darts: Array = []
@@ -30,6 +35,7 @@ var joystick_ref: Control = null  # Reference to VirtualJoystick
 var last_killer_name: String = KILLER_NONE
 var dart_bonus: int = 0  # Bonus max darts from DART_REFILL pickup
 var dart_bonus_timer: float = 0.0
+var aim_touch_index: int = -1  # -1 = desktop mode, >=0 = mobile mode
 
 var dart_scene: PackedScene = preload("res://scenes/dart.tscn")
 
@@ -60,8 +66,12 @@ func set_joystick(joy: Control):
 
 func _apply_quality_settings():
         var mult = SettingsManager.get_particle_multiplier()
-        teleport_particles.amount = int(20 * mult)
-        death_particles.amount = int(30 * mult)
+        # Godot yêu cầu amount >= 1, dùng max để đảm bảo
+        teleport_particles.amount = max(1, int(20 * mult))
+        death_particles.amount = max(1, int(30 * mult))
+        if mult <= 0:
+                teleport_particles.emitting = false
+                death_particles.emitting = false
 
 func _physics_process(delta):
         if not is_alive:
@@ -113,67 +123,97 @@ func _physics_process(delta):
 func _input(event: InputEvent):
         if not is_alive:
                 return
-        
+
+        # Desktop: right-click slingshot (giữ nguyên cho PC)
         if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
                 if event.pressed:
-                        _start_aiming(event.global_position)
+                        _start_aim_desktop(event.global_position)
                 else:
-                        _throw_dart(event.global_position)
-        
+                        _throw_dart_desktop(event.global_position)
+
         if event is InputEventMouseMotion and is_aiming:
-                aim_current_pos = event.global_position
-                _update_aim_line()
-        
-        # Touch drag cho mobile - cập nhật vị trí aim khi kéo ngón tay
-        if event is InputEventScreenDrag and is_aiming:
-                aim_current_pos = event.position
-                _update_aim_line()
-        
+                # Chỉ cập nhật nếu đang ở desktop mode (mobile dùng _update_aim)
+                if aim_touch_index == -1:
+                        aim_current_pos = event.global_position
+                        _calc_and_update_aim_from_slingshot()
+
         if event.is_action_pressed("teleport"):
                 _teleport_to_dart()
 
-func _start_aiming(mouse_pos: Vector2):
+# === MOBILE API (gọi từ mobile_controls.gd qua main.gd) ===
+func start_aim_mobile():
         if _count_active_darts() >= _get_max_darts():
                 return
         is_aiming = true
-        aim_start_pos = mouse_pos
-        aim_current_pos = mouse_pos
+        aim_touch_index = 0  # Đánh dấu đang ở mobile mode
+        aim_direction = Vector2.RIGHT  # Mặc định ban đầu
+        aim_power = GameManager.min_throw_power
         aim_line.visible = true
         _update_aim_line()
 
-func _get_max_darts() -> int:
-        return GameManager.max_darts_per_player + dart_bonus
-
-func _update_aim_line():
+func update_aim_mobile(direction: Vector2, power: float):
         if not is_aiming:
                 return
-        var direction = (aim_start_pos - aim_current_pos).normalized()
-        var power = _calculate_power()
-        aim_line.clear_points()
-        aim_line.add_point(Vector2.ZERO)
-        aim_line.add_point(direction * power * 200)
-        var t = power
-        aim_line.default_color = Color(t, 1.0 - t, 0.0)
+        if direction != Vector2.ZERO:
+                aim_direction = direction.normalized()
+        aim_power = clamp(power, GameManager.min_throw_power, GameManager.max_throw_power)
+        _update_aim_line()
 
-func _calculate_power() -> float:
+func throw_dart_mobile(direction: Vector2, power: float):
+        if not is_aiming:
+                return
+        is_aiming = false
+        aim_line.visible = false
+        aim_touch_index = -1
+        if _count_active_darts() >= _get_max_darts():
+                return
+        var dir = direction
+        if dir == Vector2.ZERO:
+                dir = aim_direction
+        if dir == Vector2.ZERO:
+                dir = Vector2.RIGHT
+        dir = dir.normalized()
+        var pwr = clamp(power, GameManager.min_throw_power, GameManager.max_throw_power)
+        _spawn_dart(dir, pwr)
+
+# === DESKTOP slingshot (giữ nguyên cho PC) ===
+func _start_aim_desktop(mouse_pos: Vector2):
+        if _count_active_darts() >= _get_max_darts():
+                return
+        is_aiming = true
+        aim_touch_index = -1  # Đánh dấu desktop mode
+        aim_start_pos = mouse_pos
+        aim_current_pos = mouse_pos
+        aim_line.visible = true
+        _calc_and_update_aim_from_slingshot()
+
+func _calc_and_update_aim_from_slingshot():
+        var direction = (aim_start_pos - aim_current_pos).normalized()
+        if direction == Vector2.ZERO:
+                direction = Vector2.RIGHT
+        aim_direction = direction
+        aim_power = _calculate_power_slingshot()
+        _update_aim_line()
+
+func _calculate_power_slingshot() -> float:
         var drag_distance = (aim_start_pos - aim_current_pos).length()
         return clamp(drag_distance / 300.0, GameManager.min_throw_power, GameManager.max_throw_power)
 
-func _throw_dart(mouse_pos: Vector2):
+func _throw_dart_desktop(mouse_pos: Vector2):
         if not is_aiming:
                 return
         is_aiming = false
         aim_line.visible = false
         if _count_active_darts() >= _get_max_darts():
                 return
-        # Cập nhật aim_current_pos từ vị trí thả nút (mobile) hoặc chuột (PC)
         aim_current_pos = mouse_pos
         var direction = (aim_start_pos - aim_current_pos).normalized()
-        # Nếu không có drag (direction zero), mặc định ném về phía trước player
         if direction == Vector2.ZERO:
                 direction = Vector2.RIGHT
-        var power = _calculate_power()
-        
+        var power = _calculate_power_slingshot()
+        _spawn_dart(direction, power)
+
+func _spawn_dart(direction: Vector2, power: float):
         var dart = dart_scene.instantiate()
         dart.global_position = global_position
         dart.set_direction(direction, power)
@@ -186,6 +226,22 @@ func _throw_dart(mouse_pos: Vector2):
         dart.dart_consumed.connect(_on_dart_consumed)
         all_darts.append(dart)
         emit_signal("dart_thrown", dart)
+
+func _get_max_darts() -> int:
+        return GameManager.max_darts_per_player + dart_bonus
+
+func _update_aim_line():
+        if not is_aiming:
+                return
+        aim_line.clear_points()
+        aim_line.add_point(Vector2.ZERO)
+        # Line length scales với power (max 300px ở full power)
+        var line_length = 80.0 + aim_power * 220.0
+        aim_line.add_point(aim_direction * line_length)
+        # MÀU ĐỎ như user yêu cầu, intensity tăng theo power
+        aim_line.default_color = Color(1.0, 0.15, 0.15, 0.9)
+        # Width cũng tăng nhẹ theo power
+        aim_line.width = 3.0 + aim_power * 2.0
 
 func _count_active_darts() -> int:
         var count = 0

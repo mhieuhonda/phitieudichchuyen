@@ -1,20 +1,26 @@
 extends Control
 
-## MobileControls - Nút bấm ảo cho mobile
-## Teleport + Throw buttons ở góc dưới phải
-## Throw: hold button + kéo ngón tay để ngắm, thả để ném (slingshot)
+## MobileControls - Nút bấm ảo cho mobile (v0.7)
+## Cơ chế MỚI: Ấn giữ nút phi tiêu → xuất hiện kẻ chỉ màu đỏ
+##                Kéo ngón tay để xoay hướng + điều chỉnh lực
+##                Thả tay ra → BẮN!
+## Cơ chế dịch chuyển: Chạm nút → dịch chuyển tới phi tiêu
 
 signal teleport_pressed()
-signal throw_started(pos: Vector2)
-signal throw_ended(pos: Vector2)
+signal throw_started()
+signal throw_aim_updated(direction: Vector2, power: float)
+signal throw_ended(direction: Vector2, power: float)
 
 @onready var teleport_btn: TextureButton = $TeleportButton
 @onready var throw_btn: TextureButton = $ThrowButton
 
+# Touch tracking cho nút throw
 var is_aiming: bool = false
-var aim_start_pos: Vector2 = Vector2.ZERO
-var aim_current_pos: Vector2 = Vector2.ZERO
-var active_throw_touch_index: int = -1
+var aim_touch_index: int = -1
+var aim_touch_pos: Vector2 = Vector2.ZERO
+# Mouse fallback (cho desktop testing)
+var is_mouse_aiming: bool = false
+var mouse_aim_pos: Vector2 = Vector2.ZERO
 
 func _ready():
 	# Load textures
@@ -24,58 +30,99 @@ func _ready():
 		teleport_btn.texture_normal = tp_tex
 	if throw_tex:
 		throw_btn.texture_normal = throw_tex
-	
-	# Auto-hide on desktop
-	if not OS.has_feature("mobile") and not OS.has_feature("android"):
-		if not SettingsManager.show_joystick:
-			visible = false
-	
+
+	_update_visibility()
+
 	teleport_btn.pressed.connect(_on_teleport_pressed)
-	throw_btn.button_down.connect(_on_throw_down)
-	throw_btn.button_up.connect(_on_throw_up)
+
+func _update_visibility():
+	# Luôn hiện trên touch device; trên desktop chỉ hiện khi show_joystick=true
+	var is_touch = _is_touch_device()
+	if not is_touch and not SettingsManager.show_joystick:
+		visible = false
+	else:
+		visible = true
+
+func _is_touch_device() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios") or DisplayServer.is_touchscreen_available()
 
 func _on_teleport_pressed():
 	emit_signal("teleport_pressed")
 
-func _on_throw_down():
-	# Bắt đầu aim: dùng vị trí ngón tay hiện tại làm start
-	aim_start_pos = _get_active_touch_pos()
-	if aim_start_pos == Vector2.ZERO:
-		# Fallback: trung tâm nút
-		aim_start_pos = throw_btn.global_position + throw_btn.size / 2.0
-	aim_current_pos = aim_start_pos
-	is_aiming = true
-	emit_signal("throw_started", aim_start_pos)
-
-func _on_throw_up():
-	# Kết thúc aim: emit vị trí ngón tay hiện tại
-	var end_pos = aim_current_pos if aim_current_pos != Vector2.ZERO else throw_btn.global_position + throw_btn.size / 2.0
-	is_aiming = false
-	active_throw_touch_index = -1
-	emit_signal("throw_ended", end_pos)
-	aim_current_pos = Vector2.ZERO
-	aim_start_pos = Vector2.ZERO
-
 func _input(event: InputEvent):
+	# === Touch handling ===
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			# Chạm vào nút throw → bắt đầu aim
+			if _is_point_in_throw_button(event.position) and aim_touch_index == -1 and not is_aiming:
+				aim_touch_index = event.index
+				aim_touch_pos = event.position
+				_start_aim()
+		elif event.index == aim_touch_index:
+			# Ngón tay đang aim được nhấc ra → bắn
+			aim_touch_pos = event.position
+			_end_aim()
+
+	elif event is InputEventScreenDrag and event.index == aim_touch_index:
+		aim_touch_pos = event.position
+		_update_aim()
+
+	# === Mouse fallback (desktop testing) ===
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and _is_point_in_throw_button(event.position) and not is_mouse_aiming and not is_aiming:
+			is_mouse_aiming = true
+			mouse_aim_pos = event.position
+			_start_aim()
+		elif not event.pressed and is_mouse_aiming:
+			mouse_aim_pos = event.position
+			is_mouse_aiming = false
+			_end_aim()
+
+	elif event is InputEventMouseMotion and is_mouse_aiming:
+		mouse_aim_pos = event.global_position
+		_update_aim()
+
+func _is_point_in_throw_button(pos: Vector2) -> bool:
+	var rect = Rect2(throw_btn.global_position, throw_btn.size)
+	# Mở rộng hit area 20px mỗi chiều để dễ chạm hơn
+	var expanded = rect.grow(20.0)
+	return expanded.has_point(pos)
+
+func _get_aim_pos() -> Vector2:
+	if aim_touch_index != -1:
+		return aim_touch_pos
+	if is_mouse_aiming:
+		return mouse_aim_pos
+	return throw_btn.global_position + throw_btn.size / 2.0
+
+func _start_aim():
+	is_aiming = true
+	emit_signal("throw_started")
+
+func _update_aim():
+	var dir = _calculate_direction()
+	var power = _calculate_power()
+	emit_signal("throw_aim_updated", dir, power)
+
+func _end_aim():
 	if not is_aiming:
 		return
-	
-	# Cập nhật vị trí ngón tay khi kéo (aim current)
-	if event is InputEventScreenTouch and event.pressed and active_throw_touch_index == -1:
-		active_throw_touch_index = event.index
-		aim_current_pos = event.position
-	elif event is InputEventScreenTouch and not event.pressed and event.index == active_throw_touch_index:
-		aim_current_pos = event.position
-		# Button up sẽ được gọi tự động
-	elif event is InputEventScreenDrag and event.index == active_throw_touch_index:
-		aim_current_pos = event.position
-	# Mouse fallback (testing trên desktop)
-	elif event is InputEventMouseMotion:
-		aim_current_pos = event.global_position
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
-		aim_current_pos = event.global_position
+	is_aiming = false
+	var dir = _calculate_direction()
+	var power = _calculate_power()
+	aim_touch_index = -1
+	is_mouse_aiming = false
+	emit_signal("throw_ended", dir, power)
 
-func _get_active_touch_pos() -> Vector2:
-	# Trả về vị trí touch hiện tại nếu có
-	# (Godot 4 không có API trực tiếp để lấy tất cả touch, nên dùng fallback)
-	return Vector2.ZERO
+func _calculate_direction() -> Vector2:
+	# Hướng từ tâm nút throw đến vị trí ngón tay
+	var btn_center = throw_btn.global_position + throw_btn.size / 2.0
+	var diff = _get_aim_pos() - btn_center
+	if diff.length() < 8.0:
+		return Vector2.ZERO
+	return diff.normalized()
+
+func _calculate_power() -> float:
+	var btn_center = throw_btn.global_position + throw_btn.size / 2.0
+	var dist = (_get_aim_pos() - btn_center).length()
+	return clamp(dist / 150.0, GameManager.min_throw_power, GameManager.max_throw_power)

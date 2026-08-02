@@ -1,7 +1,8 @@
 extends Control
 
-## VirtualJoystick - Joystick ảo cho mobile
+## VirtualJoystick - Joystick ảo cho mobile (v0.7)
 ## Hiển thị ở góc dưới trái, hỗ trợ touch/mouse
+## Tự động scale với mọi kích thước màn hình
 
 @export var max_distance: float = 80.0
 @export var deadzone: float = 10.0
@@ -23,19 +24,35 @@ func _ready():
 		base.texture = base_tex
 	if stick_tex:
 		stick.texture = stick_tex
-	
+
 	# Auto-hide on desktop if not forced
-	if not OS.has_feature("mobile") and not OS.has_feature("android"):
+	if not _is_touch_device():
 		if not SettingsManager.show_joystick:
 			visible = false
-	
-	center_pos = base.position + base.size / 2.0
-	_update_stick_position(center_pos)
+
+	# Defer center calc để layout kịp compute
+	call_deferred("_refresh_center")
+
+func _is_touch_device() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios") or DisplayServer.is_touchscreen_available()
+
+func _refresh_center():
+	if base and is_instance_valid(base):
+		center_pos = base.global_position + base.size / 2.0
+		_update_stick_position(center_pos)
+
+func _process(_delta):
+	# Cập nhật center_pos mỗi frame để handle resize/rotation
+	if not is_pressed:
+		_refresh_center()
 
 func _input(event: InputEvent):
 	if not visible:
 		return
-	
+
+	# Refresh center mỗi lần nhận input để chắc chắn đúng vị trí
+	_refresh_center()
+
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			if _is_in_joystick_area(event.position):
@@ -48,11 +65,11 @@ func _input(event: InputEvent):
 				touch_index = -1
 				joystick_output = Vector2.ZERO
 				_update_stick_position(center_pos)
-	
+
 	elif event is InputEventScreenDrag:
 		if event.index == touch_index and is_pressed:
 			_update_joystick(event.position)
-	
+
 	# Mouse fallback for testing
 	elif event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -64,33 +81,36 @@ func _input(event: InputEvent):
 				is_pressed = false
 				joystick_output = Vector2.ZERO
 				_update_stick_position(center_pos)
-	
+
 	elif event is InputEventMouseMotion:
 		if is_pressed:
 			_update_joystick(event.position)
 
 func _is_in_joystick_area(pos: Vector2) -> bool:
-	var joy_rect = Rect2(base.global_position - Vector2(60, 60), base.size + Vector2(120, 120))
+	# Hit area = base rect + 60px padding mỗi chiều (dễ chạm bằng ngón cái)
+	var padding = 80.0
+	var joy_rect = Rect2(base.global_position - Vector2(padding, padding), base.size + Vector2(padding * 2, padding * 2))
 	return joy_rect.has_point(pos)
 
 func _update_joystick(touch_pos: Vector2):
 	var diff = touch_pos - center_pos
 	var dist = diff.length()
-	
+
 	if dist <= deadzone:
 		joystick_output = Vector2.ZERO
 		_update_stick_position(center_pos)
 		return
-	
+
 	var clamped_dist = min(dist, max_distance)
 	var direction = diff.normalized()
 	joystick_output = direction * (clamped_dist / max_distance)
-	
+
 	var stick_pos = center_pos + direction * clamped_dist
 	_update_stick_position(stick_pos)
 
 func _update_stick_position(pos: Vector2):
-	stick.position = pos - stick.size / 2.0
+	if stick and is_instance_valid(stick):
+		stick.global_position = pos - stick.size / 2.0
 
 func get_direction() -> Vector2:
 	return joystick_output

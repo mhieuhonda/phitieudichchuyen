@@ -32,6 +32,7 @@ func _ready():
         if mobile_controls:
                 mobile_controls.teleport_pressed.connect(_on_mobile_teleport)
                 mobile_controls.throw_started.connect(_on_mobile_throw_start)
+                mobile_controls.throw_aim_updated.connect(_on_mobile_throw_aim)
                 mobile_controls.throw_ended.connect(_on_mobile_throw_end)
         
         hud.set_player(player)
@@ -79,11 +80,14 @@ func _process(delta):
 func _on_mobile_teleport():
         player._teleport_to_dart()
 
-func _on_mobile_throw_start(pos: Vector2):
-        player._start_aiming(pos)
+func _on_mobile_throw_start():
+        player.start_aim_mobile()
 
-func _on_mobile_throw_end(pos: Vector2):
-        player._throw_dart(pos)
+func _on_mobile_throw_aim(direction: Vector2, power: float):
+        player.update_aim_mobile(direction, power)
+
+func _on_mobile_throw_end(direction: Vector2, power: float):
+        player.throw_dart_mobile(direction, power)
 
 func _on_player_died(p: CharacterBody2D):
         var killer = p.get_killer_name()

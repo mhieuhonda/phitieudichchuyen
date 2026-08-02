@@ -2,7 +2,7 @@
 
 > Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down dành cho PC và Mobile.
 
-[![Release](https://img.shields.io/badge/release-v0.6-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
+[![Release](https://img.shields.io/badge/release-v0.7-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
 [![Godot](https://img.shields.io/badge/Godot-4.2.2-478CBF.svg)](https://godotengine.org/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-green.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
@@ -19,31 +19,35 @@
 - ⚡ **Dịch chuyển giữa chừng**: Dịch chuyển khi phi tiêu đang bay, tạo yếu tố bất ngờ
 - 🤖 **AI thông minh**: 5 bot đối thủ với hành vi đa dạng (đi tuần, săn đuổi, né tránh, tấn công)
 - 📱 **Hỗ trợ Mobile**: Joystick ảo + nút bấm, tự động hiện trên thiết bị di động
+- 🔴 **Nút bắn phi tiêu mới (v0.7)**: Giữ nút → kẻ chỉ màu đỏ, kéo xoay hướng, thả để bắn
+- 🖥️ **Full-screen landscape (v0.7)**: Tự động full màn hình + hướng ngang trên mọi thiết bị
 - 🔍 **Auto-detect thiết bị**: Tự nhận diện máy yếu/mạnh, chọn đồ họa phù hợp
 - 🎮 **4 mức đồ họa**: Cực Thấp → Thấp → Trung Bình → Cao
 - 💊 **Vật phẩm**: Hồi máu và nạp phi tiêu rải trên bản đồ
 - 🔥 **Hệ thống Combo**: Tiêu diệt liên tiếp để nhân điểm
 - ⭕ **Vòng bo thu nhỏ**: Khu vực an toàn thu dần, ép người chơi đối đầu
 - 📊 **FPS Counter**: Hiển thị FPS và thông tin thiết bị
+- 📐 **Responsive UI**: Tất cả UI dùng anchors, tự scale mọi kích thước màn hình
 
 ---
 
 ## 🎮 Cách chơi
 
-| Hành động | PC (Bàn phím/Chuột) | Mobile |
+| Hành động | PC (Bàn phím/Chuột) | Mobile (v0.7) |
 |-----------|---------------------|--------|
 | Di chuyển | W/A/S/D hoặc Phím mũi tên | Joystick trái |
-| Ngắm phi tiêu | Giữ chuột phải | Nút Ném |
-| Ném phi tiêu | Thả chuột phải | Thả nút Ném |
+| Ngắm phi tiêu | Giữ chuột phải, kéo để điều chỉnh lực | **Giữ nút Bắn** → kẻ chỉ màu đỏ xuất hiện |
+| Xoay hướng ngắm | Kéo chuột | **Kéo ngón tay** quanh nút Bắn để xoay hướng |
+| Ném phi tiêu | Thả chuột phải | **Thả nút Bắn** |
 | Dịch chuyển | Space | Nút Dịch chuyển |
-| Khởi động lại | R | Nút trên HUD |
 | Quay lại menu | Escape | Nút trên HUD |
 
 ### Cơ chế chính
 
-- **Ném phi tiêu**: Giữ chuột phải để ngắm, kéo để điều chỉnh lực, thả để ném. Tối đa 3 phi tiêu cùng lúc.
-- **Dịch chuyển**: Nhấn Space để dịch chuyển tức thời đến vị trí phi tiêu vừa ném. Phi tiêu biến mất sau khi dịch chuyển.
-- **Dịch chuyển giữa chừng**: Nhấn Space khi phi tiêu đang bay để dịch chuyển đến vị trí hiện tại của phi tiêu!
+- **Ném phi tiêu (PC)**: Giữ chuột phải để ngắm, kéo để điều chỉnh lực và hướng (slingshot), thả để ném. Tối đa 3 phi tiêu cùng lúc.
+- **Ném phi tiêu (Mobile v0.7)**: Giữ nút Bắn → kẻ chỉ màu ĐỎ xuất hiện. Kéo ngón tay quanh nút để xoay hướng. Kéo xa hơn = lực mạnh hơn. Thả nút để bắn.
+- **Dịch chuyển**: Nhấn nút Dịch chuyển (Mobile) hoặc Space (PC) để dịch chuyển tức thời đến vị trí phi tiêu vừa ném.
+- **Dịch chuyển giữa chừng**: Nhấn khi phi tiêu đang bay để dịch chuyển đến vị trí hiện tại của phi tiêu!
 - **Nuốt đối thủ**: Dịch chuyển đến gần AI đối thủ để tiêu diệt, tăng kích thước và điểm số.
 - **Vòng bo**: Khu vực an toàn thu nhỏ dần, ở ngoài sẽ mất máu.
 - **Combo**: Tiêu diệt liên tiếp trong thời gian ngắn để nhân điểm (x1.5, x2.0, x2.5...).
@@ -179,6 +183,58 @@ phitieudichchuyen/
 ├── CHANGELOG.md                  # Lịch sử thay đổi
 └── README.md                     # File này
 ```
+
+---
+
+## 🐛 Lỗi đã fix trong v0.7
+
+| # | Mô tả | Mức độ | File |
+|---|-------|--------|------|
+| 1 | Game không full màn hình (window mode=2 = maximized, không phải fullscreen) | 🔴 Critical | `project.godot`, `scripts/settings_manager.gd` |
+| 2 | Hướng màn hình portrait (orientation=1) thay vì landscape | 🔴 Critical | `project.godot` |
+| 3 | Camera zoom=0.6 làm game trông "nhỏ" trên màn hình | 🔴 Critical | `scenes/main.tscn` |
+| 4 | Mobile controls không hiện trên iOS (thiếu OS.has_feature("ios")) | 🔴 Critical | `scripts/mobile_controls.gd`, `scripts/virtual_joystick.gd` |
+| 5 | Touch index không được track khi nhấn nút throw → drag không cập nhật aim | 🔴 Critical | `scripts/mobile_controls.gd` |
+| 6 | **`dart.tscn` không có script attached** → dart không bay, không cắm, không gây damage | 🔴 Critical | `scenes/dart.tscn` |
+| 7 | **`pickup.tscn` không có script attached** → pickup không nhặt được | 🔴 Critical | `scenes/pickup.tscn` |
+| 8 | Signal `body_entered` connect 2 lần (cả trong .tscn và trong script _ready) | 🔴 Critical | `scripts/dart.gd`, `scripts/pickup.gd` |
+| 9 | `CPUParticles2D.amount = 0` khi quality VERY_LOW → Godot error | 🟡 High | `scripts/dart.gd`, `scripts/player.gd`, `scripts/ai_player.gd` |
+| 10 | `_get_active_touch_pos()` luôn trả về Vector2.ZERO (dead code) | 🟡 High | `scripts/mobile_controls.gd` |
+| 11 | Mobile throw mechanic slingshot không trực quan - redesign thành hold-rotate-release | 🟡 High | `scripts/mobile_controls.gd`, `scripts/player.gd` |
+| 12 | Aim line màu vàng thay vì màu đỏ như user yêu cầu | 🟡 High | `scenes/player.tscn`, `scripts/player.gd` |
+| 13 | HUD/menu/settings dùng absolute positioning không scale trên màn hình khác | 🟡 High | `scenes/hud.tscn`, `scenes/menu.tscn`, `scenes/settings.tscn`, `scenes/loading.tscn` |
+| 14 | Joystick/controls cố định pixel offset, không scale | 🟡 High | `scenes/virtual_joystick.tscn`, `scenes/mobile_controls.tscn` |
+| 15 | `ai_player.take_damage_from` dùng single-line if có semicolon khó đọc | 🟢 Minor | `scripts/ai_player.gd` |
+| 16 | `dart.gd._ready()` set sprite.scale trùng với .tscn (redundant) | 🟢 Minor | `scripts/dart.gd` |
+| 17 | `virtual_joystick.gd` center_pos chỉ tính 1 lần ở _ready() - sai khi resize | 🟢 Minor | `scripts/virtual_joystick.gd` |
+| 18 | HUD controls hint không mô tả cơ chế mobile mới | 🟢 Minor | `scripts/hud.gd` |
+
+---
+
+## ✨ Cải tiến v0.7
+
+### 🖥️ Full-screen + Landscape
+- `project.godot`: `window/size/mode=3` (FULLSCREEN) thay vì 2 (MAXIMIZED)
+- `project.godot`: `window/handheld/orientation=4` (SENSOR_LANDSCAPE) thay vì 1 (PORTRAIT)
+- `settings_manager.gd`: runtime enforce fullscreen + landscape trên mọi thiết bị
+
+### 🔴 Nút bắn phi tiêu mới (Mobile)
+- **Cơ chế mới**: Ấn giữ nút → kere chỉ màu ĐỎ xuất hiện từ player
+- Kéo ngón tay quanh nút để xoay hướng bắn
+- Kéo xa hơn = lực mạnh hơn (min_throw_power → max_throw_power)
+- Thả nút → bắn phi tiêu theo hướng đã ngắm
+- Touch index được track chính xác để drag hoạt động đúng
+- Hit area mở rộng 20px để dễ chạm hơn
+
+### 📐 Responsive UI
+- Tất cả HUD elements dùng anchors (top-left, top-right, bottom-left, center, v.v.)
+- Menu, settings, loading screen dùng anchor center cho mọi nút/label
+- Mobile controls anchored bottom-right, joystick anchored bottom-left
+- Joystick tự refresh center_pos mỗi frame để handle resize/rotation
+
+### 📷 Camera
+- Zoom 1.0 (full size) thay vì 0.6 (looking small)
+- Characters và map hiện đúng kích thước trên màn hình
 
 ---
 

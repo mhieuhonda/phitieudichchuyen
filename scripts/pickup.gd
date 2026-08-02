@@ -19,7 +19,7 @@ enum PickupType { HEALTH, DART_REFILL }
 var is_active: bool = true
 
 func _ready():
-        body_entered.connect(_on_body_entered)
+        # body_entered đã được connect trong .tscn, không connect lại
         _update_visual()
 
 func _process(_delta):

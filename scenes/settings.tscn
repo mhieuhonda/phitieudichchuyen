@@ -15,120 +15,184 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.08, 0.08, 0.15, 1)
 
 [node name="Title" type="Label" parent="."]
-offset_left = 400.0
-offset_top = 40.0
-offset_right = 880.0
-offset_bottom = 80.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -240.0
+offset_top = 30.0
+offset_right = 240.0
+offset_bottom = 70.0
+grow_horizontal = 2
 theme_override_font_sizes/font_size = 32
 text = "CÀI ĐẶT"
 horizontal_alignment = 1
 
 [node name="QualityLabel" type="Label" parent="."]
-offset_left = 300.0
-offset_top = 120.0
-offset_right = 980.0
-offset_bottom = 150.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -340.0
+offset_top = 110.0
+offset_right = 340.0
+offset_bottom = 140.0
+grow_horizontal = 2
 text = "Chất lượng đồ họa: Trung Bình"
 horizontal_alignment = 1
 
-[node name="QualityVeryLow" type="Button" parent="."]
-offset_left = 180.0
-offset_top = 170.0
-offset_right = 360.0
-offset_bottom = 210.0
+[node name="QualityButtons" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 160.0
+offset_right = 400.0
+offset_bottom = 200.0
+grow_horizontal = 2
+alignment = 1
+
+[node name="QualityVeryLow" type="Button" parent="QualityButtons"]
+layout_mode = 2
+size_flags_horizontal = 4
 text = "Cực Thấp"
 
-[node name="QualityLow" type="Button" parent="."]
-offset_left = 380.0
-offset_top = 170.0
-offset_right = 560.0
-offset_bottom = 210.0
+[node name="QualityLow" type="Button" parent="QualityButtons"]
+layout_mode = 2
+size_flags_horizontal = 4
 text = "Thấp"
 
-[node name="QualityMedium" type="Button" parent="."]
-offset_left = 580.0
-offset_top = 170.0
-offset_right = 760.0
-offset_bottom = 210.0
+[node name="QualityMedium" type="Button" parent="QualityButtons"]
+layout_mode = 2
+size_flags_horizontal = 4
 text = "Trung Bình"
 
-[node name="QualityHigh" type="Button" parent="."]
-offset_left = 780.0
-offset_top = 170.0
-offset_right = 960.0
-offset_bottom = 210.0
+[node name="QualityHigh" type="Button" parent="QualityButtons"]
+layout_mode = 2
+size_flags_horizontal = 4
 text = "Cao"
 
 [node name="FpsToggle" type="CheckButton" parent="."]
-offset_left = 300.0
-offset_top = 250.0
-offset_right = 500.0
-offset_bottom = 290.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 230.0
+offset_right = 100.0
+offset_bottom = 270.0
+grow_horizontal = 2
 text = "Hiện FPS"
 
 [node name="ShakeToggle" type="CheckButton" parent="."]
-offset_left = 300.0
-offset_top = 300.0
-offset_right = 500.0
-offset_bottom = 340.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 275.0
+offset_right = 100.0
+offset_bottom = 315.0
+grow_horizontal = 2
 text = "Rung màn hình"
 button_pressed = true
 
 [node name="JoystickToggle" type="CheckButton" parent="."]
-offset_left = 300.0
-offset_top = 350.0
-offset_right = 500.0
-offset_bottom = 390.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 320.0
+offset_right = 100.0
+offset_bottom = 360.0
+grow_horizontal = 2
 text = "Joystick ảo"
 button_pressed = true
 
 [node name="SoundLabel" type="Label" parent="."]
-offset_left = 300.0
-offset_top = 420.0
-offset_right = 500.0
-offset_bottom = 450.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 380.0
+offset_right = 200.0
+offset_bottom = 410.0
+grow_horizontal = 2
 text = "Âm thanh: 100%"
 
 [node name="SoundSlider" type="HSlider" parent="."]
-offset_left = 300.0
-offset_top = 460.0
-offset_right = 700.0
-offset_bottom = 480.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 415.0
+offset_right = 200.0
+offset_bottom = 435.0
+grow_horizontal = 2
 max_value = 1.0
 step = 0.05
 value = 1.0
 
 [node name="MusicLabel" type="Label" parent="."]
-offset_left = 300.0
-offset_top = 500.0
-offset_right = 500.0
-offset_bottom = 530.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 450.0
+offset_right = 200.0
+offset_bottom = 480.0
+grow_horizontal = 2
 text = "Nhạc: 70%"
 
 [node name="MusicSlider" type="HSlider" parent="."]
-offset_left = 300.0
-offset_top = 540.0
-offset_right = 700.0
-offset_bottom = 560.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 485.0
+offset_right = 200.0
+offset_bottom = 505.0
+grow_horizontal = 2
 max_value = 1.0
 step = 0.05
 value = 0.7
 
 [node name="BackButton" type="Button" parent="."]
-offset_left = 490.0
-offset_top = 620.0
-offset_right = 790.0
-offset_bottom = 670.0
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -80.0
+offset_right = 150.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
 text = "QUAY LẠI"
 
 [node name="DeviceInfoLabel" type="Label" parent="."]
-offset_left = 100.0
-offset_top = 560.0
-offset_right = 1180.0
-offset_bottom = 590.0
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -50.0
+offset_right = -20.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
 theme_override_font_sizes/font_size = 14
 text = "Đang phát hiện thiết bị..."
 horizontal_alignment = 1

@@ -40,9 +40,24 @@ func _ready():
         _load_settings()
         # Tự phát hiện thiết bị và chọn đồ họa
         _detect_device()
-        # Auto-detect mobile
-        if OS.has_feature("mobile") or OS.has_feature("android"):
+        # Auto-detect mobile (bao gồm iOS)
+        if _is_touch_device():
                 show_joystick = true
+        # Force fullscreen + landscape trên mọi thiết bị
+        _apply_display_settings()
+
+func _is_touch_device() -> bool:
+        return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios") or DisplayServer.is_touchscreen_available()
+
+func _apply_display_settings():
+        # Force landscape orientation trên mobile
+        if _is_touch_device():
+                DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
+        # Fullscreen trên mọi thiết bị (trừ web)
+        if OS.get_name() != "Web":
+                DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+        # Đảm bảo viewport co giãn đúng
+        DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, false)
 
 func _detect_device():
         """Phát hiện khả năng thiết bị và tự chọn đồ họa phù hợp"""
