@@ -119,10 +119,12 @@ jobs:
           echo "Found ${IMPORT_COUNT} .import files"
 
       - name: Install Android Build Template
+        timeout-minutes: 3
         run: |
           export DISPLAY=:99
           echo "Installing Android build template..."
-          ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
+          # Add timeout to prevent hang on --install-android-build-template
+          timeout 60 ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
           if [ -f android/build/build.gradle ]; then
             echo "Android build template installed OK"
           else
