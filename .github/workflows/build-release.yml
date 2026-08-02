@@ -54,9 +54,6 @@ jobs:
       - name: Install Android build tools & platform
         run: |
           sdkmanager --install "build-tools;33.0.2" "platforms;android-33" "platform-tools"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          ls "$ANDROID_HOME"
 
       # ──────────────────────────────────────────────
       # 5. Download Godot Editor
@@ -65,11 +62,9 @@ jobs:
         run: |
           wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -O godot_editor.zip
           unzip -q godot_editor.zip
-          # Godot 4.2.2 zip contains: Godot_v4.2.2-stable_linux.x86_64
           mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot_editor
           chmod +x godot_editor
-          ./godot_editor --version-headless || true
-          echo "Godot editor ready: $(./godot_editor --version 2>/dev/null || echo 'version check skipped')"
+          echo "Godot editor ready"
 
       # ──────────────────────────────────────────────
       # 6. Download & Install Export Templates
@@ -79,7 +74,6 @@ jobs:
           wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -O export_templates.tpz
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           unzip -q export_templates.tpz -d extracted_templates
-          # The tpz contains a "templates/" folder with the actual template files
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed:"
           ls ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
@@ -91,7 +85,7 @@ jobs:
       - name: Configure Godot Editor Settings
         run: |
           mkdir -p ~/.config/godot/
-          cat > ~/.config/godot/editor_settings-4.tres << 'EOF'
+          cat > ~/.config/godot/editor_settings-4.tres << 'SETTINGS'
           [resource]
 
           export/android/android_sdk_path = "/usr/local/lib/android/sdk"
@@ -102,7 +96,7 @@ jobs:
           network/http_proxy/host = ""
           network/http_proxy/port = 0
           text_editor/theme/color_theme = "Default"
-          EOF
+          SETTINGS
           echo "=== Editor settings created ==="
           cat ~/.config/godot/editor_settings-4.tres
 
@@ -114,11 +108,55 @@ jobs:
           echo "Running headless import..."
           timeout 60 ./godot_editor --headless --import . 2>&1 || true
           echo "Import step completed"
-          # Verify .godot folder was created
           ls -la .godot/ 2>/dev/null || echo "Warning: .godot/ not created"
 
       # ──────────────────────────────────────────────
-      # 9. Generate Debug Keystore
+      # 9. Install Android Build Template (MUST be after import)
+      #    This extracts android_source.zip from export templates
+      #    into project's android/build/ directory
+      # ──────────────────────────────────────────────
+      - name: Install Android Build Template
+        run: |
+          echo "Installing Android build template..."
+          ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
+          echo "=== Verifying android/build/ ==="
+          if [ -d android/build ]; then
+            echo "android/build/ exists:"
+            ls -la android/build/
+          else
+            echo "android/build/ NOT found after --install-android-build-template"
+            echo "Attempting manual installation..."
+            # Fallback: manually extract android_source.zip from export templates
+            ANDROID_SOURCE_ZIP=""
+            for f in ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip \
+                     extracted_templates/templates/android_source.zip; do
+              if [ -f "$f" ]; then
+                ANDROID_SOURCE_ZIP="$f"
+                break
+              fi
+            done
+            if [ -n "$ANDROID_SOURCE_ZIP" ]; then
+              echo "Found android_source.zip at: $ANDROID_SOURCE_ZIP"
+              mkdir -p android/build
+              unzip -q "$ANDROID_SOURCE_ZIP" -d android/build/
+              echo "Manual extraction done"
+              ls -la android/build/
+            else
+              echo "ERROR: android_source.zip not found anywhere!"
+              find ~/.local/share/godot/export_templates/ -name "android*" 2>/dev/null
+              exit 1
+            fi
+          fi
+          # Verify key files
+          if [ -f android/build/build.gradle ]; then
+            echo "build.gradle found - Android build template OK"
+          else
+            echo "ERROR: build.gradle not found in android/build/"
+            exit 1
+          fi
+
+      # ──────────────────────────────────────────────
+      # 10. Generate Debug Keystore
       # ──────────────────────────────────────────────
       - name: Generate Debug Keystore
         run: |
@@ -128,10 +166,9 @@ jobs:
             -keypass android \
             -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
             -validity 10000
-          echo "Keystore created: $(ls -la debug.keystore)"
 
       # ──────────────────────────────────────────────
-      # 10. Patch export_presets.cfg with keystore
+      # 11. Patch export_presets.cfg with keystore
       # ──────────────────────────────────────────────
       - name: Configure Keystore in Export Presets
         run: |
@@ -158,7 +195,7 @@ jobs:
           sed -n '/\[preset.0\]/,/^\[preset.1\]/p' export_presets.cfg
 
       # ──────────────────────────────────────────────
-      # 11. Export Android APK
+      # 12. Export Android APK
       # ──────────────────────────────────────────────
       - name: Export Android APK
         run: |
@@ -180,7 +217,7 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 12. Export Windows Desktop
+      # 13. Export Windows Desktop
       # ──────────────────────────────────────────────
       - name: Export Windows Desktop
         run: |
@@ -201,7 +238,7 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 13. Package Windows build
+      # 14. Package Windows build
       # ──────────────────────────────────────────────
       - name: Package Windows build
         run: |
@@ -211,7 +248,7 @@ jobs:
           echo "Windows ZIP created: $(ls -lh phitieudichchuyen-windows.zip)"
 
       # ──────────────────────────────────────────────
-      # 14. Export Linux/X11
+      # 15. Export Linux/X11
       # ──────────────────────────────────────────────
       - name: Export Linux/X11
         run: |
@@ -232,7 +269,7 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 15. Package Linux build
+      # 16. Package Linux build
       # ──────────────────────────────────────────────
       - name: Package Linux build
         run: |
@@ -242,7 +279,7 @@ jobs:
           echo "Linux ZIP created: $(ls -lh phitieudichchuyen-linux.zip)"
 
       # ──────────────────────────────────────────────
-      # 16. List all build artifacts
+      # 17. List all build artifacts
       # ──────────────────────────────────────────────
       - name: List all build artifacts
         run: |
@@ -253,7 +290,7 @@ jobs:
           ls -lh build/android/*.apk 2>/dev/null || echo "No APK"
 
       # ──────────────────────────────────────────────
-      # 17. Upload to GitHub Release
+      # 18. Upload to GitHub Release
       # ──────────────────────────────────────────────
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
