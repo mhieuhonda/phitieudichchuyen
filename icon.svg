@@ -1,6 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <circle cx="64" cy="64" r="60" fill="#1a1a2e" stroke="#e94560" stroke-width="4"/>
-  <polygon points="64,20 75,55 110,55 82,75 92,110 64,88 36,110 46,75 18,55 53,55" fill="#e94560" transform="rotate(0,64,64)"/>
-  <circle cx="64" cy="64" r="12" fill="#0f3460"/>
-  <circle cx="64" cy="64" r="6" fill="#e94560"/>
+  <defs>
+    <radialGradient id="bgGrad" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#2a3050"/>
+      <stop offset="1" stop-color="#0f1220"/>
+    </radialGradient>
+    <linearGradient id="dartGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd86e"/>
+      <stop offset="0.5" stop-color="#e94560"/>
+      <stop offset="1" stop-color="#a01030"/>
+    </linearGradient>
+    <radialGradient id="ninjaGrad" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#5a6478"/>
+      <stop offset="1" stop-color="#1a1e2c"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background circle with gradient -->
+  <circle cx="64" cy="64" r="60" fill="url(#bgGrad)" stroke="#e94560" stroke-width="3"/>
+  <!-- Ninja body (top-down) -->
+  <circle cx="48" cy="68" r="22" fill="url(#ninjaGrad)" stroke="#0a0d18" stroke-width="2"/>
+  <!-- Blue headband -->
+  <path d="M 28 60 Q 48 50 68 60 L 68 66 Q 48 56 28 66 Z" fill="#3c8ceb"/>
+  <!-- Headband tails -->
+  <path d="M 26 60 L 18 56 L 20 64 Z" fill="#3c8ceb"/>
+  <path d="M 70 60 L 78 56 L 76 64 Z" fill="#3c8ceb"/>
+  <!-- Eyes -->
+  <ellipse cx="42" cy="72" rx="3" ry="4" fill="white"/>
+  <ellipse cx="54" cy="72" rx="3" ry="4" fill="white"/>
+  <circle cx="42" cy="73" r="1.5" fill="#0a0a14"/>
+  <circle cx="54" cy="73" r="1.5" fill="#0a0a14"/>
+  <!-- Dart (shuriken-style arrow) flying toward upper-right -->
+  <g filter="url(#glow)" transform="translate(86, 42) rotate(-30)">
+    <polygon points="20,0 -16,-8 -8,0 -16,8" fill="url(#dartGrad)" stroke="#5a1020" stroke-width="1"/>
+    <circle cx="-2" cy="0" r="3" fill="#1a1a2e"/>
+    <circle cx="-2" cy="0" r="1.5" fill="#ffd86e"/>
+  </g>
+  <!-- Sparkles around dart -->
+  <circle cx="100" cy="30" r="1.5" fill="#ffd86e" opacity="0.9"/>
+  <circle cx="108" cy="40" r="1" fill="white" opacity="0.7"/>
+  <circle cx="92" cy="22" r="1" fill="white" opacity="0.7"/>
+  <!-- Teleport trail (cyan streak) -->
+  <path d="M 60 50 Q 75 35 90 30" stroke="#3c8ceb" stroke-width="2" fill="none" opacity="0.5" stroke-dasharray="3,2"/>
 </svg>

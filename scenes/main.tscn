@@ -1,4 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://main003"]
+[gd_scene load_steps=8 format=3 uid="uid://main003"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/virtual_joystick.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/mobile_controls.tscn" id="7"]
 
 [ext_resource type="PackedScene" uid="uid://map002" path="res://scenes/map.tscn" id="1"]
 [ext_resource type="PackedScene" uid="uid://player003" path="res://scenes/player.tscn" id="2"]
@@ -6,7 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://hud002" path="res://scenes/hud.tscn" id="4"]
 
 [node name="Main" type="Node2D"]
-script = ExtResource("res://scripts/main.gd")
+script = ExtResource("5")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(640, 360)
@@ -23,6 +26,6 @@ position = Vector2(1000, 1000)
 
 [node name="HUD" parent="." instance=ExtResource("4")]
 
-[node name="VirtualJoystick" parent="." instance=load("res://scenes/virtual_joystick.tscn")]
+[node name="VirtualJoystick" parent="." instance=ExtResource("6")]
 
-[node name="MobileControls" parent="." instance=load("res://scenes/mobile_controls.tscn")]
+[node name="MobileControls" parent="." instance=ExtResource("7")]

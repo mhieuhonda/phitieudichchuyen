@@ -37,12 +37,12 @@ func _ready():
 	
 	zone_shrink_timer = GameManager.zone_shrink_interval
 	
-	controls_label.text = "[b]ĐIỀU KHIẾN[/b]\n"
-	controls_label.text += "WASD: Di chuyển chậm\n"
+	controls_label.text = "[b]ĐIỀU KHIỂN[/b]\n"
+	controls_label.text += "WASD: Di chuyển\n"
 	controls_label.text += "Chuột phải: Nhắm & Ném phi tiêu\n"
 	controls_label.text += "Space: Dịch chuyển tới phi tiêu\n"
 	controls_label.text += "[color=cyan]Space khi phi tiêu đang bay: Dịch chuyển giữa chừng![/color]\n"
-	controls_label.text += "R: Chơi lại (khi chết)"
+	controls_label.text += "Esc: Quay lại menu"
 	
 	game_over_panel.visible = false
 	zone_warning.visible = false
@@ -140,12 +140,14 @@ func _get_dart_info() -> String:
 				flying += 1
 			elif dart.is_stuck():
 				stuck += 1
+	var max_darts = GameManager.max_darts_per_player + player.dart_bonus
+	var bonus_str = " +%d" % player.dart_bonus if player.dart_bonus > 0 else ""
 	if flying > 0:
-		return "Phi tiêu: %d bay + %d cắm / %d" % [flying, stuck, GameManager.max_darts_per_player]
+		return "Phi tiêu: %d bay + %d cắm / %d%s" % [flying, stuck, max_darts, bonus_str]
 	elif stuck > 0:
-		return "Phi tiêu: %d cắm / %d" % [stuck, GameManager.max_darts_per_player]
+		return "Phi tiêu: %d cắm / %d%s" % [stuck, max_darts, bonus_str]
 	else:
-		return "Phi tiêu: 0/%d (Nhắm để ném!)" % GameManager.max_darts_per_player
+		return "Phi tiêu: 0/%d%s (Nhắm để ném!)" % [max_darts, bonus_str]
 
 func _has_flying_darts() -> bool:
 	for dart in player.all_darts:
@@ -171,20 +173,25 @@ func _on_combo_achieved(combo_count: int):
 func _on_screen_shake(intensity: float, duration: float):
 	# Screen shake effect trên HUD
 	var tween = create_tween()
-	for i in int(duration / 0.02):
+	var steps = max(int(duration / 0.02), 1)
+	for i in steps:
 		var offset = Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
 		tween.tween_property(self, "offset", offset, 0.02)
 	tween.tween_property(self, "offset", Vector2.ZERO, 0.05)
 
 func _on_player_died(p: CharacterBody2D):
 	game_over_panel.visible = true
-	game_over_label.text = "BẠN ĐÃ BỊ TIÊU DIỆT!"
-	restart_label.text = "Tự respawn sau %.0fs..." % GameManager.respawn_time
+	var killer = p.get_killer_name()
+	if killer != "":
+		game_over_label.text = "BẠN BỊ %s TIÊU DIỆT!" % killer.to_upper()
+	else:
+		game_over_label.text = "BẠN ĐÃ BỊ TIÊU DIỆT!"
+	restart_label.text = "Tự hồi sinh sau %.0fs..." % GameManager.respawn_time
 	_add_kill_feed("Bạn đã bị tiêu diệt!", Color(1.0, 0.2, 0.2))
 
 func _on_player_respawned(p: CharacterBody2D):
 	game_over_panel.visible = false
-	_add_kill_feed("Đã respawn!", Color(0.2, 1.0, 0.2))
+	_add_kill_feed("Đã hồi sinh!", Color(0.2, 1.0, 0.2))
 
 func _on_dart_thrown(dart: Node2D):
 	mid_flight_hint.visible = true
@@ -200,9 +207,8 @@ func _on_teleport_performed(player: CharacterBody2D, to_position: Vector2):
 	pass
 
 func _input(event: InputEvent):
-	if event.is_action_pressed("restart") and not player.is_alive:
-		# Player tự respawn, không cần restart
-		pass
+	# Restart action không còn dùng (player tự respawn)
+	pass
 
 func _add_kill_feed(text: String, color: Color = Color.WHITE):
 	var label = Label.new()

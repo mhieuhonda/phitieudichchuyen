@@ -2,7 +2,7 @@
 
 > Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down dành cho PC và Mobile.
 
-[![Release](https://img.shields.io/badge/release-v0.5-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
+[![Release](https://img.shields.io/badge/release-v0.6-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
 [![Godot](https://img.shields.io/badge/Godot-4.2.2-478CBF.svg)](https://godotengine.org/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-green.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
@@ -179,6 +179,45 @@ phitieudichchuyen/
 ├── CHANGELOG.md                  # Lịch sử thay đổi
 └── README.md                     # File này
 ```
+
+---
+
+## 🐛 Lỗi đã fix trong v0.6
+
+| # | Mô tả | Mức độ | File |
+|---|-------|--------|------|
+| 1 | GitHub Actions upload hardcode `tag_name: v0.4` → release mới không có artifact | 🔴 Critical | `.github/workflows/build-release.yml` |
+| 2 | AI dart không kết nối signal `dart_hit_player` → không gây sát thương player | 🔴 Critical | `scripts/ai_player.gd` |
+| 3 | Mobile throw emit cùng vị trí start/end → drag = 0, dart không bay | 🔴 Critical | `scripts/mobile_controls.gd`, `scripts/player.gd` |
+| 4 | Tất cả `.tscn` dùng `ExtResource("res://path")` (cú pháp Godot 4 sai) | 🔴 Critical | `scenes/*.tscn` |
+| 5 | `GameManager.screen_shake_requested` không kết nối tới camera | 🟡 High | `scripts/main.gd` |
+| 6 | Chướng ngại vật tròn dùng `ColorRect` (vuông) | 🟡 Medium | `scripts/map.gd` |
+| 7 | `DART_REFILL` pickup gọi `heal(15)` thay vì nạp phi tiêu | 🟡 Medium | `scripts/pickup.gd`, `scripts/player.gd` |
+| 8 | HUD hint "R: Chơi lại" nhưng R không làm gì | 🟢 Minor | `scripts/hud.gd` |
+| 9 | `AIPlayer.ai_name_index` static không reset khi restart | 🟢 Minor | `scripts/ai_player.gd`, `scripts/main.gd` |
+| 10 | Unaccented Vietnamese trong `settings.tscn` (CAI DAT, Rung man hinh...) | 🟢 Minor | `scenes/settings.tscn` |
+| 11 | Player death không hiện tên kẻ giết | 🟢 Minor | `scripts/player.gd`, `scripts/hud.gd` |
+| 12 | `ai_player._check_teleport_kill` không clamp `current_size` | 🟢 Minor | `scripts/ai_player.gd` |
+
+---
+
+## ✨ Sprite rewrite trong v0.6
+
+Tất cả sprite được vẽ lại bằng Python+PIL với chất lượng cao hơn:
+
+| Sprite | Kích thước | Mô tả |
+|--------|-----------|-------|
+| `player_blue.png` | 64×64 | Ninja top-down: bóng đổ, body gradient, headband xanh, 2 mắt có catch light |
+| `ai_*.png` (9 màu) | 64×64 | Cùng thiết kế, headband màu khác (đỏ/xanh lá/tím/vàng/cam/cyan/hồng/lime/teal) |
+| `dart.png` | 64×64 | Dart shuriken với glow + gradient steel + center bolt |
+| `pickup_health.png` | 64×64 | Medkit trắng + chữ thập đỏ + glow |
+| `pickup_dart.png` | 64×64 | Shuriken 4 cánh vàng + glow |
+| `btn_teleport.png` | 128×128 | Nút tròn gradient + icon sét |
+| `btn_throw.png` | 128×128 | Nút tròn gradient + icon dart |
+| `joystick_base.png` | 128×128 | Vòng ngoài + vòng trong + glow |
+| `joystick_stick.png` | 64×64 | Knob gradient + highlight |
+| `teleport_effect.png` | 64×64 | Sparkle cross + radial gradient |
+| `icon.svg` | 128×128 | Ninja + dart + teleport trail |
 
 ---
 

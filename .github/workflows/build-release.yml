@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name to publish to (e.g. v0.6)'
+        required: true
+        default: 'v0.6'
 
 env:
   GODOT_VERSION: 4.2.2
@@ -19,6 +24,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            echo "name=${{ github.event.inputs.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            # github.ref for tag pushes looks like "refs/tags/v0.6"
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install system dependencies
         run: |
@@ -83,7 +98,7 @@ jobs:
           export DISPLAY=:99
 
           echo "Running Godot editor with OpenGL3 renderer to import project resources..."
-          timeout 120 ./godot_editor --rendering-driver opengl3 --editor --quit-after 15 --path . 2>&1 | head -300 || true
+          timeout 180 ./godot_editor --rendering-driver opengl3 --editor --quit-after 30 --path . 2>&1 | head -300 || true
 
           echo "Import step completed. Checking .godot cache..."
           if [ -d .godot ]; then
@@ -91,7 +106,7 @@ jobs:
             ls .godot/
           else
             echo "WARNING: .godot directory not found, trying again with longer timeout..."
-            timeout 120 ./godot_editor --rendering-driver opengl3 --editor --quit-after 30 --path . 2>&1 | head -300 || true
+            timeout 180 ./godot_editor --rendering-driver opengl3 --editor --quit-after 60 --path . 2>&1 | head -300 || true
             if [ -d .godot ]; then
               echo ".godot directory exists after retry"
             else
@@ -156,12 +171,12 @@ jobs:
             find android/build/res -name "*.import" -type f -delete 2>/dev/null || true
             echo "Remaining .import files in android/build/res:"
             find android/build/res -name "*.import" -type f 2>/dev/null || echo "None"
-            
+
             cd android/build
             chmod +x gradlew
             ./gradlew assembleRelease 2>&1
             cd ../..
-            
+
             # Find the built APK
             APK_PATH=$(find android/build/build/outputs -name "*.apk" -type f 2>/dev/null | head -1)
             if [ -n "$APK_PATH" ]; then
@@ -271,27 +286,18 @@ jobs:
           find build/ -type f -exec ls -lh {} \;
           echo "=== ZIP packages ==="
           ls -lh *.zip 2>/dev/null || echo "No ZIP packages"
+          echo "=== Resolved release tag ==="
+          echo "${{ steps.tag.outputs.name }}"
 
-      - name: Upload APK to Release
+      - name: Upload all artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.4
-          files: build/android/phitieudichchuyen.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Windows ZIP to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.4
-          files: phitieudichchuyen-windows.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux ZIP to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.4
-          files: phitieudichchuyen-linux.zip
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: Phi Tiêu Dịch Chuyển ${{ steps.tag.outputs.name }}
+          generate_release_notes: true
+          files: |
+            build/android/phitieudichchuyen.apk
+            phitieudichchuyen-windows.zip
+            phitieudichchuyen-linux.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

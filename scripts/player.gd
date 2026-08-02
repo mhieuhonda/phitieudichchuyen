@@ -3,6 +3,8 @@ extends CharacterBody2D
 ## Player - Nhân vật người chơi với sprite thật
 ## Hỗ trợ joystick ảo + mobile controls
 
+const KILLER_NONE := ""
+
 @onready var sprite: Sprite2D = $Sprite
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 @onready var aim_line: Line2D = $AimLine
@@ -25,6 +27,9 @@ var last_teleport_time: float = 0.0
 var teleport_cooldown: float = 0.15
 var is_respawning: bool = false
 var joystick_ref: Control = null  # Reference to VirtualJoystick
+var last_killer_name: String = KILLER_NONE
+var dart_bonus: int = 0  # Bonus max darts from DART_REFILL pickup
+var dart_bonus_timer: float = 0.0
 
 var dart_scene: PackedScene = preload("res://scenes/dart.tscn")
 
@@ -94,7 +99,14 @@ func _physics_process(delta):
                 current_hp = GameManager.player_hp
                 _update_hp_bar()
                 if died:
+                        last_killer_name = "Vòng Bo"
                         _die()
+        
+        # Cập nhật dart bonus timer
+        if dart_bonus > 0:
+                dart_bonus_timer -= delta
+                if dart_bonus_timer <= 0:
+                        dart_bonus = 0
         
         _update_teleport_indicator()
 
@@ -112,17 +124,25 @@ func _input(event: InputEvent):
                 aim_current_pos = event.global_position
                 _update_aim_line()
         
+        # Touch drag cho mobile - cập nhật vị trí aim khi kéo ngón tay
+        if event is InputEventScreenDrag and is_aiming:
+                aim_current_pos = event.position
+                _update_aim_line()
+        
         if event.is_action_pressed("teleport"):
                 _teleport_to_dart()
 
 func _start_aiming(mouse_pos: Vector2):
-        if _count_active_darts() >= GameManager.max_darts_per_player:
+        if _count_active_darts() >= _get_max_darts():
                 return
         is_aiming = true
         aim_start_pos = mouse_pos
         aim_current_pos = mouse_pos
         aim_line.visible = true
         _update_aim_line()
+
+func _get_max_darts() -> int:
+        return GameManager.max_darts_per_player + dart_bonus
 
 func _update_aim_line():
         if not is_aiming:
@@ -144,9 +164,14 @@ func _throw_dart(mouse_pos: Vector2):
                 return
         is_aiming = false
         aim_line.visible = false
-        if _count_active_darts() >= GameManager.max_darts_per_player:
+        if _count_active_darts() >= _get_max_darts():
                 return
+        # Cập nhật aim_current_pos từ vị trí thả nút (mobile) hoặc chuột (PC)
+        aim_current_pos = mouse_pos
         var direction = (aim_start_pos - aim_current_pos).normalized()
+        # Nếu không có drag (direction zero), mặc định ném về phía trước player
+        if direction == Vector2.ZERO:
+                direction = Vector2.RIGHT
         var power = _calculate_power()
         
         var dart = dart_scene.instantiate()
@@ -204,7 +229,7 @@ func _select_best_dart(darts: Array) -> Node2D:
 func _check_teleport_kill(pos: Vector2):
         var ai_players = get_tree().get_nodes_in_group("ai_players")
         for ai in ai_players:
-                if not ai.is_alive:
+                if not is_instance_valid(ai) or not ai.is_alive:
                         continue
                 var dist = pos.distance_to(ai.global_position)
                 if dist < GameManager.teleport_kill_radius + ai.current_size:
@@ -243,6 +268,9 @@ func _die():
         all_darts.clear()
         emit_signal("player_died", self)
         get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
+
+func get_killer_name() -> String:
+        return last_killer_name
 
 func _respawn():
         is_alive = true
@@ -313,6 +341,11 @@ func heal(amount: float):
         GameManager.player_hp = current_hp
         _update_hp_bar()
 
+## Tạm thời tăng giới hạn phi tiêu (từ DART_REFILL pickup)
+func refill_darts(bonus: int, duration: float):
+        dart_bonus = max(dart_bonus, bonus)
+        dart_bonus_timer = max(dart_bonus_timer, duration)
+
 func take_damage_from(amount: float, attacker: Node2D):
         current_hp -= amount
         GameManager.player_hp = current_hp
@@ -320,6 +353,13 @@ func take_damage_from(amount: float, attacker: Node2D):
         var tween = create_tween()
         tween.tween_property(sprite, "modulate", Color(1.0, 0.3, 0.3), 0.05)
         tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0), 0.2)
+        # Ghi nhận tên kẻ giết để hiển thị khi chết
+        if attacker and attacker.has_method("get") and "ai_name" in attacker:
+                last_killer_name = attacker.ai_name
+        elif attacker and attacker.has_method("get") and "player_name" in attacker:
+                last_killer_name = attacker.player_name
+        else:
+                last_killer_name = KILLER_NONE
         if current_hp <= 0:
                 current_hp = 0
                 _die()

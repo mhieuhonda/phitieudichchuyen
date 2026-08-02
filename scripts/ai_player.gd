@@ -1,3 +1,4 @@
+class_name AIPlayer
 extends CharacterBody2D
 
 ## AIPlayer - NPC đối thủ với sprite thật
@@ -28,6 +29,10 @@ var dart_scene: PackedScene = preload("res://scenes/dart.tscn")
 static var ai_names: Array = ["Rồng", "Phượng", "Hổ", "Báo", "Sói", "Cáo", "Gấu", "Diều", "Cọp", "Chồn"]
 static var ai_name_index: int = 0
 
+## Reset static index - gọi khi game reset để AI tên reset đúng
+static func reset_name_index():
+        ai_name_index = 0
+
 static var ai_sprite_files: Array = [
         "res://assets/sprites/ai_red.png",
         "res://assets/sprites/ai_green.png",
@@ -50,13 +55,17 @@ func _ready():
         ai_name = ai_names[ai_name_index % ai_names.size()]
         owner_player_id = 1000 + ai_id
         ai_name_index += 1
-        add_to_group("ai_players")
+        # Group "ai_players" đã được khai báo trong scene, không cần add lại
         
         # Load sprite
         var sprite_path = ai_sprite_files[ai_id % ai_sprite_files.size()]
         var tex = load(sprite_path)
         if tex:
                 sprite.texture = tex
+        
+        # Cập nhật tên hiển thị
+        if name_label:
+                name_label.text = ai_name
         
         _update_hp_bar()
         _update_visual_size()
@@ -221,6 +230,7 @@ func _throw_dart_ai():
         dart.dart_stuck.connect(_on_dart_stuck)
         dart.dart_expired.connect(_on_dart_expired)
         dart.dart_consumed.connect(_on_dart_consumed)
+        dart.dart_hit_player.connect(_on_dart_hit_player)
         all_darts.append(dart)
 
 func _teleport_ai():
@@ -251,17 +261,22 @@ func _spawn_ai_teleport_effect(pos: Vector2, was_flying: bool):
 func _check_teleport_kill(pos: Vector2):
         var players = get_tree().get_nodes_in_group("players")
         for p in players:
-                if not p.is_alive: continue
+                if not is_instance_valid(p) or not p.is_alive: continue
                 var dist = pos.distance_to(p.global_position)
                 if dist < GameManager.teleport_kill_radius + GameManager.player_size:
                         p.take_damage_from(50, self)
                         ai_score += GameManager.score_per_kill
-                        current_size += GameManager.size_per_kill
+                        current_size = min(current_size + GameManager.size_per_kill, GameManager.max_player_size)
                         _update_visual_size()
 
 func _on_dart_stuck(dart: Node2D): pass
 func _on_dart_expired(dart: Node2D): all_darts.erase(dart)
 func _on_dart_consumed(dart: Node2D): all_darts.erase(dart)
+
+func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
+        # AI dart gây sát thương lên player/AI trúng đạn
+        if hit_player.has_method("take_damage_from"):
+                hit_player.take_damage_from(GameManager.dart_hit_damage, self)
 
 func kill(killer: Node2D):
         is_alive = false

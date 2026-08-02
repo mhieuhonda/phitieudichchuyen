@@ -2,12 +2,15 @@ class_name Pickup
 extends Area2D
 
 ## Pickup - Vật phẩm với sprite thật
+## HEALTH: hồi máu, DART_REFILL: tăng giới hạn phi tiêu tạm thời
 
 enum PickupType { HEALTH, DART_REFILL }
 
 @export var pickup_type: PickupType = PickupType.HEALTH
 @export var respawn_time: float = 10.0
 @export var health_amount: float = 30.0
+@export var dart_refill_amount: int = 1
+@export var dart_refill_duration: float = 8.0
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -23,6 +26,8 @@ func _process(_delta):
         if is_active:
                 var t = Time.get_ticks_msec() / 1000.0
                 sprite.position.y = -2.0 + sin(t * 3.0) * 2.0
+                # Xoay nhẹ pickup để nổi bật
+                sprite.rotation = sin(t * 1.5) * 0.15
 
 func _update_visual():
         match pickup_type:
@@ -47,11 +52,17 @@ func _on_body_entered(body: Node2D):
 func _apply_pickup(player: CharacterBody2D):
         match pickup_type:
                 PickupType.HEALTH: player.heal(health_amount)
-                PickupType.DART_REFILL: player.heal(15.0)
+                PickupType.DART_REFILL: player.refill_darts(dart_refill_amount, dart_refill_duration)
 
 func _apply_pickup_ai(ai: CharacterBody2D):
-        ai.current_hp = min(ai.current_hp + health_amount, GameManager.player_max_hp)
-        ai._update_hp_bar()
+        match pickup_type:
+                PickupType.HEALTH:
+                        ai.current_hp = min(ai.current_hp + health_amount, GameManager.player_max_hp)
+                        ai._update_hp_bar()
+                PickupType.DART_REFILL:
+                        # AI cũng được hồi máu nhẹ khi nhặt dart refill
+                        ai.current_hp = min(ai.current_hp + 15.0, GameManager.player_max_hp)
+                        ai._update_hp_bar()
 
 func _consume():
         is_active = false; visible = false
