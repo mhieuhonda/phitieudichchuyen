@@ -25,9 +25,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             xvfb \
+            mesa-utils \
+            libgl1-mesa-dri \
+            libgl1-mesa-dev libglu1-mesa-dev \
             libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev \
-            libgl1-mesa-dev libglu1-mesa-dev libasound2-dev \
-            libpulse-dev libudev-dev libxi-dev libxext-dev \
+            libasound2-dev libpulse-dev libudev-dev libxi-dev libxext-dev \
             wayland-protocols libwayland-dev
 
       - name: Setup Java 17
@@ -105,26 +107,32 @@ jobs:
               f.write('[gd_resource type="EditorSettings" format=3]\n\n')
               f.write('[resource]\n\n')
               f.write('export/android/android_sdk_path = "/usr/local/lib/android/sdk"\n')
-              f.write('export/android/java_sdk_path = "/usr/lib/jvm/temurin-17-jdk-amd64"\n')
+              f.write('export/android/java_sdk_path = "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64"\n')
           print("Editor settings created at", settings_path)
           PYEOF
 
-      - name: Import Godot Project (via Xvfb)
+      - name: Import Godot Project (via Xvfb + OpenGL3)
         run: |
           echo "Starting Xvfb..."
           Xvfb :99 -screen 0 1024x768x24 &
           sleep 2
           export DISPLAY=:99
 
-          echo "Running Godot editor to import project resources..."
-          timeout 120 ./godot_editor --editor --quit-after 10 --path . 2>&1 | head -200 || true
+          echo "Running Godot editor with OpenGL3 renderer to import project resources..."
+          timeout 120 ./godot_editor --rendering-driver opengl3 --editor --quit-after 15 --path . 2>&1 | head -300 || true
 
           echo "Import step completed. Checking .godot cache..."
           if [ -d .godot ]; then
             echo ".godot directory exists - import successful"
-            ls -la .godot/
+            ls .godot/
           else
-            echo "WARNING: .godot directory not found"
+            echo "WARNING: .godot directory not found, trying again with longer timeout..."
+            timeout 120 ./godot_editor --rendering-driver opengl3 --editor --quit-after 30 --path . 2>&1 | head -300 || true
+            if [ -d .godot ]; then
+              echo ".godot directory exists after retry"
+            else
+              echo "WARNING: .godot directory still not found"
+            fi
           fi
 
           # Verify .import files were created
