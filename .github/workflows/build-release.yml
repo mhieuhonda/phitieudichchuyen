@@ -1,4 +1,4 @@
-name: Build & Release APK
+name: Build & Release
 
 on:
   release:
@@ -8,45 +8,82 @@ env:
   GODOT_VERSION: "4.2.2"
 
 jobs:
-  build-android:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
+      # ─── Checkout ──────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Java
+      # ─── System deps (headless Godot needs these on Ubuntu) ───
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev \
+            libgl1-mesa-dev libxi-dev libasound2-dev zip unzip wget
+
+      # ─── Java (needed for Android Gradle build) ───────────────
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
+      # ─── Android SDK ──────────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android Build Tools & Platform
+      - name: Install Android build tools & platform
         run: |
           sdkmanager --install "build-tools;33.0.2"
           sdkmanager --install "platforms;android-33"
 
+      # ─── Godot Editor ─────────────────────────────────────────
       - name: Download Godot Editor
         run: |
-          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot-editor.zip
-          unzip -q godot-editor.zip
-          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot_editor
+          GODOT_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          echo "Downloading Godot from: $GODOT_URL"
+          wget -q "$GODOT_URL" -O godot-editor.zip
+          unzip -o godot-editor.zip
+          # The zip contains a file like Godot_v4.2.2-stable_linux.x86_64
+          EDITOR_BIN=$(find . -maxdepth 1 -name 'Godot_v*_linux.x86_64' -not -name '*.zip' | head -1)
+          if [ -z "$EDITOR_BIN" ]; then
+            echo "ERROR: Could not find Godot editor binary after unzip"
+            ls -la
+            exit 1
+          fi
+          mv "$EDITOR_BIN" godot_editor
           chmod +x godot_editor
+          echo "Godot editor ready: $(./godot_editor --version 2>&1 || true)"
 
+      # ─── Export Templates ─────────────────────────────────────
       - name: Download Godot Export Templates
         run: |
+          TEMPLATES_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          echo "Downloading templates from: $TEMPLATES_URL"
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
-          unzip -q templates.tpz
-          mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          wget -q "$TEMPLATES_URL" -O templates.tpz
+          unzip -o templates.tpz
+          # The tpz contains a "templates/" folder with all template files
+          ls templates/
+          cp templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          echo "Templates installed:"
+          ls ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
 
+      # ─── Import Project (critical for headless export) ────────
+      - name: Import Godot Project
+        run: |
+          echo "Importing project..."
+          timeout 60 ./godot_editor --headless --import --path . 2>&1 || true
+          echo "Import completed (or timed out — that's OK)"
+
+      # ─── Debug Keystore ───────────────────────────────────────
       - name: Generate Debug Keystore
         run: |
           keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
@@ -56,94 +93,146 @@ jobs:
             -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
             -validity 10000
 
-      - name: Import Godot Project
+      # ─── Update export_presets.cfg for CI keystore ────────────
+      - name: Configure Keystore in Export Presets
         run: |
-          ./godot_editor --headless --import --path . 2>&1 || true
-          # Wait a moment for import to complete
-          sleep 3
+          echo "=== export_presets.cfg BEFORE ==="
+          cat export_presets.cfg
+          echo ""
+          echo "Patching keystore settings..."
+          # Use Python for reliable INI-style patching
+          python3 -c "
+          import re
+          with open('export_presets.cfg', 'r') as f:
+              content = f.read()
 
-      - name: Install Android Build Template
-        run: |
-          ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
-          sleep 2
+          # Patch Android keystore fields
+          replacements = {
+              'package/keystore=\"\"': 'package/keystore=\"debug.keystore\"',
+              'package/keystore_passwd=\"\"': 'package/keystore_passwd=\"android\"',
+              'package/key_alias=\"\"': 'package/key_alias=\"phitieudichchuyen\"',
+              'package/key_passwd=\"\"': 'package/key_passwd=\"android\"',
+              'package/signed_custom=false': 'package/signed_custom=true',
+              'package/use_custom_keystore=false': 'package/use_custom_keystore=true',
+          }
+          for old, new in replacements.items():
+              content = content.replace(old, new)
 
-      - name: Update Export Presets for CI Keystore
-        run: |
-          # Update export_presets.cfg to use the generated keystore
-          sed -i 's|package/keystore=""|package/keystore="debug.keystore"|g' export_presets.cfg
-          sed -i 's|package/keystore_passwd=""|package/keystore_passwd="android"|g' export_presets.cfg
-          sed -i 's|package/key_alias=""|package/key_alias="phitieudichchuyen"|g' export_presets.cfg
-          sed -i 's|package/key_passwd=""|package/key_passwd="android"|g' export_presets.cfg
-          sed -i 's|package/signed_custom=false|package/signed_custom=true|g' export_presets.cfg
-          sed -i 's|package/use_custom_keystore=false|package/use_custom_keystore=true|g' export_presets.cfg
+          # Embed PCK for Windows & Linux (single-file distribution)
+          content = content.replace('binary_format/embed_pck=false', 'binary_format/embed_pck=true')
 
+          with open('export_presets.cfg', 'w') as f:
+              f.write(content)
+          print('Patched successfully')
+          "
+          echo ""
+          echo "=== export_presets.cfg AFTER ==="
+          cat export_presets.cfg
+
+      # ─── Export Android APK ───────────────────────────────────
       - name: Export Android APK
         run: |
           mkdir -p build/android
-          ./godot_editor --headless --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 || {
-            echo "=== Export failed, checking logs ==="
-            ls -la build/android/ 2>/dev/null || true
-            find . -name "*.log" -exec cat {} \; 2>/dev/null || true
-            exit 1
-          }
+          echo "Exporting Android APK..."
+          ./godot_editor --headless --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
+          echo "Export command finished"
 
-      - name: Verify APK
+      - name: Verify Android APK
         run: |
           if [ -f "build/android/phitieudichchuyen.apk" ]; then
-            echo "APK built successfully!"
+            SIZE=$(stat -c%s "build/android/phitieudichchuyen.apk")
+            echo "APK built successfully! Size: $SIZE bytes"
             ls -la build/android/phitieudichchuyen.apk
           else
-            echo "APK not found!"
+            echo "ERROR: APK not found!"
+            echo "=== Listing build directory ==="
             find build/ -type f 2>/dev/null || true
+            echo "=== Listing .godot folder ==="
+            ls -la .godot/ 2>/dev/null || true
             exit 1
           fi
 
+      # ─── Export Windows ───────────────────────────────────────
+      - name: Export Windows Desktop
+        run: |
+          mkdir -p build/windows
+          echo "Exporting Windows Desktop..."
+          ./godot_editor --headless --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
+          echo "Windows export command finished"
+
+      - name: Package Windows build
+        run: |
+          cd build/windows
+          if [ -f "phitieudichchuyen.exe" ]; then
+            echo "Windows .exe found, creating ZIP..."
+            zip -j ../../phitieudichchuyen-windows.zip ./*
+            cd ../..
+            echo "Windows ZIP created:"
+            ls -la phitieudichchuyen-windows.zip
+          else
+            echo "WARNING: Windows .exe not found, skipping ZIP"
+            cd ../..
+            echo "Windows build contents:"
+            find build/windows/ -type f 2>/dev/null || true
+          fi
+
+      # ─── Export Linux ─────────────────────────────────────────
+      - name: Export Linux/X11
+        run: |
+          mkdir -p build/linux
+          echo "Exporting Linux/X11..."
+          ./godot_editor --headless --path . --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
+          echo "Linux export command finished"
+
+      - name: Package Linux build
+        run: |
+          cd build/linux
+          if [ -f "phitieudichchuyen.x86_64" ]; then
+            echo "Linux binary found, creating ZIP..."
+            zip -j ../../phitieudichchuyen-linux.zip ./*
+            cd ../..
+            echo "Linux ZIP created:"
+            ls -la phitieudichchuyen-linux.zip
+          else
+            echo "WARNING: Linux binary not found, skipping ZIP"
+            cd ../..
+            echo "Linux build contents:"
+            find build/linux/ -type f 2>/dev/null || true
+          fi
+
+      # ─── Collect all artifacts ────────────────────────────────
+      - name: List all build artifacts
+        run: |
+          echo "=== All build artifacts ==="
+          find build/ -type f 2>/dev/null || true
+          echo ""
+          echo "=== ZIP files ==="
+          ls -la *.zip 2>/dev/null || echo "No ZIP files"
+          echo ""
+          echo "=== APK ==="
+          ls -la build/android/*.apk 2>/dev/null || echo "No APK"
+
+      # ─── Upload to Release ────────────────────────────────────
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: build/android/phitieudichchuyen.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-windows:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download Godot Editor
-        run: |
-          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot-editor.zip
-          unzip -q godot-editor.zip
-          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot_editor
-          chmod +x godot_editor
-
-      - name: Download Godot Export Templates
-        run: |
-          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
-          unzip -q templates.tpz
-          mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
-
-      - name: Import Godot Project
-        run: |
-          ./godot_editor --headless --import --path . 2>&1 || true
-          sleep 3
-
-      - name: Export Windows
-        run: |
-          mkdir -p build/windows
-          ./godot_editor --headless --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1 || {
-            echo "Windows export failed"
-            exit 0
-          }
-
-      - name: Upload Windows to Release
+      - name: Upload Windows ZIP to Release
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') && hashFiles('phitieudichchuyen-windows.zip') != ''
         with:
-          files: build/windows/phitieudichchuyen.exe
+          files: phitieudichchuyen-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux ZIP to Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') && hashFiles('phitieudichchuyen-linux.zip') != ''
+        with:
+          files: phitieudichchuyen-linux.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -24,6 +24,10 @@ Nhân vật, phi tiêu, vật phẩm đều có sprite đẹp mắt thay vì hì
 
 Joystick ảo + nút bấm Teleport/Throw cho người chơi mobile. Tự động hiển thị trên Android.
 
+### 🔧 CI/CD Fixed (v0.4)
+
+GitHub Actions tự động build APK (Android), EXE (Windows), và binary (Linux) mỗi khi tạo release. Tất cả artefact được upload lên GitHub Release.
+
 ## 🎮 Cách chơi
 
 ### Điều khiển PC
@@ -66,7 +70,7 @@ Joystick ảo + nút bấm Teleport/Throw cho người chơi mobile. Tự độn
 | Nền tảng | **Android 7.0+**, Windows, Linux |
 | Đồ họa | **Sprite PNG** (tự tạo bằng Python/Pillow) |
 | Mobile Controls | **Joystick ảo + Touch buttons** |
-| CI/CD | **GitHub Actions** (auto-build signed APK) |
+| CI/CD | **GitHub Actions** (auto-build APK + EXE + Linux) |
 
 ## 📁 Cấu trúc project
 
@@ -110,8 +114,8 @@ git clone https://github.com/mhieuhonda/phitieudichchuyen.git
 # Mở Godot Editor → Import → F5
 ```
 
-### Tải APK
-Mỗi release trên GitHub có **APK đã ký** tự động build bởi GitHub Actions. Tải từ [Releases](https://github.com/mhieuhonda/phitieudichchuyen/releases).
+### Tải
+Mỗi release trên GitHub có **APK đã ký** (Android), **EXE** (Windows), **Linux binary** tự động build bởi GitHub Actions. Tải từ [Releases](https://github.com/mhieuhonda/phitieudichchuyen/releases).
 
 ## 🗺️ Lộ trình phát triển
 
@@ -127,22 +131,28 @@ Mỗi release trên GitHub có **APK đã ký** tự động build bởi GitHub 
 - AI thông minh (né tránh, săn mồi, lead aim)
 - Menu chính, GitHub Actions
 
-### ✅ v0.3 — Polish & Mobile (Hiện tại)
+### ✅ v0.3 — Polish & Mobile
 - **Sprite đẹp**: Nhân vật có mắt, miệng, bóng; phi tiêu có cánh; vật phẩm có icon
 - **Cài đặt đồ họa**: Cực Thấp / Thấp / Trung Bình / Cao
-  - Cực Thấp: Tắt mọi hiệu ứng (particle, glow, trail)
-  - Thấp: Giảm particle 30%, tắt glow
-  - Trung Bình: Particle 70%, glow nhẹ
-  - Cao: Tất cả hiệu ứng 100%
 - **Joystick ảo**: Di chuyển bằng joystick cho mobile
 - **Mobile controls**: Nút Teleport + Throw cho mobile
 - **Auto-detect mobile**: Tự động hiển thị joystick trên Android
 - **FPS counter**: Hiển thị FPS (bật/tắt trong Settings)
 - **Screen shake toggle**: Bật/tắt rung màn hình
 - **Âm thanh**: Volume slider (chuẩn bị cho v0.4)
-- **GitHub Actions fix**: Sửa lỗi build APK, thêm keystore signing
 
-### 🔜 v0.4 — Âm thanh & Kỹ năng
+### ✅ v0.4 — CI/CD Fix
+- **Sửa toàn bộ GitHub Actions**: Build APK + EXE + Linux trơn tru
+- **Loại bỏ `--install-android-build-template`** (không cần cho Godot 4.2+ Gradle build)
+- **Sửa lỗi import headless** — dùng `timeout` thay vì `sleep`
+- **Sửa lỗi keystore** — dùng Python patching thay vì sed
+- **Embed PCK** cho Windows & Linux (phân phối 1 file duy nhất)
+- **Build Linux/X11** và upload ZIP lên release
+- **ZIP packaging** cho Windows build
+- **Verify step** sau mỗi lần export
+- **Gộp 2 job thành 1** — tối ưu, tránh lặp setup
+
+### 🔜 v0.5 — Âm thanh & Kỹ năng
 - [ ] Hiệu ứng âm thanh (ném, cắm, dịch chuyển, chết, combo)
 - [ ] Nhạc nền
 - [ ] Kỹ năng đặc biệt: phi tiêu nổ, phi tiêu làm chậm, phi tiêu khói
@@ -151,7 +161,7 @@ Mỗi release trên GitHub có **APK đã ký** tự động build bởi GitHub 
 - [ ] Chế độ chơi: Survival, Time Attack
 - [ ] Touch controls nâng cao (aim bằng kéo thả trên mobile)
 
-### 📋 v0.5 — Multiplayer
+### 📋 v0.6 — Multiplayer
 - [ ] Client-server authoritative
 - [ ] 2+ người chơi online
 - [ ] Đồng bộ & lag handling

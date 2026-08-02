@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0] - 2026-08-02
+
+### Sửa lỗi
+- **GitHub Actions CI/CD**: Sửa toàn bộ lỗi build APK & EXE
+  - Loại bỏ `--install-android-build-template` (không cần cho Godot 4.2+ Gradle build)
+  - Sửa lỗi `--headless --import` không thoát — dùng `timeout` thay vì `sleep`
+  - Sửa lỗi sed không cập nhật đúng keystore trong export_presets.cfg — dùng Python patching
+  - Cài đặt đầy đủ system dependencies cho headless Godot trên Ubuntu
+  - Sửa lỗi Windows export trả `exit 0` khi thất bại — báo lỗi đúng
+  - Embed PCK cho Windows & Linux (phân phối 1 file duy nhất)
+  - Thêm build Linux/X11 và upload ZIP lên release
+  - Thêm ZIP packaging cho Windows build
+  - Thêm verify step sau mỗi lần export
+  - Thêm logging chi tiết cho từng bước
+  - Tối ưu: gộp 2 job thành 1 job, tránh lặp setup
+
+### Thay đổi
+- export_presets.cfg: `binary_format/embed_pck=true` cho Windows & Linux
+- export_presets.cfg: version code/name → 4/0.4
+- export_presets.cfg: `application/file_version="0.4.0.0"`
+
 ## [0.3.0] - 2024-08-02
 
 ### Thêm mới
