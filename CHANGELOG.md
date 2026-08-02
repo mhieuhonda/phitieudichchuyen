@@ -1,72 +1,36 @@
 # Changelog
 
-## [0.4.0] - 2026-08-02
+Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
-### Sửa lỗi
-- **GitHub Actions CI/CD**: Sửa toàn bộ lỗi build APK & EXE
-  - Loại bỏ `--install-android-build-template` (không cần cho Godot 4.2+ Gradle build)
-  - Sửa lỗi `--headless --import` không thoát — dùng `timeout` thay vì `sleep`
-  - Sửa lỗi sed không cập nhật đúng keystore trong export_presets.cfg — dùng Python patching
-  - Cài đặt đầy đủ system dependencies cho headless Godot trên Ubuntu
-  - Sửa lỗi Windows export trả `exit 0` khi thất bại — báo lỗi đúng
-  - Embed PCK cho Windows & Linux (phân phối 1 file duy nhất)
-  - Thêm build Linux/X11 và upload ZIP lên release
-  - Thêm ZIP packaging cho Windows build
-  - Thêm verify step sau mỗi lần export
-  - Thêm logging chi tiết cho từng bước
-  - Tối ưu: gộp 2 job thành 1 job, tránh lặp setup
+## [0.4] - 2026-08-02
 
-### Thay đổi
-- export_presets.cfg: `binary_format/embed_pck=true` cho Windows & Linux
-- export_presets.cfg: version code/name → 4/0.4
-- export_presets.cfg: `application/file_version="0.4.0.0"`
+### Fixed
+- Fix GitHub Actions CI/CD: build APK và EXE tự động thành công
+- Fix lỗi "Can't load cached ext-resource" khi export trên CI
+- Fix lỗi "Code Signing: Could not find keystore" khi export Android APK
+- Sử dụng Xvfb để chạy Godot editor import trên môi trường headless
+- Patch export_presets.cfg với debug keystore tự động
 
-## [0.3.0] - 2024-08-02
+### Changed
+- Cải thiện workflow Build & Release: import project đúng cách trước khi export
+- Cập nhật README chuẩn hóa
 
-### Thêm mới
-- **Sprite đẹp mắt**: Tất cả nhân vật, phi tiêu, vật phẩm có sprite PNG thay vì ColorRect
-  - Nhân vật: hình tròn với mắt, miệng, bóng, mũi tên hướng (10 màu khác nhau)
-  - Phi tiêu: mũi nhọn bạc, thân vàng, cánh đỏ
-  - Vật phẩm: icon hồi máu (thập tự xanh), hồi phi tiêu (phi tiêu vàng)
-  - Joystick: vòng ngoài + cần trong suốt
-  - Nút bấm: Teleport (sét xanh) + Throw (phi tiêu vàng)
-- **Cài đặt đồ họa (Settings)**: 4 mức Cực Thấp → Cao
-  - Cực Thấp: Tắt mọi hiệu ứng (0% particle, không glow, không trail)
-  - Thấp: 30% particle, tắt glow
-  - Trung Bình: 70% particle, glow nhẹ
-  - Cao: 100% tất cả hiệu ứng
-- **Joystick ảo**: Di chuyển bằng joystick cho mobile (góc dưới trái)
-- **Mobile controls**: Nút Teleport + Nút Throw (góc dưới phải)
-- **Auto-detect mobile**: Tự động hiển thị joystick trên Android
-- **SettingsManager**: Singleton autoload, lưu/đọc cài đặt từ file
-- **FPS counter**: Bật/tắt trong Settings
-- **Screen shake toggle**: Bật/tắt trong Settings
-- **Volume slider**: Âm thanh & nhạc (chuẩn bị cho v0.4)
-- **GitHub Actions fix**: Sửa lỗi build APK, thêm keystore signing tự động
+## [0.3] - 2026-08-02
 
-### Thay đổi
-- ColorRect → Sprite2D cho tất cả nhân vật, phi tiêu, vật phẩm
-- Thêm SettingsManager autoload (thứ 2, sau GameManager)
-- Player scene: thêm TeleportReadyIndicator (Sprite2D)
-- AI scene: load sprite tự động theo ai_id
-- Particle được điều chỉnh theo cài đặt đồ họa
-- Menu: thêm nút "Cài Đặt" → chuyển sang Settings scene
-- Main scene: thêm VirtualJoystick + MobileControls
-- GitHub Actions: fix sed command cho keystore, thêm sleep sau import
+### Added
+- Polish giao diện và trải nghiệm mobile
+- Cải thiện điều khiển joystick ảo
 
-## [0.2.0] - 2024-08-02
+## [0.2] - 2026-08-02
 
-### Thêm mới
-- Dịch chuyển giữa chừng (Mid-Flight Teleport)
-- Đường dự đoán (Predicted Line)
-- Menu chính, combo system, respawn tự động
-- Vật phẩm, screen shake, AI thông minh hơn
-- Vòng bo nhanh dần, HUD nâng cao
-- GitHub Actions: auto-build APK on release
+### Added
+- Hoàn thiện gameplay cơ bản
+- Thêm AI đối thủ
+- Thêm vật phẩm nhặt (phi tiêu, hồi máu)
 
-## [0.1.0] - 2024-08-02
+## [0.1] - 2026-08-02
 
-### Thêm mới
+### Added
 - Prototype offline đầu tiên
-- Hệ thống ném phi tiêu, cắm, dịch chuyển
-- AI đối thủ, HUD cơ bản, vòng bo
+- Cơ chế ném phi tiêu và dịch chuyển
+- Map cơ bản

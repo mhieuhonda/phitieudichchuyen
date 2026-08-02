@@ -24,6 +24,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            xvfb \
             libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev \
             libgl1-mesa-dev libglu1-mesa-dev libasound2-dev \
             libpulse-dev libudev-dev libxi-dev libxext-dev \
@@ -58,14 +59,45 @@ jobs:
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed"
 
-      # KEY FIX: Create editor_settings-4.tres in proper .tres format
-      # Godot 4.2.2 saves editor_settings as a Resource (not ConfigFile!)
-      # Uses ResourceSaver/ResourceLoader - format=3 for Godot 4.2.x
+      - name: Generate Debug Keystore
+        run: |
+          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
+            -keystore debug.keystore \
+            -storepass android \
+            -keypass android \
+            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
+            -validity 10000
+
+      - name: Patch export_presets.cfg with keystore
+        run: |
+          python3 << 'PYEOF'
+          import os
+
+          cfg_path = "export_presets.cfg"
+          with open(cfg_path, "r") as f:
+              content = f.read()
+
+          # Patch Android keystore settings
+          replacements = {
+              'package/keystore=""': 'package/keystore="debug.keystore"',
+              'package/keystore_passwd=""': 'package/keystore_passwd="android"',
+              'package/key_alias=""': 'package/key_alias="phitieudichchuyen"',
+              'package/key_passwd=""': 'package/key_passwd="android"',
+              'package/signed_custom=false': 'package/signed_custom=true',
+              'package/use_custom_keystore=false': 'package/use_custom_keystore=true',
+          }
+          for old, new in replacements.items():
+              content = content.replace(old, new)
+
+          with open(cfg_path, "w") as f:
+              f.write(content)
+
+          print("export_presets.cfg patched with keystore settings")
+          PYEOF
+
       - name: Create editor settings with Android SDK path
         run: |
           mkdir -p ~/.config/godot/
-          # Godot 4.2.2 uses format=3 for .tres resources
-          # The EditorSettings class uses ResourceLoader::load() to read this file
           python3 << 'PYEOF'
           import os
           settings_path = os.path.expanduser("~/.config/godot/editor_settings-4.tres")
@@ -75,18 +107,33 @@ jobs:
               f.write('export/android/android_sdk_path = "/usr/local/lib/android/sdk"\n')
               f.write('export/android/java_sdk_path = "/usr/lib/jvm/temurin-17-jdk-amd64"\n')
           print("Editor settings created at", settings_path)
-          with open(settings_path, "r") as f:
-              print(f.read())
           PYEOF
 
-      - name: Import Godot Project
+      - name: Import Godot Project (via Xvfb)
         run: |
-          echo "Running headless import..."
-          timeout 60 ./godot_editor --headless --import . 2>&1 || true
-          echo "Import step completed"
+          echo "Starting Xvfb..."
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 2
+          export DISPLAY=:99
+
+          echo "Running Godot editor to import project resources..."
+          timeout 120 ./godot_editor --editor --quit-after 10 --path . 2>&1 | head -200 || true
+
+          echo "Import step completed. Checking .godot cache..."
+          if [ -d .godot ]; then
+            echo ".godot directory exists - import successful"
+            ls -la .godot/
+          else
+            echo "WARNING: .godot directory not found"
+          fi
+
+          # Verify .import files were created
+          IMPORT_COUNT=$(find . -name "*.import" | wc -l)
+          echo "Found ${IMPORT_COUNT} .import files"
 
       - name: Install Android Build Template
         run: |
+          export DISPLAY=:99
           echo "Installing Android build template..."
           ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
           if [ -f android/build/build.gradle ]; then
@@ -111,45 +158,15 @@ jobs:
               exit 1
             fi
           fi
-          # Ensure .build_version file exists (required by Gradle build)
+          # Ensure .build_version file exists
           if [ ! -f android/.build_version ]; then
             echo "${GODOT_VERSION}.stable" > android/.build_version
-            echo "Created android/.build_version with: $(cat android/.build_version)"
+            echo "Created android/.build_version"
           fi
-
-      - name: Generate Debug Keystore
-        run: |
-          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
-            -keystore debug.keystore \
-            -storepass android \
-            -keypass android \
-            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
-            -validity 10000
-
-      - name: Configure Keystore in Export Presets
-        run: |
-          python3 << 'PYEOF'
-          with open("export_presets.cfg", "r") as f:
-              content = f.read()
-
-          replacements = {
-              'package/keystore=""': 'package/keystore="debug.keystore"',
-              'package/keystore_passwd=""': 'package/keystore_passwd="android"',
-              'package/key_alias=""': 'package/key_alias="phitieudichchuyen"',
-              'package/key_passwd=""': 'package/key_passwd="android"',
-              "package/signed_custom=false": "package/signed_custom=true",
-              "package/use_custom_keystore=false": "package/use_custom_keystore=true",
-          }
-          for old, new in replacements.items():
-              content = content.replace(old, new)
-
-          with open("export_presets.cfg", "w") as f:
-              f.write(content)
-          print("Patched successfully")
-          PYEOF
 
       - name: Export Android APK
         run: |
+          export DISPLAY=:99
           mkdir -p build/android
           echo "Exporting Android APK..."
           ./godot_editor --headless --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
@@ -167,6 +184,7 @@ jobs:
 
       - name: Export Windows Desktop
         run: |
+          export DISPLAY=:99
           mkdir -p build/windows
           echo "Exporting Windows Desktop..."
           ./godot_editor --headless --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
@@ -190,6 +208,7 @@ jobs:
 
       - name: Export Linux/X11
         run: |
+          export DISPLAY=:99
           mkdir -p build/linux
           echo "Exporting Linux/X11..."
           ./godot_editor --headless --path . --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
