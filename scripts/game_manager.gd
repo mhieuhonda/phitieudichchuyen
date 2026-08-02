@@ -29,7 +29,7 @@ signal screen_shake_requested(intensity: float, duration: float)
 @export var size_per_kill: float = 5.0
 @export var score_per_kill: int = 100
 @export var respawn_time: float = 3.0
-@export var combo_window: float = 2.0  # Thời gian giữa các kill để tính combo
+@export var combo_window: float = 2.0
 @export var max_player_size: float = 60.0
 
 @export_group("Vòng Bo")
@@ -37,7 +37,7 @@ signal screen_shake_requested(intensity: float, duration: float)
 @export var zone_shrink_amount: float = 50.0
 @export var zone_min_radius: float = 200.0
 @export var zone_damage_per_second: float = 10.0
-@export var zone_shrink_acceleration: float = 1.1  # Vòng bo thu nhỏ nhanh dần
+@export var zone_shrink_acceleration: float = 1.1
 
 @export_group("AI")
 @export var num_ai_players: int = 5
@@ -68,7 +68,6 @@ func _ready():
 func _process(delta):
 	if game_active:
 		game_time += delta
-		# Combo timer
 		if combo_count > 0:
 			combo_timer -= delta
 			if combo_timer <= 0:
@@ -91,7 +90,7 @@ func reset_game():
 	emit_signal("player_size_changed", player_size)
 
 func add_score(points: int):
-	var multiplier = 1.0 + (combo_count * 0.5)  # Combo bonus
+	var multiplier = 1.0 + (combo_count * 0.5)
 	var actual_points = int(points * multiplier)
 	player_score += actual_points
 	emit_signal("player_score_changed", player_score)
@@ -133,7 +132,8 @@ func get_zone_damage(delta: float) -> float:
 	return zone_damage_per_second * delta
 
 func request_screen_shake(intensity: float = 5.0, duration: float = 0.3):
-	emit_signal("screen_shake_requested", intensity, duration)
+	if SettingsManager.screen_shake_enabled:
+		emit_signal("screen_shake_requested", intensity, duration)
 
 func get_game_time_str() -> String:
 	var minutes = int(game_time) / 60

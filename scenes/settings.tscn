@@ -1,0 +1,124 @@
+[gd_scene load_steps=1 format=3 uid="uid://settings001"]
+
+[node name="SettingsMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("res://scripts/settings_menu.gd")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.08, 0.08, 0.15, 1)
+
+[node name="Title" type="Label" parent="."]
+offset_left = 400.0
+offset_top = 40.0
+offset_right = 880.0
+offset_bottom = 80.0
+theme_override_font_sizes/font_size = 32
+text = "CAI DAT"
+horizontal_alignment = 1
+
+[node name="QualityLabel" type="Label" parent="."]
+offset_left = 300.0
+offset_top = 120.0
+offset_right = 980.0
+offset_bottom = 150.0
+text = "Chat luong do hoa: Trung Binh"
+horizontal_alignment = 1
+
+[node name="QualityVeryLow" type="Button" parent="."]
+offset_left = 180.0
+offset_top = 170.0
+offset_right = 360.0
+offset_bottom = 210.0
+text = "Cuc Thap"
+
+[node name="QualityLow" type="Button" parent="."]
+offset_left = 380.0
+offset_top = 170.0
+offset_right = 560.0
+offset_bottom = 210.0
+text = "Thap"
+
+[node name="QualityMedium" type="Button" parent="."]
+offset_left = 580.0
+offset_top = 170.0
+offset_right = 760.0
+offset_bottom = 210.0
+text = "Trung Binh"
+
+[node name="QualityHigh" type="Button" parent="."]
+offset_left = 780.0
+offset_top = 170.0
+offset_right = 960.0
+offset_bottom = 210.0
+text = "Cao"
+
+[node name="FpsToggle" type="CheckButton" parent="."]
+offset_left = 300.0
+offset_top = 250.0
+offset_right = 500.0
+offset_bottom = 290.0
+text = "Hien FPS"
+
+[node name="ShakeToggle" type="CheckButton" parent="."]
+offset_left = 300.0
+offset_top = 300.0
+offset_right = 500.0
+offset_bottom = 340.0
+text = "Rung man hinh"
+button_pressed = true
+
+[node name="JoystickToggle" type="CheckButton" parent="."]
+offset_left = 300.0
+offset_top = 350.0
+offset_right = 500.0
+offset_bottom = 390.0
+text = "Joystick ao"
+button_pressed = true
+
+[node name="SoundLabel" type="Label" parent="."]
+offset_left = 300.0
+offset_top = 420.0
+offset_right = 500.0
+offset_bottom = 450.0
+text = "Am thanh: 100%"
+
+[node name="SoundSlider" type="HSlider" parent="."]
+offset_left = 300.0
+offset_top = 460.0
+offset_right = 700.0
+offset_bottom = 480.0
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="MusicLabel" type="Label" parent="."]
+offset_left = 300.0
+offset_top = 500.0
+offset_right = 500.0
+offset_bottom = 530.0
+text = "Nhac: 70%"
+
+[node name="MusicSlider" type="HSlider" parent="."]
+offset_left = 300.0
+offset_top = 540.0
+offset_right = 700.0
+offset_bottom = 560.0
+max_value = 1.0
+step = 0.05
+value = 0.7
+
+[node name="BackButton" type="Button" parent="."]
+offset_left = 490.0
+offset_top = 620.0
+offset_right = 790.0
+offset_bottom = 670.0
+text = "QUAY LAI"

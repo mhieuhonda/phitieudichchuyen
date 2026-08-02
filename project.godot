@@ -1,11 +1,9 @@
 ; Engine configuration file.
-; It's best edited using the editor UI and not directly,
-; but it can also be edited via script.
 
 [application]
 
 config/name="Phi Tiêu Dịch Chuyển"
-config/description="Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game multiplayer 2D top-down."
+config/description="Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down."
 run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.2", "Mobile")
 config/icon="res://icon.svg"
@@ -13,6 +11,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameManager="*res://scripts/game_manager.gd"
+SettingsManager="*res://scripts/settings_manager.gd"
 
 [display]
 

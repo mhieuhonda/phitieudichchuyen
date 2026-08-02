@@ -1,7 +1,6 @@
 extends Control
 
 ## Menu - Menu chính
-## Hiển thị tiêu đề, nút chơi, cài đặt
 
 @onready var title_label: Label = $TitleLabel
 @onready var subtitle_label: Label = $SubtitleLabel
@@ -16,14 +15,13 @@ func _ready():
 	settings_button.pressed.connect(_on_settings_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
 	
-	new_feature_label.text = "[color=cyan][b]MỚI v0.2:[/b][/color] Dịch chuyển giữa chừng!\nNhấn Space khi phi tiêu đang bay\nđể dịch chuyển tức thời tới vị trí phi tiêu!"
+	new_feature_label.text = "[color=cyan][b]MOI v0.3:[/b][/color] Sprite dep, Cai dat do hoa, Joystick ao!\nChat luong do hoa tu Cuc Thap den Cao\nJoystick ao + nut bam cho mobile"
 
 func _on_play_pressed():
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _on_settings_pressed():
-	# TODO: Settings menu
-	pass
+	get_tree().change_scene_to_file("res://scenes/settings.tscn")
 
 func _on_quit_pressed():
 	get_tree().quit()
