@@ -157,11 +157,6 @@ jobs:
             find android/build -name "*.import" -type f -delete 2>/dev/null || true
             ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
           fi
-        run: |
-          export DISPLAY=:99
-          mkdir -p build/android
-          echo "Exporting Android APK (unsigned)..."
-          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
 
       - name: Generate Debug Keystore and Sign APK
         run: |
