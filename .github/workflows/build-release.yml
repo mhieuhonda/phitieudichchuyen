@@ -59,25 +59,73 @@ jobs:
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed"
 
-      - name: Create editor settings with Android SDK path
+      # KEY FIX: Run Godot editor with Xvfb to let it create editor_settings
+      # in the correct ConfigFile format. Then patch Android SDK path.
+      - name: Initialize Godot and configure Android SDK
         run: |
-          mkdir -p ~/.config/godot/
-          # Use Python to create the file with correct format
+          # Start Godot editor with Xvfb - it will create editor_settings-4.tres
+          echo "Starting Godot editor to create editor settings..."
+          timeout 30 xvfb-run -a ./godot_editor --editor --path . 2>&1 || true
+          sleep 2
+
+          # Check if editor settings were created
+          SETTINGS_FILE="$HOME/.config/godot/editor_settings-4.tres"
+          if [ -f "$SETTINGS_FILE" ]; then
+            echo "Editor settings file found! Patching Android SDK path..."
+            echo "=== Before patch ==="
+            cat "$SETTINGS_FILE" | head -30
+          else
+            echo "Editor settings NOT found. Creating from scratch..."
+            mkdir -p "$(dirname "$SETTINGS_FILE")"
+            # Write in ConfigFile format (INI-style, NOT .tres)
+            # Godot 4.2.2 uses this format for editor_settings
+            cat > "$SETTINGS_FILE" << 'SETTINGS_EOF'
+          [export/android]
+
+          android_sdk_path="/usr/local/lib/android/sdk"
+          debug_keystore=""
+          debug_keystore_pass=""
+          debug_keystore_user=""
+          force_system_user=false
+
+          [network/http_proxy]
+
+          host=""
+          port=0
+
+          [text_editor/theme]
+
+          color_theme="Default"
+          SETTINGS_EOF
+          fi
+
+          # Patch Android SDK path using Python (handles both formats)
           python3 << 'PYEOF'
-          import os
+          import os, re
           settings_path = os.path.expanduser("~/.config/godot/editor_settings-4.tres")
+          with open(settings_path, "r") as f:
+              content = f.read()
+
+          # If android_sdk_path exists but is empty or wrong
+          if "android_sdk_path" in content:
+              content = re.sub(
+                  r'android_sdk_path\s*=\s*"[^"]*"',
+                  'android_sdk_path="/usr/local/lib/android/sdk"',
+                  content
+              )
+          elif "[export/android]" in content:
+              content = content.replace(
+                  "[export/android]\n",
+                  '[export/android]\n\nandroid_sdk_path="/usr/local/lib/android/sdk"\n'
+              )
+          else:
+              # Add section at the end
+              content += '\n[export/android]\n\nandroid_sdk_path="/usr/local/lib/android/sdk"\n'
+
           with open(settings_path, "w") as f:
-              f.write('[gd_resource type="EditorSettings" format=4]\n\n')
-              f.write('[resource]\n\n')
-              f.write('export/android/android_sdk_path = "/usr/local/lib/android/sdk"\n')
-              f.write('export/android/debug_keystore = ""\n')
-              f.write('export/android/debug_keystore_pass = ""\n')
-              f.write('export/android/debug_keystore_user = ""\n')
-              f.write('export/android/force_system_user = false\n')
-              f.write('network/http_proxy/host = ""\n')
-              f.write('network/http_proxy/port = 0\n')
-              f.write('text_editor/theme/color_theme = "Default"\n')
-          print("Editor settings created at", settings_path)
+              f.write(content)
+          print("Patched Android SDK path")
+          print("=== Final editor settings ===")
           with open(settings_path, "r") as f:
               print(f.read())
           PYEOF
