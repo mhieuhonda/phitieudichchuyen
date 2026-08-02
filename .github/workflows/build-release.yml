@@ -61,42 +61,6 @@ jobs:
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed"
 
-      - name: Generate Debug Keystore
-        run: |
-          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
-            -keystore debug.keystore \
-            -storepass android \
-            -keypass android \
-            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
-            -validity 10000
-
-      - name: Patch export_presets.cfg with keystore
-        run: |
-          python3 << 'PYEOF'
-          import os
-
-          cfg_path = "export_presets.cfg"
-          with open(cfg_path, "r") as f:
-              content = f.read()
-
-          # Patch Android keystore settings
-          replacements = {
-              'package/keystore=""': 'package/keystore="debug.keystore"',
-              'package/keystore_passwd=""': 'package/keystore_passwd="android"',
-              'package/key_alias=""': 'package/key_alias="phitieudichchuyen"',
-              'package/key_passwd=""': 'package/key_passwd="android"',
-              'package/signed_custom=false': 'package/signed_custom=true',
-              'package/use_custom_keystore=false': 'package/use_custom_keystore=true',
-          }
-          for old, new in replacements.items():
-              content = content.replace(old, new)
-
-          with open(cfg_path, "w") as f:
-              f.write(content)
-
-          print("export_presets.cfg patched with keystore settings")
-          PYEOF
-
       - name: Create editor settings with Android SDK path
         run: |
           mkdir -p ~/.config/godot/
@@ -171,6 +135,46 @@ jobs:
             echo "${GODOT_VERSION}.stable" > android/.build_version
             echo "Created android/.build_version"
           fi
+
+      - name: Generate Debug Keystore
+        run: |
+          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
+            -keystore debug.keystore \
+            -storepass android \
+            -keypass android \
+            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
+            -validity 10000
+
+      - name: Patch export_presets.cfg with keystore (AFTER import)
+        run: |
+          python3 << 'PYEOF'
+          import os
+
+          cfg_path = "export_presets.cfg"
+          with open(cfg_path, "r") as f:
+              content = f.read()
+
+          print("=== export_presets.cfg BEFORE patching ===")
+          print(content)
+          print("=== END ===")
+
+          # Patch Android keystore settings
+          replacements = {
+              'package/keystore=""': 'package/keystore="debug.keystore"',
+              'package/keystore_passwd=""': 'package/keystore_passwd="android"',
+              'package/key_alias=""': 'package/key_alias="phitieudichchuyen"',
+              'package/key_passwd=""': 'package/key_passwd="android"',
+              'package/signed_custom=false': 'package/signed_custom=true',
+              'package/use_custom_keystore=false': 'package/use_custom_keystore=true',
+          }
+          for old, new in replacements.items():
+              content = content.replace(old, new)
+
+          with open(cfg_path, "w") as f:
+              f.write(content)
+
+          print("export_presets.cfg patched with keystore settings")
+          PYEOF
 
       - name: Export Android APK
         run: |
