@@ -1,8 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://main001"]
+[gd_scene load_steps=4 format=3 uid="uid://main002"]
 
-[ext_resource type="PackedScene" uid="uid://map001" path="res://scenes/map.tscn" id="1"]
-[ext_resource type="PackedScene" uid="uid://player001" path="res://scenes/player.tscn" id="2"]
-[ext_resource type="PackedScene" uid="uid://aiplayer001" path="res://scenes/ai_player.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://map002" path="res://scenes/map.tscn" id="1"]
+[ext_resource type="PackedScene" uid="uid://player002" path="res://scenes/player.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://aiplayer002" path="res://scenes/ai_player.tscn" id="3"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("res://scripts/main.gd")

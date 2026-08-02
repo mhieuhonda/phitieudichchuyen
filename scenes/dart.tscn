@@ -1,9 +1,9 @@
-[gd_scene load_steps=2 format=3 uid="uid://dart001"]
+[gd_scene load_steps=2 format=3 uid="uid://dart002"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_dart"]
 radius = 8.0
 
-[node name="Dart" type="Area2D"]
+[node name="Dart" type="Area2D" groups=["darts"]]
 collision_layer = 2
 collision_mask = 20
 
@@ -20,7 +20,7 @@ offset_left = -8.0
 offset_top = -16.0
 offset_right = 8.0
 offset_bottom = 16.0
-color = Color(1, 0.9, 0.3, 0.4)
+color = Color(0.3, 0.8, 1, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_dart")
@@ -42,5 +42,10 @@ color = Color(1, 0.8, 0.2, 0.6)
 
 [node name="LifetimeTimer" type="Timer" parent="."]
 one_shot = true
+
+[node name="PredictedLine" type="Line2D" parent="."]
+visible = false
+width = 1.0
+default_color = Color(0.3, 0.8, 1, 0.3)
 
 [connection signal="body_entered" from="." to="." method="_on_body_entered"]

@@ -1,0 +1,80 @@
+[gd_scene load_steps=1 format=3 uid="uid://menu001"]
+
+[node name="Menu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("res://scripts/menu.gd")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.08, 0.15, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 300.0
+offset_top = 80.0
+offset_right = 980.0
+offset_bottom = 180.0
+theme_override_font_sizes/font_size = 48
+text = "PHI TIÊU DỊCH CHUYỂN"
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 350.0
+offset_top = 180.0
+offset_right = 930.0
+offset_bottom = 220.0
+theme_override_font_sizes/font_size = 20
+text = "Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!"
+horizontal_alignment = 1
+
+[node name="NewFeatureLabel" type="RichTextLabel" parent="."]
+layout_mode = 0
+offset_left = 400.0
+offset_top = 240.0
+offset_right = 880.0
+offset_bottom = 330.0
+bbcode_enabled = true
+text = "MỚI v0.2: Dịch chuyển giữa chừng!"
+
+[node name="PlayButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 490.0
+offset_top = 360.0
+offset_right = 790.0
+offset_bottom = 410.0
+text = "CHƠI NGAY"
+
+[node name="SettingsButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 490.0
+offset_top = 430.0
+offset_right = 790.0
+offset_bottom = 480.0
+text = "CÀI ĐẶT"
+
+[node name="QuitButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 490.0
+offset_top = 500.0
+offset_right = 790.0
+offset_bottom = 550.0
+text = "THOÁT"
+
+[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 690.0
+offset_right = 200.0
+offset_bottom = 720.0
+text = "v0.2 - Prototype Offline"

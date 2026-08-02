@@ -1,7 +1,9 @@
 extends CharacterBody2D
 
 ## Player - Nhân vật người chơi
-## Di chuyển chậm (WASD), nhắm & ném phi tiêu (chuột phải), dịch chuyển (Space)
+## Di chuyển chậm (WASD), nhắm & ném phi tiêu (chuột phải)
+## Dịch chuyển (Space) tới phi tiêu ĐANG BAY hoặc đã cắm
+## Cơ chế mid-flight teleport: nhấn Space khi phi tiêu đang bay → dịch chuyển tới vị trí phi tiêu hiện tại
 
 @onready var sprite: ColorRect = $Sprite
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -11,30 +13,37 @@ extends CharacterBody2D
 @onready var name_label: Label = $NameLabel
 @onready var teleport_particles: CPUParticles2D = $TeleportParticles
 @onready var death_particles: CPUParticles2D = $DeathParticles
+@onready var size_indicator: Label = $SizeIndicator
+@onready var teleport_ready_indicator: ColorRect = $TeleportReadyIndicator
 
 # === TRẠNG THÁI ===
 var is_alive: bool = true
 var is_aiming: bool = false
 var aim_start_pos: Vector2 = Vector2.ZERO
 var aim_current_pos: Vector2 = Vector2.ZERO
-var stuck_darts: Array = []  # Các phi tiêu đang cắm trên bản đồ
+var all_darts: Array = []  # Tất cả phi tiêu (bay + cắm) - thay stuck_darts
 var player_id: int = 0
 var player_name: String = "Player"
 var current_hp: float
+var last_teleport_time: float = 0.0
+var teleport_cooldown: float = 0.15  # Cooldown ngắn giữa các lần dịch chuyển
+var is_respawning: bool = false
 
 # === THAM CHIẾU ===
 var dart_scene: PackedScene = preload("res://scenes/dart.tscn")
 
 signal dart_thrown(dart: Node2D)
 signal player_died(player: CharacterBody2D)
+signal player_respawned(player: CharacterBody2D)
 signal teleport_performed(player: CharacterBody2D, to_position: Vector2)
 
 func _ready():
 	current_hp = GameManager.player_max_hp
 	_update_hp_bar()
 	_update_visual_size()
+	_update_size_indicator()
 	aim_line.visible = false
-	# Thiết lập collision layer
+	teleport_ready_indicator.visible = false
 	collision_layer = 1  # Layer Player
 	collision_mask = 4 | 16  # Wall + Obstacle
 
@@ -73,6 +82,9 @@ func _physics_process(delta):
 		_update_hp_bar()
 		if died:
 			_die()
+	
+	# Cập nhật indicator có thể dịch chuyển
+	_update_teleport_indicator()
 
 func _input(event: InputEvent):
 	if not is_alive:
@@ -90,12 +102,12 @@ func _input(event: InputEvent):
 		aim_current_pos = event.global_position
 		_update_aim_line()
 	
-	# Dịch chuyển (Space)
+	# Dịch chuyển (Space) - tới phi tiêu đang bay HOẶC đã cắm
 	if event.is_action_pressed("teleport"):
 		_teleport_to_dart()
 
 func _start_aiming(mouse_pos: Vector2):
-	if stuck_darts.size() >= GameManager.max_darts_per_player:
+	if _count_active_darts() >= GameManager.max_darts_per_player:
 		return
 	is_aiming = true
 	aim_start_pos = mouse_pos
@@ -109,7 +121,7 @@ func _update_aim_line():
 	
 	var direction = (aim_start_pos - aim_current_pos).normalized()
 	var power = _calculate_power()
-	var line_length = power * 200  # Visual feedback
+	var line_length = power * 200
 	
 	aim_line.clear_points()
 	aim_line.add_point(Vector2.ZERO)
@@ -117,7 +129,7 @@ func _update_aim_line():
 	
 	# Đổi màu theo lực
 	var t = power
-	aim_line.default_color = Color(t, 1.0 - t, 0.0)  # Xanh -> Đỏ
+	aim_line.default_color = Color(t, 1.0 - t, 0.0)
 
 func _calculate_power() -> float:
 	var drag_distance = (aim_start_pos - aim_current_pos).length()
@@ -130,7 +142,7 @@ func _throw_dart(mouse_pos: Vector2):
 	is_aiming = false
 	aim_line.visible = false
 	
-	if stuck_darts.size() >= GameManager.max_darts_per_player:
+	if _count_active_darts() >= GameManager.max_darts_per_player:
 		return
 	
 	var direction = (aim_start_pos - aim_current_pos).normalized()
@@ -144,38 +156,80 @@ func _throw_dart(mouse_pos: Vector2):
 	dart.owner_player_id = player_id
 	get_parent().add_child(dart)
 	
-	# Kết nối signal khi phi tiêu cắm
+	# Kết nối signals
 	dart.dart_stuck.connect(_on_dart_stuck)
 	dart.dart_expired.connect(_on_dart_expired)
 	dart.dart_hit_player.connect(_on_dart_hit_player)
+	dart.dart_consumed.connect(_on_dart_consumed)
+	
+	# Thêm vào danh sách tất cả phi tiêu (cả đang bay và cắm)
+	all_darts.append(dart)
 	
 	emit_signal("dart_thrown", dart)
 
+func _count_active_darts() -> int:
+	"""Đếm số phi tiêu còn hoạt động (bay + cắm)"""
+	var count = 0
+	for dart in all_darts:
+		if is_instance_valid(dart) and dart.is_teleportable():
+			count += 1
+	return count
+
 func _teleport_to_dart():
-	if stuck_darts.size() == 0:
+	"""Dịch chuyển tới phi tiêu gần nhất (bay hoặc cắm)
+	Cơ chế MỚI: có thể dịch chuyển tới phi tiêu ĐANG BAY"""
+	
+	# Kiểm tra cooldown
+	if Time.get_ticks_msec() / 1000.0 - last_teleport_time < teleport_cooldown:
 		return
 	
-	# Dịch chuyển tới phi tiêu cuối cùng (hoặc gần nhất)
-	var target_dart = stuck_darts[-1]
-	var target_pos = target_dart.global_position
+	# Tìm phi tiêu có thể dịch chuyển
+	var teleportable_darts = []
+	for dart in all_darts:
+		if is_instance_valid(dart) and dart.is_teleportable():
+			teleportable_darts.append(dart)
+	
+	if teleportable_darts.size() == 0:
+		return
+	
+	# Lấy phi tiêu cuối cùng (mới nhất) - ưu tiên phi tiêu đang bay
+	var target_dart = _select_best_dart(teleportable_darts)
+	var target_pos = target_dart.get_teleport_position()
+	var was_flying = target_dart.is_flying()
 	
 	# Hiệu ứng biến mất
-	_spawn_teleport_effect(global_position, false)
+	_spawn_teleport_effect(global_position, false, was_flying)
 	
 	# Dịch chuyển
 	global_position = target_pos
 	
 	# Hiệu ứng xuất hiện
-	_spawn_teleport_effect(global_position, true)
+	_spawn_teleport_effect(global_position, true, was_flying)
 	
-	# Xóa phi tiêu
-	target_dart.queue_free()
-	stuck_darts.erase(target_dart)
+	# Screen shake
+	GameManager.request_screen_shake(6.0 if was_flying else 4.0, 0.25 if was_flying else 0.15)
 	
-	# Kiểm tra va chạm tại vị trí đích - tiêu diệt đối thủ
+	# Tiêu thụ phi tiêu
+	target_dart.consume()
+	all_darts.erase(target_dart)
+	
+	# Kiểm tra va chạm tại vị trí đích
 	_check_teleport_kill(target_pos)
 	
+	last_teleport_time = Time.get_ticks_msec() / 1000.0
+	
 	emit_signal("teleport_performed", self, target_pos)
+
+func _select_best_dart(darts: Array) -> Node2D:
+	"""Chọn phi tiêu tốt nhất để dịch chuyển
+	Ưu tiên: phi tiêu đang bay (nếu bật mid-flight) > phi tiêu cắm cuối cùng"""
+	if GameManager.mid_flight_teleport_enabled:
+		# Ưu tiên phi tiêu đang bay (mới nhất)
+		for i in range(darts.size() - 1, -1, -1):
+			if darts[i].is_flying():
+				return darts[i]
+	# Fallback: phi tiêu cuối cùng
+	return darts[-1]
 
 func _check_teleport_kill(pos: Vector2):
 	# Kiểm tra xem có AI nào trong bán kính nuốt không
@@ -186,66 +240,113 @@ func _check_teleport_kill(pos: Vector2):
 		var dist = pos.distance_to(ai.global_position)
 		if dist < GameManager.teleport_kill_radius + ai.current_size:
 			ai.kill(self)
-			GameManager.add_score(GameManager.score_per_kill)
+			GameManager.register_kill()
+			var points = GameManager.add_score(GameManager.score_per_kill)
 			GameManager.add_size(GameManager.size_per_kill)
 			_update_visual_size()
+			_update_size_indicator()
+			GameManager.request_screen_shake(8.0, 0.3)
 
 func _on_dart_stuck(dart: Node2D):
-	stuck_darts.append(dart)
+	# Phi tiêu đã nằm trong all_darts từ lúc ném, không cần thêm lại
+	pass
 
 func _on_dart_expired(dart: Node2D):
-	stuck_darts.erase(dart)
+	all_darts.erase(dart)
+
+func _on_dart_consumed(dart: Node2D):
+	all_darts.erase(dart)
 
 func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
-	# Phi tiêu trúng AI gây sát thương
 	if hit_player.has_method("take_damage_from"):
 		hit_player.take_damage_from(GameManager.dart_hit_damage, self)
 
 func _die():
-	is_alive = false
-	# Hiệu ứng chết
+	is_alive = true  # Sẽ respawn, không xóa hẳn
+	is_respawning = true
 	death_particles.emitting = true
 	sprite.visible = false
 	collision_shape.set_deferred("disabled", true)
 	aim_line.visible = false
+	teleport_ready_indicator.visible = false
 	
 	# Xóa tất cả phi tiêu
-	for dart in stuck_darts:
+	for dart in all_darts:
 		if is_instance_valid(dart):
 			dart.queue_free()
-	stuck_darts.clear()
+	all_darts.clear()
 	
 	emit_signal("player_died", self)
+	
+	# Respawn sau vài giây
+	get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
 
-func _spawn_teleport_effect(pos: Vector2, is_appear: bool):
-	teleport_particles.global_position = pos
-	teleport_particles.emitting = true
-	# Tạo hiệu ứng tạm thời
+func _respawn():
+	is_alive = true
+	is_respawning = false
+	current_hp = GameManager.player_max_hp
+	GameManager.player_hp = GameManager.player_max_hp
+	GameManager.player_size = GameManager.initial_player_radius
+	sprite.visible = true
+	collision_shape.set_deferred("disabled", false)
+	
+	# Vị trí respawn ngẫu nhiên trong vùng an toàn
+	var angle = randf() * TAU
+	var dist = randf() * GameManager.zone_radius * 0.5
+	global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
+	
+	_update_hp_bar()
+	_update_visual_size()
+	_update_size_indicator()
+	
+	# Hiệu ứng xuất hiện
+	_spawn_teleport_effect(global_position, true, false)
+	
+	emit_signal("player_respawned", self)
+
+func _spawn_teleport_effect(pos: Vector2, is_appear: bool, is_mid_flight: bool):
 	var particles = CPUParticles2D.new()
 	particles.emitting = true
 	particles.one_shot = true
 	particles.explosiveness = 0.8
-	particles.amount = 20
+	particles.amount = 25 if is_mid_flight else 18
 	particles.lifetime = 0.5
 	particles.direction = Vector2(0, -1) if is_appear else Vector2(0, 1)
 	particles.spread = 180
-	particles.initial_velocity_min = 50
-	particles.initial_velocity_max = 150
+	particles.initial_velocity_min = 60
+	particles.initial_velocity_max = 180
 	particles.gravity = Vector2.ZERO
 	particles.scale_amount_min = 2
 	particles.scale_amount_max = 5
-	particles.color = Color(0.3, 0.7, 1.0, 0.8) if is_appear else Color(1.0, 0.5, 0.2, 0.8)
+	
+	# Màu khác nhau cho mid-flight teleport
+	if is_mid_flight:
+		particles.color = Color(0.2, 0.9, 1.0, 0.9) if is_appear else Color(1.0, 0.3, 0.7, 0.9)
+	else:
+		particles.color = Color(0.3, 0.7, 1.0, 0.8) if is_appear else Color(1.0, 0.5, 0.2, 0.8)
+	
 	get_parent().add_child(particles)
 	particles.global_position = pos
-	# Tự xóa sau khi phát xong
 	get_tree().create_timer(1.0).timeout.connect(particles.queue_free)
+
+func _update_teleport_indicator():
+	"""Hiển thị indicator khi có thể dịch chuyển"""
+	var has_teleportable = false
+	for dart in all_darts:
+		if is_instance_valid(dart) and dart.is_teleportable():
+			has_teleportable = true
+			break
+	teleport_ready_indicator.visible = has_teleportable and is_alive
 
 func _update_visual_size():
 	var new_scale = GameManager.player_size / GameManager.initial_player_radius
 	sprite.scale = Vector2(new_scale, new_scale)
-	# Cập nhật collision shape
 	if collision_shape.shape is CircleShape2D:
 		collision_shape.shape.radius = GameManager.player_size
+
+func _update_size_indicator():
+	if size_indicator:
+		size_indicator.text = "Size: %.0f" % GameManager.player_size
 
 func _update_hp_bar():
 	if hp_bar:
@@ -261,6 +362,10 @@ func take_damage_from(amount: float, attacker: Node2D):
 	current_hp -= amount
 	GameManager.player_hp = current_hp
 	_update_hp_bar()
+	# Flash đỏ
+	var tween = create_tween()
+	tween.tween_property(sprite, "color", Color(1.0, 0.3, 0.3), 0.05)
+	tween.tween_property(sprite, "color", Color(0.2, 0.6, 1.0), 0.2)
 	if current_hp <= 0:
 		current_hp = 0
 		_die()

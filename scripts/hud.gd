@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 ## HUD - Giao diện người chơi
-## Hiển thị điểm, máu, số phi tiêu, vòng bo, mini-map
+## Hiển thị điểm, máu, số phi tiêu, combo, vòng bo, mini-map
 
 @onready var score_label: Label = $ScoreLabel
 @onready var hp_bar: ProgressBar = $HpBar
@@ -14,30 +14,42 @@ extends CanvasLayer
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var game_over_label: Label = $GameOverPanel/GameOverLabel
 @onready var restart_label: Label = $GameOverPanel/RestartLabel
+@onready var combo_label: Label = $ComboLabel
+@onready var size_label: Label = $SizeLabel
+@onready var time_label: Label = $TimeLabel
+@onready var mid_flight_hint: Label = $MidFlightHint
 
 var player: CharacterBody2D = null
 var zone_shrink_timer: float = 0.0
+var combo_display_timer: float = 0.0
 
 func _ready():
 	GameManager.player_score_changed.connect(_on_score_changed)
 	GameManager.player_size_changed.connect(_on_size_changed)
 	GameManager.zone_shrank.connect(_on_zone_shrank)
+	GameManager.combo_achieved.connect(_on_combo_achieved)
+	GameManager.screen_shake_requested.connect(_on_screen_shake)
 	
 	zone_shrink_timer = GameManager.zone_shrink_interval
 	
-	# Hiển thị điều khiển
 	controls_label.text = "[b]ĐIỀU KHIẾN[/b]\n"
 	controls_label.text += "WASD: Di chuyển chậm\n"
 	controls_label.text += "Chuột phải: Nhắm & Ném phi tiêu\n"
 	controls_label.text += "Space: Dịch chuyển tới phi tiêu\n"
+	controls_label.text += "[color=cyan]Space khi phi tiêu đang bay: Dịch chuyển giữa chừng![/color]\n"
 	controls_label.text += "R: Chơi lại (khi chết)"
 	
 	game_over_panel.visible = false
 	zone_warning.visible = false
+	combo_label.visible = false
+	mid_flight_hint.visible = false
 
 func set_player(p: CharacterBody2D):
 	player = p
 	player.player_died.connect(_on_player_died)
+	player.player_respawned.connect(_on_player_respawned)
+	player.dart_thrown.connect(_on_dart_thrown)
+	player.teleport_performed.connect(_on_teleport_performed)
 
 func _process(delta):
 	if not player:
@@ -48,10 +60,9 @@ func _process(delta):
 	hp_bar.max_value = GameManager.player_max_hp
 	
 	# Cập nhật số phi tiêu
-	if player.stuck_darts.size() > 0:
-		dart_count_label.text = "Phi tiêu: %d/%d" % [player.stuck_darts.size(), GameManager.max_darts_per_player]
-	else:
-		dart_count_label.text = "Phi tiêu: 0/%d (Nhắm để ném!)" % GameManager.max_darts_per_player
+	var dart_info = _get_dart_info()
+	dart_count_label.text = dart_info
+	mid_flight_hint.visible = _has_flying_darts()
 	
 	# Cập nhật đếm ngược vòng bo
 	zone_shrink_timer -= delta
@@ -70,36 +81,98 @@ func _process(delta):
 	var alive_count = get_tree().get_nodes_in_group("ai_players").filter(func(a): return a.is_alive).size()
 	alive_count += 1 if player.is_alive else 0
 	alive_label.text = "Còn sống: %d" % alive_count
+	
+	# Cập nhật kích thước
+	size_label.text = "Kích thước: %.0f" % GameManager.player_size
+	
+	# Cập nhật thời gian
+	time_label.text = GameManager.get_game_time_str()
+	
+	# Combo display timer
+	if combo_label.visible:
+		combo_display_timer -= delta
+		if combo_display_timer <= 0:
+			combo_label.visible = false
+
+func _get_dart_info() -> String:
+	var flying = 0
+	var stuck = 0
+	for dart in player.all_darts:
+		if is_instance_valid(dart):
+			if dart.is_flying():
+				flying += 1
+			elif dart.is_stuck():
+				stuck += 1
+	if flying > 0:
+		return "Phi tiêu: %d bay + %d cắm / %d" % [flying, stuck, GameManager.max_darts_per_player]
+	elif stuck > 0:
+		return "Phi tiêu: %d cắm / %d" % [stuck, GameManager.max_darts_per_player]
+	else:
+		return "Phi tiêu: 0/%d (Nhắm để ném!)" % GameManager.max_darts_per_player
+
+func _has_flying_darts() -> bool:
+	for dart in player.all_darts:
+		if is_instance_valid(dart) and dart.is_flying():
+			return true
+	return false
 
 func _on_score_changed(new_score: int):
 	score_label.text = "Điểm: %d" % new_score
 
 func _on_size_changed(new_size: float):
-	# Cập nhật hiển thị kích thước
-	pass
+	size_label.text = "Kích thước: %.0f" % new_size
 
 func _on_zone_shrank(new_radius: float):
-	zone_timer_label.text = "Vòng bo thu nhỏ!"
-	_add_kill_feed("⚠ Vòng bo thu nhỏ!", Color(1.0, 0.5, 0.0))
+	_add_kill_feed("Vòng bo thu nhỏ!", Color(1.0, 0.5, 0.0))
+
+func _on_combo_achieved(combo_count: int):
+	combo_label.text = "COMBO x%d!" % combo_count
+	combo_label.visible = true
+	combo_display_timer = 2.0
+	_add_kill_feed("COMBO x%d! (x%.1f điểm)" % [combo_count, 1.0 + (combo_count * 0.5)], Color(1.0, 0.8, 0.0))
+
+func _on_screen_shake(intensity: float, duration: float):
+	# Screen shake effect trên HUD
+	var tween = create_tween()
+	for i in int(duration / 0.02):
+		var offset = Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
+		tween.tween_property(self, "offset", offset, 0.02)
+	tween.tween_property(self, "offset", Vector2.ZERO, 0.05)
 
 func _on_player_died(p: CharacterBody2D):
 	game_over_panel.visible = true
 	game_over_label.text = "BẠN ĐÃ BỊ TIÊU DIỆT!"
-	restart_label.text = "Nhấn R để chơi lại"
+	restart_label.text = "Tự respawn sau %.0fs..." % GameManager.respawn_time
 	_add_kill_feed("Bạn đã bị tiêu diệt!", Color(1.0, 0.2, 0.2))
+
+func _on_player_respawned(p: CharacterBody2D):
+	game_over_panel.visible = false
+	_add_kill_feed("Đã respawn!", Color(0.2, 1.0, 0.2))
+
+func _on_dart_thrown(dart: Node2D):
+	mid_flight_hint.visible = true
+	# Ẩn hint sau 1.5s nếu không có phi tiêu đang bay
+	get_tree().create_timer(1.5).timeout.connect(func():
+		if not _has_flying_darts():
+			mid_flight_hint.visible = false
+	)
+
+func _on_teleport_performed(player: CharacterBody2D, to_position: Vector2):
+	# Hiển thị hint khi dịch chuyển giữa chừng
+	# (sẽ có hiệu ứng riêng)
+	pass
 
 func _input(event: InputEvent):
 	if event.is_action_pressed("restart") and not player.is_alive:
-		_restart_game()
+		# Player tự respawn, không cần restart
+		pass
 
 func _add_kill_feed(text: String, color: Color = Color.WHITE):
 	var label = Label.new()
 	label.text = text
 	label.add_theme_color_override("font_color", color)
 	kill_feed.add_child(label)
-	# Tự xóa sau 3 giây
 	get_tree().create_timer(3.0).timeout.connect(label.queue_free)
 
 func _restart_game():
-	# Reload scene
 	get_tree().reload_current_scene()

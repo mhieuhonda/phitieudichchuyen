@@ -1,0 +1,135 @@
+name: Build & Release APK
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Godot Editor
+        run: |
+          GODOT_VERSION="4.2.2"
+          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot-editor.zip
+          unzip -q godot-editor.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot_editor
+          chmod +x godot_editor
+
+      - name: Get Godot Export Templates
+        run: |
+          GODOT_VERSION="4.2.2"
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
+          unzip -q templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Build Tools & Platform
+        run: |
+          sdkmanager --install "build-tools;33.0.2"
+          sdkmanager --install "platforms;android-33"
+
+      - name: Generate Debug Keystore for Signing
+        run: |
+          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen -keystore debug.keystore -storepass android -keypass android -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" -validity 10000
+
+      - name: Import Project
+        run: |
+          ./godot_editor --headless --import-project --path $(pwd) 2>&1 || true
+
+      - name: Install Android Build Template
+        run: |
+          ./godot_editor --headless --path $(pwd) --install-android-build-template 2>&1 || true
+
+      - name: Export Android APK
+        run: |
+          mkdir -p build/android
+          ./godot_editor --headless --path $(pwd) --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
+
+      - name: Sign APK with Debug Key
+        run: |
+          # Sign with apksigner (from Android build tools)
+          APKSIGNER=$ANDROID_HOME/build-tools/33.0.2/apksigner
+          if [ -f "$APKSIGNER" ]; then
+            $APKSIGNER sign --ks debug.keystore --ks-key-alias phitieudichchuyen --ks-pass pass:android --key-pass pass:android --out build/android/phitieudichchuyen-signed.apk build/android/phitieudichchuyen.apk
+            mv build/android/phitieudichchuyen-signed.apk build/android/phitieudichchuyen.apk
+          else
+            # Fallback: use jarsigner
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore debug.keystore -storepass android -keypass android build/android/phitieudichchuyen.apk phitieudichchuyen
+          fi
+
+      - name: Verify APK
+        run: |
+          if [ -f "build/android/phitieudichchuyen.apk" ]; then
+            echo "APK built successfully!"
+            ls -la build/android/phitieudichchuyen.apk
+          else
+            echo "APK not found!"
+            find build/ -type f 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/android/phitieudichchuyen.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Godot Editor
+        run: |
+          GODOT_VERSION="4.2.2"
+          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot-editor.zip
+          unzip -q godot-editor.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot_editor
+          chmod +x godot_editor
+
+      - name: Get Godot Export Templates
+        run: |
+          GODOT_VERSION="4.2.2"
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
+          unzip -q templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+
+      - name: Import Project
+        run: |
+          ./godot_editor --headless --import-project --path $(pwd) 2>&1 || true
+
+      - name: Export Windows
+        run: |
+          mkdir -p build/windows
+          ./godot_editor --headless --path $(pwd) --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1 || true
+
+      - name: Upload Windows to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/windows/phitieudichchuyen.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

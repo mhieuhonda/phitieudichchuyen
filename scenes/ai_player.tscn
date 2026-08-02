@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://aiplayer001"]
+[gd_scene load_steps=2 format=3 uid="uid://aiplayer002"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ai"]
 radius = 20.0
