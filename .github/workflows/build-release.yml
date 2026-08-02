@@ -147,22 +147,30 @@ jobs:
           find . -name "*.import" -not -path "./.godot/*" -not -path "./android/*" -type f -delete 2>/dev/null || true
 
           echo "Exporting Android APK (unsigned)..."
-          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
+          # Use || true to prevent script failure, we'll check if APK exists later
+          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1 || true
 
-          # If export failed, try cleaning .import files from android/build/res and retry
+          # If Godot export failed (likely due to .import files), clean and run Gradle directly
           if [ ! -f build/android/phitieudichchuyen-unsigned.apk ]; then
-            echo "APK export failed, cleaning .import files from android/build/res and retrying..."
+            echo "Godot export failed. Cleaning .import files from android/build/res and running Gradle directly..."
             find android/build/res -name "*.import" -type f -delete 2>/dev/null || true
-            # Use Gradle directly to build the APK
+            echo "Remaining .import files in android/build/res:"
+            find android/build/res -name "*.import" -type f 2>/dev/null || echo "None"
+            
             cd android/build
             chmod +x gradlew
             ./gradlew assembleRelease 2>&1
             cd ../..
+            
             # Find the built APK
             APK_PATH=$(find android/build/build/outputs -name "*.apk" -type f 2>/dev/null | head -1)
             if [ -n "$APK_PATH" ]; then
               cp "$APK_PATH" build/android/phitieudichchuyen-unsigned.apk
               echo "APK built via Gradle directly!"
+            else
+              echo "ERROR: APK not found after Gradle build"
+              find android/build/build/outputs -type f 2>/dev/null || echo "No outputs directory"
+              exit 1
             fi
           fi
 
