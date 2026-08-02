@@ -78,60 +78,96 @@ jobs:
           echo "Templates installed"
 
       # ──────────────────────────────────────────────
-      # 7. Configure Godot Editor Settings
-      #    Godot 4 uses ConfigFile INI-style format (NOT .tres format)
-      #    The file must NOT start with [resource] or [gd_resource]
+      # 7. First run of Godot editor to create editor settings
+      #    Use Xvfb since Godot editor needs a display
       # ──────────────────────────────────────────────
-      - name: Configure Godot Editor Settings
+      - name: Initialize Godot Editor Settings
         run: |
-          mkdir -p ~/.config/godot/
-          # Write editor settings in ConfigFile format (INI-style)
-          # Each property under its own section header
-          cat > ~/.config/godot/editor_settings-4.tres << 'EOF'
-          [export/android]
-
-          android_sdk_path="/usr/local/lib/android/sdk"
-          debug_keystore=""
-          debug_keystore_pass=""
-          debug_keystore_user=""
-          force_system_user=false
-
-          [network/http_proxy]
-
-          host=""
-          port=0
-
-          [text_editor/theme]
-
-          color_theme="Default"
-          EOF
-          echo "=== Editor settings created ==="
-          cat ~/.config/godot/editor_settings-4.tres
+          echo "Starting Godot editor with Xvfb to create editor settings..."
+          xvfb-run -a ./godot_editor --editor --path . 2>&1 &
+          GODOT_PID=$!
+          # Wait for editor to start and create settings
+          sleep 10
+          kill $GODOT_PID 2>/dev/null || true
+          sleep 2
+          echo "Checking if editor settings were created..."
+          if [ -f ~/.config/godot/editor_settings-4.tres ]; then
+            echo "Editor settings file found!"
+            cat ~/.config/godot/editor_settings-4.tres
+          else
+            echo "Editor settings file not found, creating manually..."
+            mkdir -p ~/.config/godot/
+            # Use Godot's ConfigFile format with flat keys under [resource] section
+            # This is the format Godot 4.x actually uses
+            python3 -c "
+import os
+settings_path = os.path.expanduser('~/.config/godot/editor_settings-4.tres')
+with open(settings_path, 'w') as f:
+    f.write('[gd_resource type=\"EditorSettings\" format=4]\\n\\n')
+    f.write('[resource]\\n\\n')
+    f.write('export/android/android_sdk_path = \"/usr/local/lib/android/sdk\"\\n')
+    f.write('export/android/debug_keystore = \"\"\\n')
+    f.write('export/android/debug_keystore_pass = \"\"\\n')
+    f.write('export/android/debug_keystore_user = \"\"\\n')
+    f.write('export/android/force_system_user = false\\n')
+    f.write('network/http_proxy/host = \"\"\\n')
+    f.write('network/http_proxy/port = 0\\n')
+    f.write('text_editor/theme/color_theme = \"Default\"\\n')
+print('Created editor settings file')
+"
+          fi
 
       # ──────────────────────────────────────────────
-      # 8. Import project
+      # 8. Patch Android SDK path into editor settings
+      # ──────────────────────────────────────────────
+      - name: Patch Android SDK path
+        run: |
+          python3 -c "
+import os
+settings_path = os.path.expanduser('~/.config/godot/editor_settings-4.tres')
+with open(settings_path, 'r') as f:
+    content = f.read()
+
+# If android_sdk_path is empty or wrong, set it
+if 'android_sdk_path' in content:
+    import re
+    content = re.sub(
+        r'export/android/android_sdk_path\s*=\s*\"[^\"]*\"',
+        'export/android/android_sdk_path = \"/usr/local/lib/android/sdk\"',
+        content
+    )
+else:
+    # Add it after [resource]
+    content = content.replace('[resource]\n', '[resource]\n\nexport/android/android_sdk_path = \"/usr/local/lib/android/sdk\"\n')
+
+with open(settings_path, 'w') as f:
+    f.write(content)
+print('Patched Android SDK path')
+print('=== Editor settings ===')
+with open(settings_path, 'r') as f:
+    print(f.read())
+"
+
+      # ──────────────────────────────────────────────
+      # 9. Import project
       # ──────────────────────────────────────────────
       - name: Import Godot Project
         run: |
           echo "Running headless import..."
           timeout 60 ./godot_editor --headless --import . 2>&1 || true
           echo "Import step completed"
-          ls -la .godot/ 2>/dev/null || echo "Warning: .godot/ not created"
 
       # ──────────────────────────────────────────────
-      # 9. Install Android Build Template (after import)
+      # 10. Install Android Build Template
       # ──────────────────────────────────────────────
       - name: Install Android Build Template
         run: |
-          echo "Installing Android build template via Godot CLI..."
+          echo "Installing Android build template..."
           ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
-          echo "=== Verifying android/build/ ==="
-          if [ -d android/build ] && [ -f android/build/build.gradle ]; then
-            echo "android/build/ exists with build.gradle - OK"
-            ls -la android/build/
+          if [ -f android/build/build.gradle ]; then
+            echo "Android build template installed OK"
           else
-            echo "android/build/ not found or incomplete. Manual fallback..."
-            # Fallback: manually extract android_source.zip from export templates
+            echo "Manual fallback: extracting android_source.zip..."
             ANDROID_SOURCE_ZIP=""
             for f in \
               ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip \
@@ -142,27 +178,17 @@ jobs:
               fi
             done
             if [ -n "$ANDROID_SOURCE_ZIP" ]; then
-              echo "Found android_source.zip at: $ANDROID_SOURCE_ZIP"
               mkdir -p android/build
               unzip -q "$ANDROID_SOURCE_ZIP" -d android/build/
               echo "Manual extraction done"
-              ls -la android/build/
             else
-              echo "ERROR: android_source.zip not found anywhere!"
-              find ~/.local/share/godot/export_templates/ -name "android*" 2>/dev/null
+              echo "ERROR: android_source.zip not found!"
               exit 1
             fi
           fi
-          # Final verification
-          if [ -f android/build/build.gradle ]; then
-            echo "Android build template verified OK"
-          else
-            echo "ERROR: build.gradle not found in android/build/"
-            exit 1
-          fi
 
       # ──────────────────────────────────────────────
-      # 10. Generate Debug Keystore
+      # 11. Generate Debug Keystore
       # ──────────────────────────────────────────────
       - name: Generate Debug Keystore
         run: |
@@ -174,7 +200,7 @@ jobs:
             -validity 10000
 
       # ──────────────────────────────────────────────
-      # 11. Patch export_presets.cfg with keystore
+      # 12. Patch export_presets.cfg with keystore
       # ──────────────────────────────────────────────
       - name: Configure Keystore in Export Presets
         run: |
@@ -197,18 +223,15 @@ jobs:
               f.write(content)
           print('Patched successfully')
           "
-          echo "=== Patched export_presets.cfg (Android section) ==="
-          sed -n '/\[preset.0\]/,/^\[preset.1\]/p' export_presets.cfg
 
       # ──────────────────────────────────────────────
-      # 12. Export Android APK
+      # 13. Export Android APK
       # ──────────────────────────────────────────────
       - name: Export Android APK
         run: |
           mkdir -p build/android
           echo "Exporting Android APK..."
           ./godot_editor --headless --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
-          echo "Export command finished with exit code: $?"
 
       - name: Verify Android APK
         run: |
@@ -222,14 +245,13 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 13. Export Windows Desktop
+      # 14. Export Windows Desktop
       # ──────────────────────────────────────────────
       - name: Export Windows Desktop
         run: |
           mkdir -p build/windows
           echo "Exporting Windows Desktop..."
           ./godot_editor --headless --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
-          echo "Export command finished with exit code: $?"
 
       - name: Verify Windows build
         run: |
@@ -243,7 +265,7 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 14. Package Windows build
+      # 15. Package Windows build
       # ──────────────────────────────────────────────
       - name: Package Windows build
         run: |
@@ -252,14 +274,13 @@ jobs:
           cd ../..
 
       # ──────────────────────────────────────────────
-      # 15. Export Linux/X11
+      # 16. Export Linux/X11
       # ──────────────────────────────────────────────
       - name: Export Linux/X11
         run: |
           mkdir -p build/linux
           echo "Exporting Linux/X11..."
           ./godot_editor --headless --path . --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
-          echo "Export command finished with exit code: $?"
 
       - name: Verify Linux build
         run: |
@@ -273,7 +294,7 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 16. Package Linux build
+      # 17. Package Linux build
       # ──────────────────────────────────────────────
       - name: Package Linux build
         run: |
@@ -282,7 +303,7 @@ jobs:
           cd ../..
 
       # ──────────────────────────────────────────────
-      # 17. List all build artifacts
+      # 18. List all build artifacts
       # ──────────────────────────────────────────────
       - name: List all build artifacts
         run: |
@@ -292,7 +313,7 @@ jobs:
           ls -lh *.zip 2>/dev/null || echo "No ZIP packages"
 
       # ──────────────────────────────────────────────
-      # 18. Upload to GitHub Release
+      # 19. Upload to GitHub Release
       # ──────────────────────────────────────────────
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
