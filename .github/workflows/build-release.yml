@@ -61,15 +61,6 @@ jobs:
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed"
 
-      - name: Generate Debug Keystore
-        run: |
-          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
-            -keystore debug.keystore \
-            -storepass android \
-            -keypass android \
-            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
-            -validity 10000
-
       - name: Create editor settings with Android SDK path
         run: |
           mkdir -p ~/.config/godot/
@@ -145,18 +136,50 @@ jobs:
             echo "Created android/.build_version"
           fi
 
-      - name: Export Android APK (via Xvfb + OpenGL3)
+      - name: Export Android APK (unsigned, via Xvfb + OpenGL3)
         run: |
           export DISPLAY=:99
           mkdir -p build/android
-          echo "Exporting Android APK..."
-          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
+          echo "Exporting Android APK (unsigned)..."
+          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
+
+      - name: Generate Debug Keystore and Sign APK
+        run: |
+          echo "Generating debug keystore..."
+          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
+            -keystore debug.keystore \
+            -storepass android \
+            -keypass android \
+            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
+            -validity 10000
+
+          echo "Signing APK with apksigner..."
+          BUILD_TOOLS="/usr/local/lib/android/sdk/build-tools/33.0.2"
+          if [ -f build/android/phitieudichchuyen-unsigned.apk ]; then
+            # Zipalign first
+            "${BUILD_TOOLS}/zipalign" -f 4 build/android/phitieudichchuyen-unsigned.apk build/android/phitieudichchuyen-aligned.apk
+            # Sign with apksigner
+            "${BUILD_TOOLS}/apksigner" sign \
+              --ks debug.keystore \
+              --ks-pass pass:android \
+              --ks-key-alias phitieudichchuyen \
+              --key-pass pass:android \
+              --out build/android/phitieudichchuyen.apk \
+              build/android/phitieudichchuyen-aligned.apk
+            echo "APK signed successfully!"
+          else
+            echo "ERROR: Unsigned APK not found"
+            find build/ -type f 2>/dev/null || echo "No build directory"
+            exit 1
+          fi
 
       - name: Verify Android APK
         run: |
           if [ -f build/android/phitieudichchuyen.apk ]; then
-            echo "APK built successfully!"
+            echo "APK built and signed successfully!"
             ls -lh build/android/phitieudichchuyen.apk
+            # Verify signing
+            /usr/local/lib/android/sdk/build-tools/33.0.2/apksigner verify build/android/phitieudichchuyen.apk && echo "APK signature verified!" || echo "WARNING: APK signature verification failed"
           else
             echo "ERROR: APK not found"
             find build/ -type f 2>/dev/null || echo "No build directory"
