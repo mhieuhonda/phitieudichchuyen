@@ -144,6 +144,19 @@ jobs:
           sed -n '/\[preset.0\]/,/^\[preset.1\]/p' export_presets.cfg
 
       # ─── Export Android APK ───────────────────────────────────
+      - name: Verify Android build template before export
+        run: |
+          echo "=== Checking android/build/ ==="
+          ls -la android/build/ | head -15
+          echo "=== build.gradle ==="
+          ls -la android/build/build.gradle 2>/dev/null || echo "NOT FOUND!"
+          echo "=== .build_version ==="
+          cat android/.build_version 2>/dev/null || echo "NOT FOUND!"
+          echo "=== .gdignore ==="
+          cat android/build/.gdignore 2>/dev/null || echo "NOT FOUND!"
+          echo "=== .godot exists? ==="
+          ls -la .godot/ 2>/dev/null | head -5 || echo "No .godot dir"
+
       - name: Export Android APK
         run: |
           mkdir -p build/android
