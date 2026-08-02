@@ -136,14 +136,27 @@ jobs:
             echo "Created android/.build_version"
           fi
 
-      - name: Clean .import files from Android build directory
-        run: |
-          echo "Cleaning .import files from android/build directory..."
-          find android/build -name "*.import" -type f -delete 2>/dev/null || true
-          echo "Cleaned .import files. Remaining files in android/build/res:"
-          find android/build/res -name "*.import" 2>/dev/null || echo "No .import files found"
-
       - name: Export Android APK (unsigned, via Xvfb + OpenGL3)
+        run: |
+          export DISPLAY=:99
+          mkdir -p build/android
+
+          # Remove .import files from project assets to prevent them from 
+          # being copied into the Android res/ directory during export
+          echo "Removing .import files from project assets..."
+          find assets/ -name "*.import" -type f -delete 2>/dev/null || true
+
+          echo "Exporting Android APK (unsigned)..."
+          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
+
+          # If APK was not created, check if .import files were re-created and causing issues
+          if [ ! -f build/android/phitieudichchuyen-unsigned.apk ]; then
+            echo "APK not found, checking for .import files in android/build/res..."
+            find android/build/res -name "*.import" -type f 2>/dev/null
+            echo "Cleaning .import files from android/build and retrying..."
+            find android/build -name "*.import" -type f -delete 2>/dev/null || true
+            ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1
+          fi
         run: |
           export DISPLAY=:99
           mkdir -p build/android
