@@ -74,51 +74,35 @@ jobs:
           echo "Templates installed:"
           ls ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
 
+      # ─── Install Android Build Template BEFORE import ─────────
+      # Godot 4.2+ REQUIRES this for Gradle build. Must be done BEFORE
+      # the import step so Godot sees android/build/ during project scan.
+      - name: Install Android Build Template
+        run: |
+          echo "Installing Android build template..."
+          # Extract android_source.zip manually (CLI command needs project import first)
+          ANDROID_SOURCE="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip"
+          if [ -f "$ANDROID_SOURCE" ]; then
+            echo "Found android_source.zip, extracting..."
+            mkdir -p android/build
+            unzip -o "$ANDROID_SOURCE" -d android/build/
+            echo "${GODOT_VERSION}.stable" > android/.build_version
+            touch android/build/.gdignore
+            echo "Android build template installed:"
+            ls -la android/build/ | head -15
+            ls android/build/build.gradle 2>/dev/null && echo "build.gradle found!" || echo "WARNING: build.gradle NOT found"
+          else
+            echo "ERROR: android_source.zip not found in export templates!"
+            find ~/.local/share/godot/export_templates/ -name "*android*" -type f 2>/dev/null || true
+            exit 1
+          fi
+
       # ─── Import Project (critical for headless export) ────────
       - name: Import Godot Project
         run: |
           echo "Importing project..."
           timeout 60 ./godot_editor --headless --import --path . 2>&1 || true
           echo "Import completed (or timed out — that's OK)"
-
-      # ─── Install Android Build Template ───────────────────────
-      # Godot 4.2+ REQUIRES this step for Gradle build.
-      # It extracts android_source.zip from export templates into android/build/
-      - name: Install Android Build Template
-        run: |
-          echo "Installing Android build template..."
-          # Try the Godot CLI command first (may fail if project has script errors)
-          ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
-          # Godot 4.2 checks for res://android/build/build.gradle specifically
-          if [ -f "android/build/build.gradle" ]; then
-            echo "Android build template installed successfully!"
-            ls -la android/build/
-          else
-            echo "CLI command didn't work, trying manual extraction..."
-            ANDROID_SOURCE="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip"
-            if [ -f "$ANDROID_SOURCE" ]; then
-              echo "Found android_source.zip, extracting manually..."
-              # Godot 4.2 expects android/build/ directory with build.gradle inside
-              # The ZIP contains files at top level that go into android/build/
-              rm -rf android
-              mkdir -p android/build
-              unzip -o "$ANDROID_SOURCE" -d android/build/
-              # Create .build_version file (Godot checks this)
-              echo "${GODOT_VERSION}.stable" > android/.build_version
-              # Create .gdignore to prevent Godot from scanning android/build/
-              touch android/build/.gdignore
-              echo "Manual extraction done:"
-              ls -la android/build/
-              echo "Checking for build.gradle..."
-              ls android/build/build.gradle 2>/dev/null && echo "build.gradle found!" || echo "WARNING: build.gradle NOT found"
-              echo "Checking .build_version..."
-              cat android/.build_version
-            else
-              echo "ERROR: android_source.zip not found in export templates!"
-              find ~/.local/share/godot/export_templates/ -name "*android*" -type f 2>/dev/null || true
-              exit 1
-            fi
-          fi
 
       # ─── Debug Keystore ───────────────────────────────────────
       - name: Generate Debug Keystore
