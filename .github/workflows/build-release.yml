@@ -111,6 +111,11 @@ jobs:
               exit 1
             fi
           fi
+          # Ensure .build_version file exists (required by Gradle build)
+          if [ ! -f android/.build_version ]; then
+            echo "${GODOT_VERSION}.stable" > android/.build_version
+            echo "Created android/.build_version with: $(cat android/.build_version)"
+          fi
 
       - name: Generate Debug Keystore
         run: |
