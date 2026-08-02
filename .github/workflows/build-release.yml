@@ -136,31 +136,30 @@ jobs:
             echo "Created android/.build_version"
           fi
 
-      - name: Patch build.gradle to exclude .import files from Android resources
+      - name: Patch build.gradle to remove .import files before resource merge
         run: |
-          # Add aaptOptions to exclude .import files from Android resource merging
           if [ -f android/build/build.gradle ]; then
             python3 << 'PYEOF'
           with open("android/build/build.gradle", "r") as f:
               content = f.read()
 
-          # Add aaptOptions to ignore .import files
-          if "noCompress" in content:
-              # Add ignoreAssetsPattern after android { block
-              content = content.replace(
-                  "android {",
-                  'android {\n    aaptOptions {\n        ignoreAssetsPattern ".import"\n    }'
-              )
-          else:
-              # Alternative: add to existing android block
-              content = content.replace(
-                  "}\n\nrepositories",
-                  '    aaptOptions {\n        ignoreAssetsPattern ".import"\n    }\n}\n\nrepositories'
-              )
+          # Add a doFirst hook to delete .import files from res/ before mergeReleaseResources runs
+          gradle_hook = """
+          tasks.whenTaskAdded { task ->
+              if (task.name == 'mergeReleaseResources' || task.name == 'mergeDebugResources') {
+                  task.doFirst {
+                      delete fileTree(dir: 'res', include: '**/*.import')
+                  }
+              }
+          }
+          """
+
+          # Insert the hook after the plugins block
+          content = content.replace("\nrepositories {", gradle_hook + "\nrepositories {", 1)
 
           with open("android/build/build.gradle", "w") as f:
               f.write(content)
-          print("Patched build.gradle to exclude .import files")
+          print("Patched build.gradle with .import cleanup hook")
           PYEOF
           fi
 
