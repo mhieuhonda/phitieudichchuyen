@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
 
       # ──────────────────────────────────────────────
-      # 2. System dependencies (headless Godot needs these)
+      # 2. System dependencies
       # ──────────────────────────────────────────────
       - name: Install system dependencies
         run: |
@@ -37,7 +37,7 @@ jobs:
             xvfb
 
       # ──────────────────────────────────────────────
-      # 3. Java 17 (required for Android Gradle build)
+      # 3. Java 17
       # ──────────────────────────────────────────────
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -75,33 +75,41 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           unzip -q export_templates.tpz -d extracted_templates
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
-          echo "Templates installed:"
-          ls ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          echo "Templates installed"
 
       # ──────────────────────────────────────────────
-      # 7. Configure Godot Editor Settings (CRITICAL for Android export)
-      #    Godot reads Android SDK path from editor_settings, NOT env vars
+      # 7. Configure Godot Editor Settings
+      #    Godot 4 uses ConfigFile INI-style format (NOT .tres format)
+      #    The file must NOT start with [resource] or [gd_resource]
       # ──────────────────────────────────────────────
       - name: Configure Godot Editor Settings
         run: |
           mkdir -p ~/.config/godot/
-          cat > ~/.config/godot/editor_settings-4.tres << 'SETTINGS'
-          [resource]
+          # Write editor settings in ConfigFile format (INI-style)
+          # Each property under its own section header
+          cat > ~/.config/godot/editor_settings-4.tres << 'EOF'
+          [export/android]
 
-          export/android/android_sdk_path = "/usr/local/lib/android/sdk"
-          export/android/debug_keystore = ""
-          export/android/debug_keystore_pass = ""
-          export/android/debug_keystore_user = ""
-          export/android/force_system_user = false
-          network/http_proxy/host = ""
-          network/http_proxy/port = 0
-          text_editor/theme/color_theme = "Default"
-          SETTINGS
+          android_sdk_path="/usr/local/lib/android/sdk"
+          debug_keystore=""
+          debug_keystore_pass=""
+          debug_keystore_user=""
+          force_system_user=false
+
+          [network/http_proxy]
+
+          host=""
+          port=0
+
+          [text_editor/theme]
+
+          color_theme="Default"
+          EOF
           echo "=== Editor settings created ==="
           cat ~/.config/godot/editor_settings-4.tres
 
       # ──────────────────────────────────────────────
-      # 8. Import project (generates .godot/ cache)
+      # 8. Import project
       # ──────────────────────────────────────────────
       - name: Import Godot Project
         run: |
@@ -111,25 +119,23 @@ jobs:
           ls -la .godot/ 2>/dev/null || echo "Warning: .godot/ not created"
 
       # ──────────────────────────────────────────────
-      # 9. Install Android Build Template (MUST be after import)
-      #    This extracts android_source.zip from export templates
-      #    into project's android/build/ directory
+      # 9. Install Android Build Template (after import)
       # ──────────────────────────────────────────────
       - name: Install Android Build Template
         run: |
-          echo "Installing Android build template..."
+          echo "Installing Android build template via Godot CLI..."
           ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
           echo "=== Verifying android/build/ ==="
-          if [ -d android/build ]; then
-            echo "android/build/ exists:"
+          if [ -d android/build ] && [ -f android/build/build.gradle ]; then
+            echo "android/build/ exists with build.gradle - OK"
             ls -la android/build/
           else
-            echo "android/build/ NOT found after --install-android-build-template"
-            echo "Attempting manual installation..."
+            echo "android/build/ not found or incomplete. Manual fallback..."
             # Fallback: manually extract android_source.zip from export templates
             ANDROID_SOURCE_ZIP=""
-            for f in ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip \
-                     extracted_templates/templates/android_source.zip; do
+            for f in \
+              ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip \
+              extracted_templates/templates/android_source.zip; do
               if [ -f "$f" ]; then
                 ANDROID_SOURCE_ZIP="$f"
                 break
@@ -147,9 +153,9 @@ jobs:
               exit 1
             fi
           fi
-          # Verify key files
+          # Final verification
           if [ -f android/build/build.gradle ]; then
-            echo "build.gradle found - Android build template OK"
+            echo "Android build template verified OK"
           else
             echo "ERROR: build.gradle not found in android/build/"
             exit 1
@@ -210,8 +216,7 @@ jobs:
             echo "APK built successfully!"
             ls -lh build/android/phitieudichchuyen.apk
           else
-            echo "ERROR: APK not found at build/android/phitieudichchuyen.apk"
-            echo "Listing build directory:"
+            echo "ERROR: APK not found"
             find build/ -type f 2>/dev/null || echo "No build directory"
             exit 1
           fi
@@ -245,7 +250,6 @@ jobs:
           cd build/windows
           zip -r ../../phitieudichchuyen-windows.zip .
           cd ../..
-          echo "Windows ZIP created: $(ls -lh phitieudichchuyen-windows.zip)"
 
       # ──────────────────────────────────────────────
       # 15. Export Linux/X11
@@ -276,7 +280,6 @@ jobs:
           cd build/linux
           zip -r ../../phitieudichchuyen-linux.zip .
           cd ../..
-          echo "Linux ZIP created: $(ls -lh phitieudichchuyen-linux.zip)"
 
       # ──────────────────────────────────────────────
       # 17. List all build artifacts
@@ -287,7 +290,6 @@ jobs:
           find build/ -type f -exec ls -lh {} \;
           echo "=== ZIP packages ==="
           ls -lh *.zip 2>/dev/null || echo "No ZIP packages"
-          ls -lh build/android/*.apk 2>/dev/null || echo "No APK"
 
       # ──────────────────────────────────────────────
       # 18. Upload to GitHub Release
