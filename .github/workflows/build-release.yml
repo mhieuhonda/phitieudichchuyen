@@ -17,15 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ──────────────────────────────────────────────
-      # 1. Checkout
-      # ──────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ──────────────────────────────────────────────
-      # 2. System dependencies
-      # ──────────────────────────────────────────────
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -36,18 +30,12 @@ jobs:
             wayland-protocols libwayland-dev \
             xvfb
 
-      # ──────────────────────────────────────────────
-      # 3. Java 17
-      # ──────────────────────────────────────────────
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # ──────────────────────────────────────────────
-      # 4. Android SDK
-      # ──────────────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
@@ -55,9 +43,6 @@ jobs:
         run: |
           sdkmanager --install "build-tools;33.0.2" "platforms;android-33" "platform-tools"
 
-      # ──────────────────────────────────────────────
-      # 5. Download Godot Editor
-      # ──────────────────────────────────────────────
       - name: Download Godot Editor
         run: |
           wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -O godot_editor.zip
@@ -66,9 +51,6 @@ jobs:
           chmod +x godot_editor
           echo "Godot editor ready"
 
-      # ──────────────────────────────────────────────
-      # 6. Download & Install Export Templates
-      # ──────────────────────────────────────────────
       - name: Download Godot Export Templates
         run: |
           wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -O export_templates.tpz
@@ -77,89 +59,35 @@ jobs:
           cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
           echo "Templates installed"
 
-      # ──────────────────────────────────────────────
-      # 7. First run of Godot editor to create editor settings
-      #    Use Xvfb since Godot editor needs a display
-      # ──────────────────────────────────────────────
-      - name: Initialize Godot Editor Settings
+      - name: Create editor settings with Android SDK path
         run: |
-          echo "Starting Godot editor with Xvfb to create editor settings..."
-          xvfb-run -a ./godot_editor --editor --path . 2>&1 &
-          GODOT_PID=$!
-          # Wait for editor to start and create settings
-          sleep 10
-          kill $GODOT_PID 2>/dev/null || true
-          sleep 2
-          echo "Checking if editor settings were created..."
-          if [ -f ~/.config/godot/editor_settings-4.tres ]; then
-            echo "Editor settings file found!"
-            cat ~/.config/godot/editor_settings-4.tres
-          else
-            echo "Editor settings file not found, creating manually..."
-            mkdir -p ~/.config/godot/
-            # Use Godot's ConfigFile format with flat keys under [resource] section
-            # This is the format Godot 4.x actually uses
-            python3 -c "
-import os
-settings_path = os.path.expanduser('~/.config/godot/editor_settings-4.tres')
-with open(settings_path, 'w') as f:
-    f.write('[gd_resource type=\"EditorSettings\" format=4]\\n\\n')
-    f.write('[resource]\\n\\n')
-    f.write('export/android/android_sdk_path = \"/usr/local/lib/android/sdk\"\\n')
-    f.write('export/android/debug_keystore = \"\"\\n')
-    f.write('export/android/debug_keystore_pass = \"\"\\n')
-    f.write('export/android/debug_keystore_user = \"\"\\n')
-    f.write('export/android/force_system_user = false\\n')
-    f.write('network/http_proxy/host = \"\"\\n')
-    f.write('network/http_proxy/port = 0\\n')
-    f.write('text_editor/theme/color_theme = \"Default\"\\n')
-print('Created editor settings file')
-"
-          fi
+          mkdir -p ~/.config/godot/
+          # Use Python to create the file with correct format
+          python3 << 'PYEOF'
+          import os
+          settings_path = os.path.expanduser("~/.config/godot/editor_settings-4.tres")
+          with open(settings_path, "w") as f:
+              f.write('[gd_resource type="EditorSettings" format=4]\n\n')
+              f.write('[resource]\n\n')
+              f.write('export/android/android_sdk_path = "/usr/local/lib/android/sdk"\n')
+              f.write('export/android/debug_keystore = ""\n')
+              f.write('export/android/debug_keystore_pass = ""\n')
+              f.write('export/android/debug_keystore_user = ""\n')
+              f.write('export/android/force_system_user = false\n')
+              f.write('network/http_proxy/host = ""\n')
+              f.write('network/http_proxy/port = 0\n')
+              f.write('text_editor/theme/color_theme = "Default"\n')
+          print("Editor settings created at", settings_path)
+          with open(settings_path, "r") as f:
+              print(f.read())
+          PYEOF
 
-      # ──────────────────────────────────────────────
-      # 8. Patch Android SDK path into editor settings
-      # ──────────────────────────────────────────────
-      - name: Patch Android SDK path
-        run: |
-          python3 -c "
-import os
-settings_path = os.path.expanduser('~/.config/godot/editor_settings-4.tres')
-with open(settings_path, 'r') as f:
-    content = f.read()
-
-# If android_sdk_path is empty or wrong, set it
-if 'android_sdk_path' in content:
-    import re
-    content = re.sub(
-        r'export/android/android_sdk_path\s*=\s*\"[^\"]*\"',
-        'export/android/android_sdk_path = \"/usr/local/lib/android/sdk\"',
-        content
-    )
-else:
-    # Add it after [resource]
-    content = content.replace('[resource]\n', '[resource]\n\nexport/android/android_sdk_path = \"/usr/local/lib/android/sdk\"\n')
-
-with open(settings_path, 'w') as f:
-    f.write(content)
-print('Patched Android SDK path')
-print('=== Editor settings ===')
-with open(settings_path, 'r') as f:
-    print(f.read())
-"
-
-      # ──────────────────────────────────────────────
-      # 9. Import project
-      # ──────────────────────────────────────────────
       - name: Import Godot Project
         run: |
           echo "Running headless import..."
           timeout 60 ./godot_editor --headless --import . 2>&1 || true
           echo "Import step completed"
 
-      # ──────────────────────────────────────────────
-      # 10. Install Android Build Template
-      # ──────────────────────────────────────────────
       - name: Install Android Build Template
         run: |
           echo "Installing Android build template..."
@@ -187,9 +115,6 @@ with open(settings_path, 'r') as f:
             fi
           fi
 
-      # ──────────────────────────────────────────────
-      # 11. Generate Debug Keystore
-      # ──────────────────────────────────────────────
       - name: Generate Debug Keystore
         run: |
           keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
@@ -199,34 +124,28 @@ with open(settings_path, 'r') as f:
             -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
             -validity 10000
 
-      # ──────────────────────────────────────────────
-      # 12. Patch export_presets.cfg with keystore
-      # ──────────────────────────────────────────────
       - name: Configure Keystore in Export Presets
         run: |
-          python3 -c "
-          with open('export_presets.cfg', 'r') as f:
+          python3 << 'PYEOF'
+          with open("export_presets.cfg", "r") as f:
               content = f.read()
 
           replacements = {
-              'package/keystore=\"\"': 'package/keystore=\"debug.keystore\"',
-              'package/keystore_passwd=\"\"': 'package/keystore_passwd=\"android\"',
-              'package/key_alias=\"\"': 'package/key_alias=\"phitieudichchuyen\"',
-              'package/key_passwd=\"\"': 'package/key_passwd=\"android\"',
-              'package/signed_custom=false': 'package/signed_custom=true',
-              'package/use_custom_keystore=false': 'package/use_custom_keystore=true',
+              'package/keystore=""': 'package/keystore="debug.keystore"',
+              'package/keystore_passwd=""': 'package/keystore_passwd="android"',
+              'package/key_alias=""': 'package/key_alias="phitieudichchuyen"',
+              'package/key_passwd=""': 'package/key_passwd="android"',
+              "package/signed_custom=false": "package/signed_custom=true",
+              "package/use_custom_keystore=false": "package/use_custom_keystore=true",
           }
           for old, new in replacements.items():
               content = content.replace(old, new)
 
-          with open('export_presets.cfg', 'w') as f:
+          with open("export_presets.cfg", "w") as f:
               f.write(content)
-          print('Patched successfully')
-          "
+          print("Patched successfully")
+          PYEOF
 
-      # ──────────────────────────────────────────────
-      # 13. Export Android APK
-      # ──────────────────────────────────────────────
       - name: Export Android APK
         run: |
           mkdir -p build/android
@@ -244,9 +163,6 @@ with open(settings_path, 'r') as f:
             exit 1
           fi
 
-      # ──────────────────────────────────────────────
-      # 14. Export Windows Desktop
-      # ──────────────────────────────────────────────
       - name: Export Windows Desktop
         run: |
           mkdir -p build/windows
@@ -264,18 +180,12 @@ with open(settings_path, 'r') as f:
             exit 1
           fi
 
-      # ──────────────────────────────────────────────
-      # 15. Package Windows build
-      # ──────────────────────────────────────────────
       - name: Package Windows build
         run: |
           cd build/windows
           zip -r ../../phitieudichchuyen-windows.zip .
           cd ../..
 
-      # ──────────────────────────────────────────────
-      # 16. Export Linux/X11
-      # ──────────────────────────────────────────────
       - name: Export Linux/X11
         run: |
           mkdir -p build/linux
@@ -293,18 +203,12 @@ with open(settings_path, 'r') as f:
             exit 1
           fi
 
-      # ──────────────────────────────────────────────
-      # 17. Package Linux build
-      # ──────────────────────────────────────────────
       - name: Package Linux build
         run: |
           cd build/linux
           zip -r ../../phitieudichchuyen-linux.zip .
           cd ../..
 
-      # ──────────────────────────────────────────────
-      # 18. List all build artifacts
-      # ──────────────────────────────────────────────
       - name: List all build artifacts
         run: |
           echo "=== All build artifacts ==="
@@ -312,9 +216,6 @@ with open(settings_path, 'r') as f:
           echo "=== ZIP packages ==="
           ls -lh *.zip 2>/dev/null || echo "No ZIP packages"
 
-      # ──────────────────────────────────────────────
-      # 19. Upload to GitHub Release
-      # ──────────────────────────────────────────────
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
