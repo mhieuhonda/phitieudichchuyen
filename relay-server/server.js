@@ -1,0 +1,702 @@
+/**
+ * Phi Tiêu Dịch Chuyển - Relay Server v1.7
+ * 
+ * WebSocket relay server cho game online:
+ * - Matchmaking: min 10, max 20 người mỗi phòng
+ * - 30s timeout → tự fill bot AI nếu chưa đủ 10 người
+ * - SQLite database cho player stats
+ * - Room management với state sync
+ * 
+ * Ports:
+ *   25671 - WebSocket (game traffic)
+ *   25672 - HTTP (health check, REST API)
+ */
+
+const { WebSocketServer, WebSocket } = require('ws');
+const http = require('http');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+const fs = require('fs');
+
+// === DATABASE (SQLite) ===
+let db;
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'game.db');
+
+function initDatabase() {
+  const dir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  try {
+    const Database = require('better-sqlite3');
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS players (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL DEFAULT 'Player',
+        character_id INTEGER NOT NULL DEFAULT 0,
+        total_kills INTEGER NOT NULL DEFAULT 0,
+        total_deaths INTEGER NOT NULL DEFAULT 0,
+        total_wins INTEGER NOT NULL DEFAULT 0,
+        total_matches INTEGER NOT NULL DEFAULT 0,
+        total_score INTEGER NOT NULL DEFAULT 0,
+        best_score INTEGER NOT NULL DEFAULT 0,
+        last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS matches (
+        id TEXT PRIMARY KEY,
+        mode TEXT NOT NULL DEFAULT 'online',
+        player_count INTEGER NOT NULL DEFAULT 0,
+        bot_count INTEGER NOT NULL DEFAULT 0,
+        winner_id TEXT,
+        duration_seconds REAL NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        ended_at TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_players_last_seen ON players(last_seen);
+      CREATE INDEX IF NOT EXISTS idx_matches_created ON matches(created_at);
+    `);
+
+    console.log(`[DB] SQLite initialized at ${DB_PATH}`);
+  } catch (err) {
+    console.warn(`[DB] SQLite not available (${err.message}), using in-memory store`);
+    db = null;
+  }
+}
+
+// In-memory fallback
+const memStore = { players: new Map(), matches: new Map() };
+
+function dbGetPlayer(id) {
+  if (db) {
+    return db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+  }
+  return memStore.players.get(id) || null;
+}
+
+function dbUpsertPlayer(id, name, charId) {
+  if (db) {
+    db.prepare(`
+      INSERT INTO players (id, name, character_id) VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET name = ?, character_id = ?, last_seen = datetime('now')
+    `).run(id, name, charId, name, charId);
+  } else {
+    const existing = memStore.players.get(id) || {
+      id, name, character_id: charId, total_kills: 0, total_deaths: 0,
+      total_wins: 0, total_matches: 0, total_score: 0, best_score: 0
+    };
+    existing.name = name;
+    existing.character_id = charId;
+    memStore.players.set(id, existing);
+  }
+}
+
+function dbUpdatePlayerStats(id, kills, deaths, score, won) {
+  if (db) {
+    db.prepare(`
+      UPDATE players SET total_kills = total_kills + ?, total_deaths = total_deaths + ?,
+        total_score = total_score + ?, best_score = MAX(best_score, ?),
+        total_wins = total_wins + ?, total_matches = total_matches + 1,
+        last_seen = datetime('now')
+      WHERE id = ?
+    `).run(kills, deaths, score, score, won ? 1 : 0, id);
+  } else {
+    const p = memStore.players.get(id);
+    if (p) {
+      p.total_kills += kills;
+      p.total_deaths += deaths;
+      p.total_score += score;
+      p.best_score = Math.max(p.best_score, score);
+      if (won) p.total_wins++;
+      p.total_matches++;
+    }
+  }
+}
+
+function dbCreateMatch(id, mode, playerCount, botCount) {
+  if (db) {
+    db.prepare('INSERT INTO matches (id, mode, player_count, bot_count) VALUES (?, ?, ?, ?)').run(id, mode, playerCount, botCount);
+  } else {
+    memStore.matches.set(id, { id, mode, player_count: playerCount, bot_count: botCount });
+  }
+}
+
+function dbEndMatch(id, winnerId, duration) {
+  if (db) {
+    db.prepare('UPDATE matches SET winner_id = ?, duration_seconds = ?, ended_at = datetime(\'now\') WHERE id = ?').run(winnerId, duration, id);
+  }
+}
+
+function dbGetLeaderboard(limit = 20) {
+  if (db) {
+    return db.prepare('SELECT id, name, total_score, total_kills, total_wins, total_matches, best_score FROM players ORDER BY total_score DESC LIMIT ?').all(limit);
+  }
+  return Array.from(memStore.players.values())
+    .sort((a, b) => b.total_score - a.total_score)
+    .slice(0, limit);
+}
+
+// === CONFIG ===
+const CONFIG = {
+  WS_PORT: parseInt(process.env.WS_PORT) || 25671,
+  HTTP_PORT: parseInt(process.env.HTTP_PORT) || 25672,
+  MATCH_MIN_PLAYERS: parseInt(process.env.MATCH_MIN_PLAYERS) || 10,
+  MATCH_MAX_PLAYERS: parseInt(process.env.MATCH_MAX_PLAYERS) || 20,
+  MATCH_TIMEOUT_MS: parseInt(process.env.MATCH_TIMEOUT_MS) || 30000, // 30 giây
+  TICK_RATE_MS: parseInt(process.env.TICK_RATE_MS) || 50, // 20 ticks/giây
+  MAX_ROOMS: parseInt(process.env.MAX_ROOMS) || 50,
+  ROOM_TIMEOUT_MS: parseInt(process.env.ROOM_TIMEOUT_MS) || 3600000, // 1 giờ
+  PING_INTERVAL_MS: 30000,
+};
+
+// === STATE ===
+const clients = new Map(); // ws -> clientInfo
+const matchmakingQueue = new Map(); // playerId -> { ws, name, characterId, enqueuedAt }
+let matchTimeout = null;
+const rooms = new Map(); // roomId -> Room
+
+class Room {
+  constructor(id) {
+    this.id = id;
+    this.players = new Map(); // playerId -> { ws, name, characterId, isBot, alive, score, kills, lastSync }
+    this.state = 'waiting'; // waiting | countdown | playing | ended
+    this.countdownTimer = 5; // 5 giây đếm ngược
+    this.createdAt = Date.now();
+    this.matchDuration = 300; // 5 phút
+    this.gameTime = 0;
+    this.tickInterval = null;
+    this.zoneRadius = 900;
+    this.zoneCenter = { x: 1000, y: 1000 };
+    this.zoneShrinkInterval = 30;
+    this.zoneShrinkTimer = 30;
+  }
+
+  addPlayer(playerId, ws, name, characterId, isBot = false) {
+    this.players.set(playerId, {
+      ws, name, characterId, isBot, alive: true,
+      score: 0, kills: 0,
+      x: 0, y: 0, hp: 100, maxHp: 100, size: 20,
+      lastSync: Date.now()
+    });
+    this.broadcast('room_player_joined', {
+      playerId, name, characterId, isBot,
+      playerCount: this.players.size
+    });
+  }
+
+  removePlayer(playerId) {
+    this.players.delete(playerId);
+    this.broadcast('room_player_left', { playerId, playerCount: this.players.size });
+  }
+
+  broadcast(type, data, excludeId = null) {
+    const msg = JSON.stringify({ type, data, t: Date.now() });
+    for (const [pid, p] of this.players) {
+      if (pid !== excludeId && !p.isBot && p.ws && p.ws.readyState === WebSocket.OPEN) {
+        p.ws.send(msg);
+      }
+    }
+  }
+
+  startCountdown() {
+    this.state = 'countdown';
+    this.countdownTimer = 5;
+    this.broadcast('match_countdown', { seconds: this.countdownTimer });
+
+    const cdInterval = setInterval(() => {
+      this.countdownTimer--;
+      if (this.countdownTimer <= 0) {
+        clearInterval(cdInterval);
+        this.startGame();
+      } else {
+        this.broadcast('match_countdown', { seconds: this.countdownTimer });
+      }
+    }, 1000);
+  }
+
+  startGame() {
+    this.state = 'playing';
+    this.gameTime = 0;
+    this.zoneRadius = 900;
+    this.zoneShrinkTimer = this.zoneShrinkInterval;
+
+    const playerList = [];
+    for (const [pid, p] of this.players) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * 400;
+      p.x = this.zoneCenter.x + Math.cos(angle) * dist;
+      p.y = this.zoneCenter.y + Math.sin(angle) * dist;
+      p.hp = 100;
+      p.maxHp = 100;
+      p.alive = true;
+      playerList.push({
+        playerId: pid, name: p.name, characterId: p.characterId,
+        isBot: p.isBot, x: p.x, y: p.y
+      });
+    }
+
+    this.broadcast('match_start', {
+      roomId: this.id,
+      players: playerList,
+      zoneCenter: this.zoneCenter,
+      zoneRadius: this.zoneRadius,
+      matchDuration: this.matchDuration
+    });
+
+    dbCreateMatch(this.id, 'online', 
+      Array.from(this.players.values()).filter(p => !p.isBot).length,
+      Array.from(this.players.values()).filter(p => p.isBot).length
+    );
+
+    // Game tick loop
+    this.tickInterval = setInterval(() => this.gameTick(), CONFIG.TICK_RATE_MS);
+  }
+
+  gameTick() {
+    if (this.state !== 'playing') return;
+
+    this.gameTime += CONFIG.TICK_RATE_MS / 1000;
+    const timeRemaining = Math.max(0, this.matchDuration - this.gameTime);
+
+    // Zone shrink
+    this.zoneShrinkTimer -= CONFIG.TICK_RATE_MS / 1000;
+    if (this.zoneShrinkTimer <= 0) {
+      this.zoneRadius = Math.max(200, this.zoneRadius - 50);
+      this.zoneShrinkTimer = this.zoneShrinkInterval;
+      this.broadcast('zone_shrank', { radius: this.zoneRadius });
+    }
+
+    // Check match end
+    const alivePlayers = Array.from(this.players.values()).filter(p => p.alive && !p.isBot);
+    const aliveBots = Array.from(this.players.values()).filter(p => p.alive && p.isBot);
+    const totalAlive = alivePlayers.length + aliveBots.length;
+
+    if (timeRemaining <= 0 || totalAlive <= 1) {
+      this.endMatch();
+      return;
+    }
+
+    // Send state sync
+    const stateUpdate = {
+      timeRemaining: timeRemaining.toFixed(1),
+      zoneRadius: this.zoneRadius,
+      zoneCenter: this.zoneCenter,
+      players: []
+    };
+
+    for (const [pid, p] of this.players) {
+      stateUpdate.players.push({
+        playerId: pid, x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10,
+        hp: Math.round(p.hp), maxHp: Math.round(p.maxHp),
+        size: Math.round(p.size), alive: p.alive, score: p.score, kills: p.kills,
+        isBot: p.isBot
+      });
+    }
+
+    this.broadcast('state_sync', stateUpdate);
+  }
+
+  endMatch() {
+    if (this.state === 'ended') return;
+    this.state = 'ended';
+    if (this.tickInterval) clearInterval(this.tickInterval);
+
+    // Determine winner
+    const sorted = Array.from(this.players.entries())
+      .sort((a, b) => b[1].score - a[1].score);
+    const winnerId = sorted.length > 0 ? sorted[0][0] : null;
+    const winnerName = sorted.length > 0 ? sorted[0][1].name : 'Nobody';
+
+    const leaderboard = sorted.map(([pid, p], i) => ({
+      rank: i + 1, playerId: pid, name: p.name,
+      score: p.score, kills: p.kills, isBot: p.isBot
+    }));
+
+    this.broadcast('match_end', { winnerId, winnerName, leaderboard });
+
+    // Update DB
+    const duration = this.gameTime;
+    dbEndMatch(this.id, winnerId, duration);
+    for (const [pid, p] of this.players) {
+      if (!p.isBot) {
+        dbUpdatePlayerStats(pid, p.kills, p.alive ? 0 : 1, p.score, pid === winnerId);
+      }
+    }
+
+    // Clean up room after 10 seconds
+    setTimeout(() => {
+      rooms.delete(this.id);
+      console.log(`[Room] Deleted room ${this.id}`);
+    }, 10000);
+  }
+
+  handlePlayerUpdate(playerId, data) {
+    const p = this.players.get(playerId);
+    if (!p || !p.alive) return;
+
+    if (data.x !== undefined) p.x = data.x;
+    if (data.y !== undefined) p.y = data.y;
+    if (data.hp !== undefined) p.hp = data.hp;
+    if (data.maxHp !== undefined) p.maxHp = data.maxHp;
+    if (data.size !== undefined) p.size = data.size;
+    if (data.score !== undefined) p.score = data.score;
+    if (data.kills !== undefined) p.kills = data.kills;
+    if (data.alive !== undefined) p.alive = data.alive;
+    p.lastSync = Date.now();
+  }
+
+  handleDartThrow(playerId, data) {
+    this.broadcast('dart_thrown', { playerId, ...data }, playerId);
+  }
+
+  handleTeleport(playerId, data) {
+    this.broadcast('player_teleport', { playerId, ...data }, playerId);
+  }
+
+  handleKill(killerId, victimId, data) {
+    const killer = this.players.get(killerId);
+    const victim = this.players.get(victimId);
+    if (killer) { killer.kills++; killer.score += (data.score || 100); }
+    if (victim) { victim.alive = false; }
+    this.broadcast('player_killed', { killerId, victimId, killerName: killer?.name, victimName: victim?.name, ...data });
+  }
+
+  handleSkillUse(playerId, data) {
+    this.broadcast('skill_used', { playerId, ...data }, playerId);
+  }
+
+  handleRespawn(playerId, data) {
+    const p = this.players.get(playerId);
+    if (p) {
+      p.alive = true;
+      p.hp = p.maxHp;
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * this.zoneRadius * 0.6;
+      p.x = this.zoneCenter.x + Math.cos(angle) * dist;
+      p.y = this.zoneCenter.y + Math.sin(angle) * dist;
+    }
+    this.broadcast('player_respawned', { playerId, x: p?.x, y: p?.y, ...data });
+  }
+
+  handleChat(playerId, message) {
+    const p = this.players.get(playerId);
+    if (!p) return;
+    this.broadcast('chat_message', { playerId, name: p.name, message });
+  }
+}
+
+// === MATCHMAKING ===
+function enqueuePlayer(playerId, ws, name, characterId) {
+  if (matchmakingQueue.has(playerId)) return false;
+  matchmakingQueue.set(playerId, { ws, name, characterId, enqueuedAt: Date.now() });
+  console.log(`[Match] Player ${name}(${playerId}) enqueued. Queue size: ${matchmakingQueue.size}`);
+
+  // Broadcast queue update
+  for (const [pid, entry] of matchmakingQueue) {
+    if (entry.ws.readyState === WebSocket.OPEN) {
+      entry.ws.send(JSON.stringify({
+        type: 'matchmaking_update',
+        data: { queueSize: matchmakingQueue.size, minPlayers: CONFIG.MATCH_MIN_PLAYERS, maxPlayers: CONFIG.MATCH_MAX_PLAYERS }
+      }));
+    }
+  }
+
+  // Check if enough players
+  if (matchmakingQueue.size >= CONFIG.MATCH_MIN_PLAYERS) {
+    createMatchFromQueue();
+  } else if (!matchTimeout) {
+    // Start 30s timeout
+    matchTimeout = setTimeout(() => {
+      console.log(`[Match] Timeout reached. Queue: ${matchmakingQueue.size} players`);
+      if (matchmakingQueue.size >= 2) {
+        createMatchFromQueue();
+      } else {
+        // Not enough even after timeout, inform players
+        for (const [pid, entry] of matchmakingQueue) {
+          if (entry.ws.readyState === WebSocket.OPEN) {
+            entry.ws.send(JSON.stringify({ type: 'matchmaking_timeout', data: { message: 'Không đủ người chơi, đang thêm bot AI...' } }));
+          }
+        }
+        // Force create with bots
+        createMatchFromQueue();
+      }
+      matchTimeout = null;
+    }, CONFIG.MATCH_TIMEOUT_MS);
+  }
+
+  return true;
+}
+
+function dequeuePlayer(playerId) {
+  matchmakingQueue.delete(playerId);
+  if (matchmakingQueue.size === 0 && matchTimeout) {
+    clearTimeout(matchTimeout);
+    matchTimeout = null;
+  }
+}
+
+function createMatchFromQueue() {
+  if (rooms.size >= CONFIG.MAX_ROOMS) {
+    console.warn('[Match] Max rooms reached, cannot create new match');
+    return;
+  }
+
+  const roomId = uuidv4();
+  const room = new Room(roomId);
+
+  // Take players from queue (up to MAX)
+  const entries = Array.from(matchmakingQueue.entries());
+  const realPlayers = entries.slice(0, CONFIG.MATCH_MAX_PLAYERS);
+
+  // Remove from queue
+  for (const [pid] of realPlayers) {
+    matchmakingQueue.delete(pid);
+    clients.set(realPlayers.find(([id]) => id === pid)?.[1]?.ws, { playerId: pid, roomId });
+  }
+
+  // Add real players
+  for (const [pid, entry] of realPlayers) {
+    room.addPlayer(pid, entry.ws, entry.name, entry.characterId, false);
+    clients.set(entry.ws, { playerId: pid, roomId });
+  }
+
+  // Fill bots if not enough
+  const botsNeeded = Math.max(0, CONFIG.MATCH_MIN_PLAYERS - realPlayers.length);
+  const botNames = ['Rồng', 'Phượng', 'Hổ', 'Báo', 'Sói', 'Cáo', 'Gấu', 'Diều', 'Cọp', 'Chồn', 'Thiên Long', 'Hắc Vũ'];
+  for (let i = 0; i < botsNeeded; i++) {
+    const botId = `bot_${roomId}_${i}`;
+    const botName = botNames[i % botNames.length];
+    room.addPlayer(botId, null, botName, i % 12, true);
+  }
+
+  rooms.set(roomId, room);
+  console.log(`[Match] Room ${roomId} created: ${realPlayers.length} players + ${botsNeeded} bots`);
+
+  // Clear timeout
+  if (matchTimeout) {
+    clearTimeout(matchTimeout);
+    matchTimeout = null;
+  }
+
+  // Notify all players
+  room.broadcast('match_found', {
+    roomId,
+    playerCount: realPlayers.length,
+    botCount: botsNeeded,
+    totalPlayers: room.players.size
+  });
+
+  // Start countdown
+  setTimeout(() => room.startCountdown(), 1000);
+}
+
+// === WEBSOCKET SERVER ===
+const wss = new WebSocketServer({ port: CONFIG.WS_PORT, path: '/ws' });
+
+wss.on('connection', (ws) => {
+  console.log(`[WS] New connection. Total: ${wss.clients.size}`);
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+
+    const { type, data } = msg;
+
+    switch (type) {
+      case 'login': {
+        const { playerId, name, characterId } = data;
+        const pid = playerId || uuidv4();
+        dbUpsertPlayer(pid, name || 'Player', characterId || 0);
+        clients.set(ws, { playerId: pid, roomId: null });
+        ws.send(JSON.stringify({ type: 'login_ok', data: { playerId: pid } }));
+        console.log(`[WS] Player ${name}(${pid}) logged in`);
+        break;
+      }
+
+      case 'matchmaking_join': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo) return;
+        const player = dbGetPlayer(clientInfo.playerId);
+        const name = data?.name || player?.name || 'Player';
+        const charId = data?.characterId ?? player?.character_id ?? 0;
+        clientInfo.name = name;
+        clientInfo.characterId = charId;
+        enqueuePlayer(clientInfo.playerId, ws, name, charId);
+        break;
+      }
+
+      case 'matchmaking_leave': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo) return;
+        dequeuePlayer(clientInfo.playerId);
+        ws.send(JSON.stringify({ type: 'matchmaking_left' }));
+        break;
+      }
+
+      case 'player_update': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo?.roomId) return;
+        const room = rooms.get(clientInfo.roomId);
+        if (room) room.handlePlayerUpdate(clientInfo.playerId, data);
+        break;
+      }
+
+      case 'dart_throw': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo?.roomId) return;
+        const room = rooms.get(clientInfo.roomId);
+        if (room) room.handleDartThrow(clientInfo.playerId, data);
+        break;
+      }
+
+      case 'player_teleport': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo?.roomId) return;
+        const room = rooms.get(clientInfo.roomId);
+        if (room) room.handleTeleport(clientInfo.playerId, data);
+        break;
+      }
+
+      case 'player_kill': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo?.roomId) return;
+        const room = rooms.get(clientInfo.roomId);
+        if (room) room.handleKill(clientInfo.playerId, data.victimId, data);
+        break;
+      }
+
+      case 'skill_use': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo?.roomId) return;
+        const room = rooms.get(clientInfo.roomId);
+        if (room) room.handleSkillUse(clientInfo.playerId, data);
+        break;
+      }
+
+      case 'player_respawn': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo?.roomId) return;
+        const room = rooms.get(clientInfo.roomId);
+        if (room) room.handleRespawn(clientInfo.playerId, data);
+        break;
+      }
+
+      case 'chat': {
+        const clientInfo = clients.get(ws);
+        if (!clientInfo?.roomId) return;
+        const room = rooms.get(clientInfo.roomId);
+        if (room) room.handleChat(clientInfo.playerId, data?.message || '');
+        break;
+      }
+
+      case 'ping': {
+        ws.send(JSON.stringify({ type: 'pong', t: Date.now() }));
+        break;
+      }
+    }
+  });
+
+  ws.on('close', () => {
+    const clientInfo = clients.get(ws);
+    if (clientInfo) {
+      // Remove from matchmaking queue
+      dequeuePlayer(clientInfo.playerId);
+      // Remove from room
+      if (clientInfo.roomId) {
+        const room = rooms.get(clientInfo.roomId);
+        if (room) {
+          room.removePlayer(clientInfo.playerId);
+          // If room is empty, clean up
+          if (room.players.size === 0) {
+            rooms.delete(clientInfo.roomId);
+            console.log(`[Room] Room ${clientInfo.roomId} empty, deleted`);
+          }
+        }
+      }
+      clients.delete(ws);
+      console.log(`[WS] Player ${clientInfo.playerId} disconnected`);
+    }
+  });
+});
+
+// === HTTP SERVER (health check + REST API) ===
+const httpServer = http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.url === '/health') {
+    res.writeHead(200);
+    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), rooms: rooms.size, clients: clients.size, queue: matchmakingQueue.size }));
+    return;
+  }
+
+  if (req.url === '/api/status') {
+    res.writeHead(200);
+    res.end(JSON.stringify({
+      version: '1.7.0',
+      rooms: rooms.size,
+      clients: clients.size,
+      queue: matchmakingQueue.size,
+      config: {
+        minPlayers: CONFIG.MATCH_MIN_PLAYERS,
+        maxPlayers: CONFIG.MATCH_MAX_PLAYERS,
+        matchTimeout: CONFIG.MATCH_TIMEOUT_MS,
+        tickRate: CONFIG.TICK_RATE_MS,
+      },
+      roomList: Array.from(rooms.entries()).map(([id, r]) => ({
+        id, state: r.state, players: r.players.size,
+        gameTime: Math.round(r.gameTime),
+      })),
+    }));
+    return;
+  }
+
+  if (req.url === '/api/leaderboard') {
+    res.writeHead(200);
+    res.end(JSON.stringify(dbGetLeaderboard(20)));
+    return;
+  }
+
+  if (req.url.startsWith('/api/player/')) {
+    const pid = req.url.split('/api/player/')[1];
+    const player = dbGetPlayer(pid);
+    if (player) {
+      res.writeHead(200);
+      res.end(JSON.stringify(player));
+    } else {
+      res.writeHead(404);
+      res.end(JSON.stringify({ error: 'Player not found' }));
+    }
+    return;
+  }
+
+  res.writeHead(404);
+  res.end(JSON.stringify({ error: 'Not found' }));
+});
+
+httpServer.listen(CONFIG.HTTP_PORT, () => {
+  console.log(`[HTTP] Health/API server on port ${CONFIG.HTTP_PORT}`);
+});
+
+// === CLEANUP ===
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, room] of rooms) {
+    if (now - room.createdAt > CONFIG.ROOM_TIMEOUT_MS && room.state !== 'playing') {
+      room.broadcast('room_expired', { roomId: id });
+      rooms.delete(id);
+      console.log(`[Cleanup] Expired room ${id}`);
+    }
+  }
+}, 60000);
+
+// === START ===
+initDatabase();
+console.log(`[Server] Phi Tiêu Dịch Chuyển Relay Server v1.7`);
+console.log(`[Server] WebSocket on port ${CONFIG.WS_PORT}`);
+console.log(`[Server] Match config: ${CONFIG.MATCH_MIN_PLAYERS}-${CONFIG.MATCH_MAX_PLAYERS} players, ${CONFIG.MATCH_TIMEOUT_MS}ms timeout`);

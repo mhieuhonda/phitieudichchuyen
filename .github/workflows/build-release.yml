@@ -1,4 +1,4 @@
-name: Build & Release
+name: Build & Release Phi Tiêu Dịch Chuyển
 
 on:
   push:
@@ -6,300 +6,196 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: 'Tag name to publish to (e.g. v0.6)'
-        required: true
-        default: 'v0.6'
+      version:
+        description: 'Version (e.g. 1.7.0)'
+        required: false
+        default: ''
 
 env:
-  GODOT_VERSION: 4.2.2
-
-permissions:
-  contents: write
+  GODOT_VERSION: '4.7'
+  PROJECT_NAME: 'phitieudichchuyen'
 
 jobs:
-  build:
+  # ============================================
+  # JOB 1: Build Android APK (Parallel)
+  # ============================================
+  build-android:
+    name: 🤖 Build Android
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve release tag
-        id: tag
-        run: |
-          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
-            echo "name=${{ github.event.inputs.tag_name }}" >> "$GITHUB_OUTPUT"
-          else
-            # github.ref for tag pushes looks like "refs/tags/v0.6"
-            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            xvfb \
-            mesa-utils \
-            libgl1-mesa-dri \
-            libgl1-mesa-dev libglu1-mesa-dev \
-            libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev \
-            libasound2-dev libpulse-dev libudev-dev libxi-dev libxext-dev \
-            wayland-protocols libwayland-dev
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v1
         with:
-          distribution: temurin
-          java-version: '17'
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android build tools & platform
+      - name: Import Godot Project
         run: |
-          sdkmanager --install "build-tools;33.0.2" "platforms;android-33" "platform-tools"
+          godot --headless --import-project project.godot --quit-after 100 2>&1 || true
 
-      - name: Download Godot Editor
+      - name: Export Android
         run: |
-          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -O godot_editor.zip
-          unzip -q godot_editor.zip
-          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot_editor
-          chmod +x godot_editor
-          echo "Godot editor ready"
-
-      - name: Download Godot Export Templates
-        run: |
-          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -O export_templates.tpz
-          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          unzip -q export_templates.tpz -d extracted_templates
-          cp -r extracted_templates/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
-          echo "Templates installed"
-
-      - name: Create editor settings with Android SDK path
-        run: |
-          mkdir -p ~/.config/godot/
-          python3 << 'PYEOF'
-          import os
-          settings_path = os.path.expanduser("~/.config/godot/editor_settings-4.tres")
-          with open(settings_path, "w") as f:
-              f.write('[gd_resource type="EditorSettings" format=3]\n\n')
-              f.write('[resource]\n\n')
-              f.write('export/android/android_sdk_path = "/usr/local/lib/android/sdk"\n')
-              f.write('export/android/java_sdk_path = "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64"\n')
-          print("Editor settings created at", settings_path)
-          PYEOF
-
-      - name: Import Godot Project (via Xvfb + OpenGL3)
-        run: |
-          echo "Starting Xvfb..."
-          Xvfb :99 -screen 0 1024x768x24 &
-          sleep 2
-          export DISPLAY=:99
-
-          echo "Running Godot editor with OpenGL3 renderer to import project resources..."
-          timeout 300 ./godot_editor --rendering-driver opengl3 --editor --quit-after 60 --path . 2>&1 | head -400 || true
-
-          echo "Import step completed. Checking .godot cache..."
-          if [ -d .godot ]; then
-            echo ".godot directory exists - import successful"
-            ls .godot/
-          else
-            echo "WARNING: .godot directory not found, trying again with longer timeout..."
-            timeout 300 ./godot_editor --rendering-driver opengl3 --editor --quit-after 120 --path . 2>&1 | head -400 || true
-            if [ -d .godot ]; then
-              echo ".godot directory exists after retry"
-            else
-              echo "WARNING: .godot directory still not found"
-            fi
-          fi
-
-          # Verify .import files were created
-          IMPORT_COUNT=$(find . -name "*.import" | wc -l)
-          echo "Found ${IMPORT_COUNT} .import files"
-
-      - name: Install Android Build Template
-        timeout-minutes: 3
-        run: |
-          export DISPLAY=:99
-          echo "Installing Android build template..."
-          # Add timeout to prevent hang on --install-android-build-template
-          timeout 60 ./godot_editor --headless --path . --install-android-build-template 2>&1 || true
-          if [ -f android/build/build.gradle ]; then
-            echo "Android build template installed OK"
-          else
-            echo "Manual fallback: extracting android_source.zip..."
-            ANDROID_SOURCE_ZIP=""
-            for f in \
-              ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip \
-              extracted_templates/templates/android_source.zip; do
-              if [ -f "$f" ]; then
-                ANDROID_SOURCE_ZIP="$f"
-                break
-              fi
-            done
-            if [ -n "$ANDROID_SOURCE_ZIP" ]; then
-              mkdir -p android/build
-              unzip -q "$ANDROID_SOURCE_ZIP" -d android/build/
-              echo "Manual extraction done"
-            else
-              echo "ERROR: android_source.zip not found!"
-              exit 1
-            fi
-          fi
-          # Ensure .build_version file exists
-          if [ ! -f android/.build_version ]; then
-            echo "${GODOT_VERSION}.stable" > android/.build_version
-            echo "Created android/.build_version"
-          fi
-
-      - name: Export Android APK (unsigned, via Xvfb + OpenGL3)
-        run: |
-          export DISPLAY=:99
           mkdir -p build/android
+          godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 || true
 
-          # Remove ALL .import files from the project directory to prevent them
-          # from being copied into the Android res/ directory during export
-          echo "Removing .import files from project directory..."
-          find . -name "*.import" -not -path "./.godot/*" -not -path "./android/*" -type f -delete 2>/dev/null || true
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: build/android/*.apk
+          retention-days: 7
 
-          echo "Exporting Android APK (unsigned)..."
-          # Use || true to prevent script failure, we'll check if APK exists later
-          ./godot_editor --rendering-driver opengl3 --path . --export-release "Android" build/android/phitieudichchuyen-unsigned.apk 2>&1 || true
+  # ============================================
+  # JOB 2: Build Windows Desktop (Parallel)
+  # ============================================
+  build-windows:
+    name: 🪟 Build Windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-          # If Godot export failed (likely due to .import files), clean and run Gradle directly
-          if [ ! -f build/android/phitieudichchuyen-unsigned.apk ]; then
-            echo "Godot export failed. Cleaning .import files from android/build/res and running Gradle directly..."
-            find android/build/res -name "*.import" -type f -delete 2>/dev/null || true
-            echo "Remaining .import files in android/build/res:"
-            find android/build/res -name "*.import" -type f 2>/dev/null || echo "None"
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v1
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
 
-            cd android/build
-            chmod +x gradlew
-            ./gradlew assembleRelease 2>&1
-            cd ../..
-
-            # Find the built APK
-            APK_PATH=$(find android/build/build/outputs -name "*.apk" -type f 2>/dev/null | head -1)
-            if [ -n "$APK_PATH" ]; then
-              cp "$APK_PATH" build/android/phitieudichchuyen-unsigned.apk
-              echo "APK built via Gradle directly!"
-            else
-              echo "ERROR: APK not found after Gradle build"
-              find android/build/build/outputs -type f 2>/dev/null || echo "No outputs directory"
-              exit 1
-            fi
-          fi
-
-      - name: Generate Debug Keystore and Sign APK
+      - name: Import Godot Project
         run: |
-          echo "Generating debug keystore..."
-          keytool -keyalg RSA -genkeypair -alias phitieudichchuyen \
-            -keystore debug.keystore \
-            -storepass android \
-            -keypass android \
-            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN" \
-            -validity 10000
+          godot --headless --import-project project.godot --quit-after 100 2>&1 || true
 
-          echo "Signing APK with apksigner..."
-          BUILD_TOOLS="/usr/local/lib/android/sdk/build-tools/33.0.2"
-          if [ -f build/android/phitieudichchuyen-unsigned.apk ]; then
-            # Zipalign first
-            "${BUILD_TOOLS}/zipalign" -f 4 build/android/phitieudichchuyen-unsigned.apk build/android/phitieudichchuyen-aligned.apk
-            # Sign with apksigner
-            "${BUILD_TOOLS}/apksigner" sign \
-              --ks debug.keystore \
-              --ks-pass pass:android \
-              --ks-key-alias phitieudichchuyen \
-              --key-pass pass:android \
-              --out build/android/phitieudichchuyen.apk \
-              build/android/phitieudichchuyen-aligned.apk
-            echo "APK signed successfully!"
-          else
-            echo "ERROR: Unsigned APK not found"
-            find build/ -type f 2>/dev/null || echo "No build directory"
-            exit 1
-          fi
-
-      - name: Verify Android APK
+      - name: Export Windows
         run: |
-          if [ -f build/android/phitieudichchuyen.apk ]; then
-            echo "APK built and signed successfully!"
-            ls -lh build/android/phitieudichchuyen.apk
-            # Verify signing
-            /usr/local/lib/android/sdk/build-tools/33.0.2/apksigner verify build/android/phitieudichchuyen.apk && echo "APK signature verified!" || echo "WARNING: APK signature verification failed"
-          else
-            echo "ERROR: APK not found"
-            find build/ -type f 2>/dev/null || echo "No build directory"
-            exit 1
-          fi
-
-      - name: Export Windows Desktop (via Xvfb + OpenGL3)
-        run: |
-          export DISPLAY=:99
           mkdir -p build/windows
-          echo "Exporting Windows Desktop..."
-          ./godot_editor --rendering-driver opengl3 --path . --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
+          godot --headless --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1 || true
 
-      - name: Verify Windows build
-        run: |
-          if [ -f build/windows/phitieudichchuyen.exe ]; then
-            echo "Windows EXE built successfully!"
-            ls -lh build/windows/phitieudichchuyen.exe
-          else
-            echo "ERROR: Windows EXE not found"
-            find build/windows/ -type f 2>/dev/null || echo "No windows build dir"
-            exit 1
-          fi
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            build/windows/*.exe
+            build/windows/*.pck
+          retention-days: 7
 
-      - name: Package Windows build
-        run: |
-          cd build/windows
-          zip -r ../../phitieudichchuyen-windows.zip .
-          cd ../..
+  # ============================================
+  # JOB 3: Build Linux (Parallel)
+  # ============================================
+  build-linux:
+    name: 🐧 Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Export Linux/X11 (via Xvfb + OpenGL3)
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v1
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
+
+      - name: Import Godot Project
         run: |
-          export DISPLAY=:99
+          godot --headless --import-project project.godot --quit-after 100 2>&1 || true
+
+      - name: Export Linux
+        run: |
           mkdir -p build/linux
-          echo "Exporting Linux/X11..."
-          ./godot_editor --rendering-driver opengl3 --path . --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
+          godot --headless --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1 || true
 
-      - name: Verify Linux build
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            build/linux/*.x86_64
+            build/linux/*.pck
+          retention-days: 7
+
+  # ============================================
+  # JOB 4: Build & Push Relay Server Docker Image
+  # ============================================
+  build-relay-server:
+    name: 🌐 Build Relay Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Relay Server
+        uses: docker/build-push-action@v6
+        with:
+          context: ./relay-server
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/phitieu-relay:latest
+            ghcr.io/${{ github.repository_owner }}/phitieu-relay:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================
+  # JOB 5: Create GitHub Release (after all builds)
+  # ============================================
+  create-release:
+    name: 📦 Create Release
+    needs: [build-android, build-windows, build-linux, build-relay-server]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Organize Release Files
         run: |
-          if [ -f build/linux/phitieudichchuyen.x86_64 ]; then
-            echo "Linux binary built successfully!"
-            ls -lh build/linux/phitieudichchuyen.x86_64
-          else
-            echo "ERROR: Linux binary not found"
-            find build/linux/ -type f 2>/dev/null || echo "No linux build dir"
-            exit 1
-          fi
+          mkdir -p release
+          # Android
+          cp artifacts/android-build/*.apk release/ 2>/dev/null || true
+          # Windows
+          cp artifacts/windows-build/*.exe release/ 2>/dev/null || true
+          cp artifacts/windows-build/*.pck release/ 2>/dev/null || true
+          # Linux
+          cp artifacts/linux-build/*.x86_64 release/ 2>/dev/null || true
+          cp artifacts/linux-build/*.pck release/phitieudichchuyen-linux.pck 2>/dev/null || true
+          ls -la release/
 
-      - name: Package Linux build
-        run: |
-          cd build/linux
-          zip -r ../../phitieudichchuyen-linux.zip .
-          cd ../..
-
-      - name: List all build artifacts
-        run: |
-          echo "=== All build artifacts ==="
-          find build/ -type f -exec ls -lh {} \;
-          echo "=== ZIP packages ==="
-          ls -lh *.zip 2>/dev/null || echo "No ZIP packages"
-          echo "=== Resolved release tag ==="
-          echo "${{ steps.tag.outputs.name }}"
-
-      - name: Upload all artifacts to Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.name }}
-          name: Phi Tiêu Dịch Chuyển ${{ steps.tag.outputs.name }}
+          files: release/*
           generate_release_notes: true
-          files: |
-            build/android/phitieudichchuyen.apk
-            phitieudichchuyen-windows.zip
-            phitieudichchuyen-linux.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            ## 🎯 Phi Tiêu Dịch Chuyển ${{ github.ref_name }}
+
+            ### 🆕 Tính Năng v1.7 - Chơi Online!
+
+            - **Chơi Online**: Ghép trận 10-20 người qua Relay Server
+            - **Matchmaking**: Tự động tìm trận, 30s timeout, bot AI fill
+            - **Mode Selection**: Chọn Online (ghép trận) hoặc Offline (chơi với máy)
+            - **Relay Server**: WebSocket server cho đồng bộ real-time
+            - **Player Stats**: SQLite database lưu kill/death/win/score
+            - **Parallel Builds**: GitHub Actions build 3 nền tảng song song
+
+            ### 📦 Downloads
+            - **Android**: `.apk` file
+            - **Windows**: `.exe` + `.pck` files
+            - **Linux**: `.x86_64` + `.pck` files
+            - **Relay Server**: `ghcr.io/mhieuhonda/phitieu-relay:latest`

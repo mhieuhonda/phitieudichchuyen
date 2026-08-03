@@ -1,6 +1,7 @@
 extends Control
 
-## Menu - Menu chính (v1.2)
+## Menu - Menu chính (v1.7)
+## v1.7: "Chơi Ngay" → Mode Selection (Online/Offline)
 
 @onready var title_label: Label = $TitleLabel
 @onready var subtitle_label: Label = $SubtitleLabel
@@ -20,16 +21,16 @@ func _ready():
         for btn in [play_button, characters_button, settings_button, quit_button]:
                 btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-        new_feature_label.text = "[color=cyan][b]v1.5:[/b][/color] Rà soát toàn diện Godot 4.7 - Sửa Python docstring, AI group, skill cooldowns, player_size bug\n[color=yellow]v1.5:[/color] Fix AI player không nhận diện group ai_players → pickup/kill/teleport hoạt động đúng\n[color=green]v1.5:[/color] Fix AI dùng sai player_size thay vì current_size, fix skill_cooldowns init, clean code"
-        version_label.text = "v1.5 - Phi Tiêu Dịch Chuyển"
+        new_feature_label.text = "[color=cyan][b]v1.7:[/b][/color] CHƠI ONLINE! Ghép trận 10-20 người, matchmaking tự động, bot AI fill\n[color=yellow]v1.7:[/color] Relay Server + WebSocket, đồng bộ trạng thái real-time giữa các người chơi\n[color=green]v1.6:[/color] Rà soát toàn diện Godot 4.7 - Modern GDScript idioms, collision mask sync"
+        version_label.text = "v1.7 - Phi Tiêu Dịch Chuyển"
 
         AudioManager.play_music("menu")
 
 func _on_play_pressed():
         AudioManager.play_ui_click()
         AudioManager.play_confirm()
-        SettingsManager.pending_scene = "res://scenes/main.tscn"
-        get_tree().change_scene_to_file("res://scenes/loading.tscn")
+        # v1.7: Chuyển sang Mode Selection thay vì vào game ngay
+        get_tree().change_scene_to_file("res://scenes/mode_select.tscn")
 
 func _on_characters_pressed():
         AudioManager.play_ui_click()

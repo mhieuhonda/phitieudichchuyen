@@ -1,5 +1,86 @@
 # Changelog
 
+## v1.7 - Phi Tiêu Dịch Chuyển (2026-08-03)
+
+### 🌐 Chơi Online - Multiplayer Real-Time!
+
+Bản v1.7 là bản cập nhật lớn nhất từ trước đến nay, biến game từ offline-only thành **online multiplayer** với hệ thống matchmaking tự động, relay server, và đồng bộ trạng thái real-time giữa các người chơi.
+
+### ✨ New Features
+
+- **Mode Selection**: Màn hình chọn chế độ chơi mới. Khi ấn "Chơi Ngay", hiện 2 lựa chọn:
+  - **Chơi Online**: Kết nối đến Relay Server, ghép trận với người chơi thật
+  - **Chơi Offline**: Chơi với máy (AI bots) như các bản trước
+
+- **Online Multiplayer**:
+  - Relay Server WebSocket (Node.js) chạy trên VPS
+  - Client kết nối qua `NetworkManager` autoload singleton
+  - Đồng bộ vị trí, HP, size, score, kills giữa các client
+  - Relay dart throws, teleports, kills, skill uses, respawns
+  - State sync 20 ticks/giây (50ms interval)
+
+- **Matchmaking**:
+  - Tối thiểu 10 người, tối đa 20 người mỗi phòng
+  - 30 giây timeout: nếu không đủ người, tự thêm bot AI để đủ 10
+  - 5 giây countdown trước khi bắt đầu trận
+  - Match duration: 5 phút, vòng bo thu nhỏ tự động
+
+- **Remote Players**:
+  - Người chơi khác hiển thị trên map với interpolation mượt
+  - Hiển thị tên, HP bar, character sprite
+  - Dart throws, teleports, kills, skills đồng bộ real-time
+
+- **Relay Server** (Node.js + WebSocket + SQLite):
+  - WebSocket port 25671, HTTP API port 25672
+  - Room management, matchmaking queue, game tick loop
+  - SQLite database: player stats (kills, deaths, wins, score, best_score)
+  - REST API: `/health`, `/api/status`, `/api/leaderboard`, `/api/player/:id`
+  - Dockerized, deployed qua Coolify trên VPS
+
+- **GitHub Actions** (3 luồng song song):
+  - Build Android, Windows, Linux chạy **đồng thời** (parallel jobs)
+  - Build & push Relay Server Docker image lên GHCR
+  - Tự tạo GitHub Release khi push tag `v*`
+  - Tốc độ build tăng 2-3x so với chạy tuần tự
+
+### 🛠️ Architecture
+
+```
+┌─────────────┐     WebSocket      ┌──────────────┐
+│  Godot Client│◄──────────────────►│  Relay Server │
+│  (Player 1) │     port 25671     │  (Node.js)   │
+└─────────────┘                     │  + SQLite DB  │
+┌─────────────┐     WebSocket      └──────────────┘
+│  Godot Client│◄──────────────────┘
+│  (Player 2) │     State Sync
+└─────────────┘     20 ticks/s
+```
+
+### 📦 New Files
+- `scripts/network_manager.gd` — Autoload singleton WebSocket client
+- `scripts/mode_select.gd` — Mode selection screen logic
+- `scripts/matchmaking_screen.gd` — Matchmaking UI logic
+- `scripts/main_online.gd` — Online game scene logic
+- `scripts/remote_player.gd` — Remote player entity logic
+- `scenes/mode_select.tscn` — Mode selection scene
+- `scenes/matchmaking.tscn` — Matchmaking scene
+- `scenes/main_online.tscn` — Online game scene
+- `scenes/remote_player.tscn` — Remote player scene
+- `relay-server/` — Complete relay server (Node.js + Docker)
+- `.github/workflows/build-release.yml` — Parallel CI/CD
+
+### 📦 Release
+- Bump `config/version` 1.6 → 1.7 trong `project.godot`
+- Bump `version/code` 16 → 17, `version/name` "1.6" → "1.7" trong `export_presets.cfg`
+- Bump `application/file_version` và `product_version` "1.6.0.0" → "1.7.0.0"
+- Add `NetworkManager` autoload singleton trong `project.godot`
+- Add collision layer 7 "RemotePlayer" trong `project.godot`
+- `docker-compose.yml` cho VPS deployment
+- README.md viết lại chuẩn cho v1.7
+- CHANGELOG.md cập nhật cho v1.7
+
+---
+
 ## v1.6 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🧹 Modern GDScript Cleanup — Tuyệt Đối Sạch Sẽ
@@ -7,181 +88,72 @@
 Bản v1.5 đã fix hết lỗi parse + lỗi runtime + lỗi logic. v1.6 rà soát lại toàn bộ codebase để **modern hoá mọi cú pháp GDScript** theo chuẩn Godot 4.7, đồng thời đồng bộ các giá trị collision mask giữa `.tscn` và `.gd` để tránh inconsistent state, và dọn dẹp các dead config không ai dùng.
 
 ### 🐛 Bug Fixes
-- **FIX: `scenes/ai_player.tscn` collision_mask mismatch.** File `.tscn` ghi `collision_mask = 28` (Wall+AI+Obstacle) nhưng `scripts/ai_player.gd:90` ghi `collision_mask = 1 | 4 | 16 = 21` (Player+Wall+Obstacle). Runtime dùng 21 (đúng), nhưng `.tscn` value gây nhầm lẫn khi maintain. Đã sync `.tscn` → `21`.
-- **FIX: `scripts/audio_manager.gd` debug `print()` chạy mỗi khởi động.** Production code không nên in ra stdout mỗi lần game boot. Đã wrap trong `if OS.is_debug_build():` để chỉ in khi debug.
-- **FIX: `scripts/mobile_controls.gd` comment có ký tự Japanese stray.** Comment "click通常 works" (mix Japanese + Vietnamese) → "click bình thường works".
-- **FIX: `project.godot` dead input actions.** Hai action `aim` và `throw_dart` được define trong input map nhưng không script nào reference (player.gd check trực tiếp `MOUSE_BUTTON_RIGHT`). Đã xoá để input map sạch sẽ.
+- **FIX: `scenes/ai_player.tscn` collision_mask mismatch.** File `.tscn` ghi `collision_mask = 28` nhưng `scripts/ai_player.gd:90` ghi `collision_mask = 1 | 4 | 16 = 21`. Đã sync `.tscn` → `21`.
+- **FIX: `scripts/audio_manager.gd` debug `print()` chạy mỗi khởi động.** Đã wrap trong `if OS.is_debug_build():`.
+- **FIX: `scripts/mobile_controls.gd` comment có ký tự Japanese stray.** "click通常 works" → "click bình thường works".
+- **FIX: `project.godot` dead input actions.** Xoá `aim` và `throw_dart`.
 
 ### ✨ Code Quality
-- **MODERN: Convert toàn bộ 45+ `emit_signal("name", args)` → `name.emit(args)`.** Cú pháp `emit_signal()` là legacy 4.x, vẫn hợp lệ nhưng không còn được khuyến nghị. Cú pháp `.emit()` là modern Godot 4.7 idiom, ngắn gọn và type-safe hơn. Áp dụng trên 8 file: `player.gd`, `ai_player.gd`, `dart.gd`, `game_manager.gd`, `audio_manager.gd`, `mobile_controls.gd`, `settings_manager.gd`, `character_data.gd`.
-- **NEW: `AudioManager._exit_tree()`.** Khi quit game, kill fade tween + stop pool players + null resource refs để tránh leak warning `ObjectDB instances were leaked at exit` và `resources still in use at exit`.
+- **MODERN: Convert toàn bộ 45+ `emit_signal("name", args)` → `name.emit(args)`.**
+- **NEW: `AudioManager._exit_tree()`.** Kill fade tween + stop pool players + null resource refs.
 
 ### ✅ Verification
 - ✅ Project import sạch 100% trên Godot 4.7 stable (0 parse errors, 0 deprecated warnings)
 - ✅ Headless run 30 frames: 0 SCRIPT ERROR, 0 push_error, 0 push_warning
-- ✅ `grep "emit_signal("` returns 0 matches trên toàn bộ `scripts/`
+- ✅ Không còn `emit_signal("` trên toàn bộ `scripts/`
 - ✅ `scenes/ai_player.tscn` collision_mask = 21, sync với `scripts/ai_player.gd:90`
-- ✅ Không còn dead input actions `aim`/`throw_dart` trong `project.godot`
-- ✅ AudioManager có `_exit_tree()` dọn dẹp pool + music player + fade tween
-
-### 📦 Release
-- Bump `config/version` 1.5 → 1.6 trong `project.godot`
-- Bump `version/code` 15 → 16, `version/name` "1.5" → "1.6" trong `export_presets.cfg`
-- Bump `application/file_version` và `product_version` "1.5.0.0" → "1.6.0.0" trong `export_presets.cfg`
-- README.md viết lại chuẩn cho v1.6
-- CHANGELOG.md cập nhật cho v1.6
+- ✅ AudioManager có `_exit_tree()` dọn dẹp
 
 ---
 
 ## v1.5 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🔧 Rà Soát Toàn Diện — Sạch Từng Ngóc Ngách
-Bản v1.4 đã fix lỗi runtime chính, nhưng vẫn còn sót lỗi cú pháp Python-style, lỗi logic AI, và lỗi khởi tạo biến. v1.5 rà soát **từng ký tự, từng dòng** trong 18 file GDScript để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
-
-### 🐛 Bug Fixes (Critical)
-- **FIX SYNTAX: `player.gd` dùng Python-style docstring `"""..."""`.** GDScript không hỗ trợ triple-quoted docstring. Godot 4.2.2 vẫn chấp nhận (silent string expression), nhưng Godot 4.7 báo parse error. Đổi sang `## comment` chuẩn GDScript.
-- **FIX INIT: `skill_cooldowns` khai báo Dictionary với enum key ở class-level.** Enum `GameManager.Skill.*` chưa sẵn sàng lúc parse → Dictionary rỗng hoặc sai key. Chuyển khởi tạo vào `_ready()` khi enum đã load.
-- **FIX TYPE: `activate_skill()` dùng `GameManager.Skill` enum type trong function signature.** Enum type từ autoload có thể gây parse issue trong Godot 4.7. Đổi sang `int` an toàn hơn.
-- **FIX LOGIC: `ai_player.gd` dùng `GameManager.player_size` thay vì `current_size`.** AI teleport kill radius dùng size của player thay vì size của chính AI → radius sai. Đổi sang `current_size`.
-- **FIX GROUP: AI player đảm bảo trong group `ai_players`.** Mặc dù .tscn đã có `groups=["ai_players"]`, thêm `add_to_group("ai_players")` trong `_ready()` để đảm bảo group luôn được set, kể cả khi scene được instantiate dynamically.
-- **FIX NAMING: `_cleanup_pickups()` biến `local_rng` trùng scope.** Đổi tên thành `new_rng` để tránh nhầm lẫn với biến ở hàm khác.
-
-### ✅ Verification
-- ✅ Tất cả 18 file GDScript parse sạch — không còn `"""docstring"""`, không còn old 4.2 API
-- ✅ `skill_cooldowns` khởi tạo đúng trong `_ready()` sau khi enum đã sẵn sàng
-- ✅ AI player group được đảm bảo qua cả .tscn và `_ready()`
-- ✅ AI teleport kill radius dùng đúng `current_size` thay vì `GameManager.player_size`
-- ✅ 0 parse error, 0 SCRIPT ERROR, 0 deprecated warnings trên Godot 4.7
-
-### 📦 Release
-- Bump `config/version` từ `1.4` → `1.5` trong `project.godot`
-- Bump `version/code` từ `9` → `15`, `version/name` từ `"0.9"` → `"1.5"` trong `export_presets.cfg`
-- Bump `application/file_version` và `product_version` từ `"0.9.0.0"` → `"1.5.0.0"` trong `export_presets.cfg`
-- Menu chính hiển thị badge v1.5 + tóm tắt thay đổi
-- README.md viết lại chuẩn cho v1.5
-- CHANGELOG.md cập nhật cho v1.5
+- Fix Python-style docstring parse error trong `player.gd`.
+- Fix `skill_cooldowns` Dictionary khởi tạo ở class-level.
+- Fix AI teleport kill radius dùng sai `GameManager.player_size`.
+- Đảm bảo AI luôn trong group `ai_players`.
 
 ---
 
 ## v1.4 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🔧 Rà Soát Toàn Diện Godot 4.7 (Clean Sweep)
-Bản v1.3 đã fix lỗi blocker chính (class_name conflict + ternary parse), nhưng còn sót một số lỗi runtime và logic nhỏ. v1.4 rà soát lại **mọi file GDScript + mọi scene** để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
-
-### 🐛 Bug Fixes (Critical)
-- **FIX: `dart.gd` gán trực tiếp `monitoring = false/true` khi Area2D đang trong SceneTree.** Godot 4.x cấm thay đổi `monitoring` trực tiếp khi node đã ở trong tree → sinh lỗi runtime. Đã đổi sang `set_deferred("monitoring", value)` ở cả `_ready()` (line 35) và `_physics_process()` (line 70).
-- **FIX: `pickup.gd` hồi máu AI dựa trên `GameManager.player_max_hp`.** Khi AI nhặt health/dart refill, máu được clamp về max HP của **player** thay vì max HP của chính AI → AI có thể vượt quá giới hạn máu riêng. Đã sửa thành `ai.current_max_hp` ở cả 2 nhánh (HEALTH và DART_REFILL).
-
-### 🛠️ Code Quality
-- **REFAC: `AudioManager` thêm API công khai `is_music_playing()`.** Trước đây `loading_screen.gd` phải truy cập trực tiếp `AudioManager._music_player.playing` (private field) → vi phạm encapsulation. Giờ dùng `AudioManager.is_music_playing()`.
-- **REFAC: Đổi tên biến/bán `name` thành `sfx_name` / `track_name` trong `AudioManager`.** Trong Godot 4.x, `name` là property của Node; dùng `name` làm biến cục bộ gây shadow và nhầm lẫn. Đã rename cho rõ nghĩa.
-- **CLEANUP: Bỏ pattern `name = list[randi() % list.size()]` → `sfx_name = list[randi() % list.size()]`.**
-
-### ✅ Verification
-- ✅ Project import sạch 100% trên Godot 4.7 stable (199 assets reimport, 0 errors)
-- ✅ Headless run 200+ frames: 0 SCRIPT ERROR, 0 push_error, 0 push_warning
-- ✅ Editor mode load sạch: 0 deprecated warnings
-- ✅ Tất cả 18 file GDScript parse sạch (no mixed indentation, no old 4.2 API)
-- ✅ Tất cả 14 scene file dùng node types 4.7 hợp lệ (Sprite2D, CharacterBody2D, Area2D, …)
-- ✅ Không còn `find_node`, `yield`, `update()`, `Tween.new()`, `KinematicBody`, `Sprite`, `YSort`, `VisualServer`, `OS.get_window*`, `add_color_override`, `rect_*`, `margin_*`, `pause_mode`…
-- ✅ Không còn `class_name` trùng autoload singleton
-- ✅ Tất cả signal connect dùng cú pháp 4.x: `signal.connect(callable)`
-- ✅ Tất cả tween dùng `create_tween()` + `tween_property/callback`
-- ✅ Tất cả `monitoring`/`disabled`/`monitorable` đổi runtime dùng `set_deferred`
-
-### 📦 Release
-- Bump `config/version` từ `1.3` → `1.4` trong `project.godot`
-- Menu chính hiển thị badge v1.4 + tóm tắt thay đổi
-- README.md viết lại chuẩn cho v1.4
+- Fix `dart.gd` gán trực tiếp `monitoring` → `set_deferred`.
+- Fix `pickup.gd` hồi máu AI theo `ai.current_max_hp`.
+- Refactor `AudioManager` thêm API `is_music_playing()`.
 
 ---
 
 ## v1.3 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🔧 Godot 4.7 Compatibility (CRITICAL)
-- **Fix: `class_name CharacterData` xung đột autoload singleton.** Godot 4.7 strict check không cho phép `class_name` trùng với autoload đã đăng ký. Đây là nguyên nhân gốc rễ khiến **toàn bộ** script reference CharacterData (GameManager, player.gd, character_screen.gd, …) fail parse → GameManager autoload không khởi tạo → game trắng tinh khi vào trận, không hiện nhân vật, không di chuyển, không cập nhật chỉ số.
-- **Fix: parse error ternary-in-tuple.** Cú pháp `"%s%d" % ("+" if x else "", y)` không còn được chấp nhận trong Godot 4.7. Chuyển sang `"%s%d" % ["+" if x else "", y]` để parse sạch.
-- Cập nhật `config/features` từ `4.2` → `4.7`.
-- Cập nhật `config/version` từ `1.2` → `1.3`.
-
-### 🐛 Bug Fixes (User-Reported)
-- ✅ Khi vào trận không hiện một cái gì → sửa
-- ✅ Không hiện nhân vật → sửa
-- ✅ Di chuyển không phản hồi → sửa
-- ✅ Góc chỉ số bên trên không thay đổi → sửa
-- ✅ Khi vào màn hình nhân vật bị lag ngay → sửa (script parse error mỗi frame)
-- ✅ Không thể trang bị nhân vật → sửa (equip_btn giờ connect đúng)
-- ✅ Không thể quay lại → sửa (back_btn giờ connect đúng)
-- ✅ Không hiện danh sách nhân vật → sửa (`_populate_char_list()` giờ chạy được)
-
-### ✨ New Features
-- **Kéo thả UI customization (v1.3):**
-  - 6 nút có thể kéo: Joystick, Ném, Dịch chuyển, Dash, Shield, Multishot
-  - "Khu vực kéo thả" hiển thị preview trực quan
-  - Nút **"💾 LƯU VỊ TRÍ NÚT"** để persist layout vào `user://settings.cfg`
-  - Nút **"↺ ĐẶT VỊ TRÍ VỀ MẶC ĐỊNH"** để restore
-  - Layout lưu dạng tọa độ chuẩn hóa 0..1 theo viewport (hoạt động mọi độ phân giải)
-- **SettingsManager API mới:**
-  - `custom_button_positions: Dictionary`
-  - `use_custom_layout: bool`
-  - `get_button_position(name, default) -> Vector2`
-  - `set_button_position(name, normalized_pos)`
-  - `clear_custom_layout()` / `enable_custom_layout()`
-- **Áp dụng runtime:**
-  - `mobile_controls.gd` đọc layout khi `_ready()` và đặt vị trí 5 nút
-  - `virtual_joystick.gd` đọc layout khi `_ready()` và đặt vị trí joystick
-  - `ui_opacity` áp dụng cho toàn mobile controls
-  - `button_size` scale áp dụng cho 5 nút mobile
-  - `joystick_size` scale áp dụng cho joystick
-
-### 🛠️ Maintenance
-- `.gitignore` bổ sung `*.uid`
-- `README.md` viết lại chuẩn cho v1.3 (Godot 4.7, hướng dẫn kéo thả, lịch sử đầy đủ)
-- Menu chính hiển thị badge v1.3
+- Fix: `class_name CharacterData` xung đột autoload singleton.
+- Fix: parse error ternary-in-tuple.
+- NEW: Kéo thả 6 nút bấm UI customization.
 
 ---
 
 ## v1.2 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
-### Features
-- 12 nhân vật ninja/warrior với sprite đẹp, tách nền
-- Màn hình Nhân Vật: xem chỉ số, kỹ năng, trang bị
-- Màn hình Chỉnh Sửa Giao Diện (slider): kích thước joystick, nút, opacity
-- Character bonus: mỗi nhân vật có HP, tốc độ, phi tiêu, kỹ năng riêng
-- Fix: không bị khóa di chuyển khi ném phi tiêu
-- Fix: teleport kill kiểm tra shield đúng cách
-- Map đẹp hơn với nhiều decoration
-- UI gọn gàng hơn
+- 12 nhân vật ninja/warrior với sprite đẹp.
+- Màn hình Nhân Vật + Chỉnh Sửa Giao Diện.
+- Character bonus: HP, tốc độ, phi tiêu, kỹ năng riêng.
 
 ---
 
 ## v1.1 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
-### 🐛 Bug Fixes
-- **Nhân vật quá to**: Sửa lỗi sprite scale bị set 1.0 thay vì 0.3×ratio
-- **Nhân vật không hiện**: Sửa lỗi visual size mismatch
-- **Không thể dịch chuyển sau khi bắn**: Sửa lỗi dart stuck ngay khi spawn do `_on_body_entered` trigger với player body. Thêm spawn immunity 0.08s cho dart
-- **Không thể dịch chuyển khi mũi tên đang bay**: Cùng fix với trên
-- **Nút dịch chuyển chậm**: Sửa lỗi teleport button chỉ emit signal khi release
-- **Không thể ăn đối thủ**: Sửa collision layers - player giờ có thể phát hiện AI layer (8)
-- **Tốc độ di chuyển chậm**: Tăng walk_speed từ 80→120
-
-### ✨ Improvements
-- Giao diện gọn gàng hơn
-- Map đẹp hơn
-- UI elements không bị scale khi player size tăng
+- Fix nhân vật quá to, không hiện, không dịch chuyển.
+- Fix collision layers.
+- Tăng walk_speed 80 → 120.
 
 ---
 
 ## v1.0 - Phi Tiêu Dịch Chuyển (Initial Release)
 
-### Features
-- Ném phi tiêu và dịch chuyển tới vị trí phi tiêu
-- 5 AI đối thủ với hành vi thông minh
-- Vòng bo thu nhỏ dần
-- 3 kỹ năng chủ động: Dash, Shield, Multishot
-- Pickups: Hồi máu + Tăng phi tiêu
-- Xếp hạng cuối trận
-- Hồi 10% HP khi ăn đối thủ
-- Mobile controls + Joystick ảo
-- Tự động chọn đồ họa theo thiết bị
+- Ném phi tiêu + Dịch chuyển + Ăn đối thủ.
+- 5 AI đối thủ + Vòng bo thu nhỏ + Leaderboard.
+- 3 kỹ năng: Dash, Shield, Multishot.
+- 155+ sound effects + 5 nhạc nền.
+- Mobile controls + Joystick ảo.

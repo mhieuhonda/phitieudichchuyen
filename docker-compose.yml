@@ -1,0 +1,34 @@
+# Phi Tiêu Dịch Chuyển - Relay Server Deployment
+# Chạy trên VPS qua Coolify hoặc trực tiếp bằng docker-compose
+
+version: '3.8'
+
+services:
+  phitieu-relay:
+    image: ghcr.io/mhieuhonda/phitieu-relay:latest
+    container_name: phitieu-relay
+    restart: unless-stopped
+    ports:
+      - "25671:25671"  # WebSocket
+      - "25672:25672"  # HTTP API / Health
+    volumes:
+      - phitieu-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - WS_PORT=25671
+      - HTTP_PORT=25672
+      - DB_PATH=/app/data/game.db
+      - MATCH_MIN_PLAYERS=10
+      - MATCH_MAX_PLAYERS=20
+      - MATCH_TIMEOUT_MS=30000
+      - TICK_RATE_MS=50
+      - MAX_ROOMS=50
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:25672/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  phitieu-data:
+    driver: local
