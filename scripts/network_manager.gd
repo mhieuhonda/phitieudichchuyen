@@ -65,8 +65,8 @@ func _process(delta):
 
         while _ws.get_available_packet_count() > 0:
                 var packet = _ws.get_packet()
-                if _ws.get_packet_mode() == WebSocketPeer.PACKET_MODE_TEXT:
-                        var msg = packet.get_string_from_utf8()
+                var msg = packet.get_string_from_utf8()
+                if msg != "":
                         _handle_message(msg)
 
         var state = _ws.get_ready_state()
@@ -116,7 +116,7 @@ func disconnect_from_server():
         connection_state = ConnectionState.DISCONNECTED
         set_process(false)
 
-func is_connected() -> bool:
+func is_server_connected() -> bool:
         return _is_connected
 
 func is_logged_in() -> bool:

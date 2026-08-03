@@ -60,7 +60,7 @@ func _on_offline_pressed():
 	AudioManager.play_ui_click()
 	AudioManager.play_confirm()
 	# Disconnect from server if connected
-	if NetworkManager.is_connected():
+	if NetworkManager.is_server_connected():
 		NetworkManager.disconnect_from_server()
 	# Original offline game flow
 	SettingsManager.pending_scene = "res://scenes/main.tscn"
@@ -68,6 +68,6 @@ func _on_offline_pressed():
 
 func _on_back_pressed():
 	AudioManager.play_cancel()
-	if NetworkManager.is_connected():
+	if NetworkManager.is_server_connected():
 		NetworkManager.disconnect_from_server()
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")

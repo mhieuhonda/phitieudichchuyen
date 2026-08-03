@@ -307,6 +307,6 @@ func apply_screen_shake(intensity: float = 5.0, duration: float = 0.3):
 
 func _input(event: InputEvent):
 	if event.is_action_pressed("menu_back"):
-		if NetworkManager.is_connected():
+		if NetworkManager.is_server_connected():
 			NetworkManager.disconnect_from_server()
 		get_tree().change_scene_to_file("res://scenes/menu.tscn")
