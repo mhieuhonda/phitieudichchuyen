@@ -5,6 +5,8 @@ extends Node
 ## Tự phát hiện thiết bị và chọn đồ họa phù hợp
 
 signal graphics_quality_changed(level: int)
+signal sound_volume_changed(volume: float)
+signal music_volume_changed(volume: float)
 
 enum GraphicsQuality {
         VERY_LOW = 0,   # Tắt mọi hiệu ứng
@@ -26,6 +28,8 @@ var screen_shake_enabled: bool = true
 var show_joystick: bool = true  # Auto-detect mobile
 var sound_volume: float = 1.0
 var music_volume: float = 0.7
+var sound_enabled: bool = true
+var music_enabled: bool = true
 
 # === THIẾT BỊ ===
 var device_tier: int = DeviceTier.MID_RANGE
@@ -47,7 +51,18 @@ func _ready():
         _apply_display_settings()
 
 func _is_touch_device() -> bool:
-        return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios") or DisplayServer.is_touchscreen_available()
+        if OS.has_feature("mobile"):
+                return true
+        if OS.has_feature("android"):
+                return true
+        if OS.has_feature("ios"):
+                return true
+        if DisplayServer.is_touchscreen_available():
+                return true
+        var os_name = OS.get_name()
+        if os_name == "Android" or os_name == "iOS":
+                return true
+        return false
 
 func _apply_display_settings():
         # Force landscape orientation trên mobile
@@ -187,6 +202,8 @@ func save_settings():
         config.set_value("gameplay", "show_joystick", show_joystick)
         config.set_value("audio", "sound_volume", sound_volume)
         config.set_value("audio", "music_volume", music_volume)
+        config.set_value("audio", "sound_enabled", sound_enabled)
+        config.set_value("audio", "music_enabled", music_enabled)
         config.set_value("device", "auto_detected", was_auto_detected)
         config.save(config_path)
 
@@ -199,12 +216,32 @@ func _load_settings():
                 show_joystick = config.get_value("gameplay", "show_joystick", true)
                 sound_volume = config.get_value("audio", "sound_volume", 1.0)
                 music_volume = config.get_value("audio", "music_volume", 0.7)
+                sound_enabled = config.get_value("audio", "sound_enabled", true)
+                music_enabled = config.get_value("audio", "music_enabled", true)
                 was_auto_detected = config.get_value("device", "auto_detected", false)
 
 func set_graphics_quality(level: int):
         graphics_quality = clamp(level, GraphicsQuality.VERY_LOW, GraphicsQuality.HIGH)
         was_auto_detected = false
         emit_signal("graphics_quality_changed", graphics_quality)
+        save_settings()
+
+func set_sound_volume(volume: float):
+        sound_volume = clamp(volume, 0.0, 1.0)
+        emit_signal("sound_volume_changed", sound_volume)
+        save_settings()
+
+func set_music_volume(volume: float):
+        music_volume = clamp(volume, 0.0, 1.0)
+        emit_signal("music_volume_changed", music_volume)
+        save_settings()
+
+func set_sound_enabled(enabled: bool):
+        sound_enabled = enabled
+        save_settings()
+
+func set_music_enabled(enabled: bool):
+        music_enabled = enabled
         save_settings()
 
 func get_particle_multiplier() -> float:

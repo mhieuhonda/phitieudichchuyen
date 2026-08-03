@@ -12,29 +12,33 @@ var load_progress: float = 0.0
 var target_scene: String = ""
 
 func _ready():
-	# Hiển thị thông tin thiết bị
-	device_label.text = "Thiết bị: %s" % SettingsManager.get_device_tier_name()
-	quality_label.text = "Đồ họa: %s" % SettingsManager.get_quality_name()
-	
-	if SettingsManager.was_auto_detected:
-		sub_label.text = "Tự động chọn đồ họa: %s" % SettingsManager.get_quality_name()
-	
-	# Đọc target scene từ global
-	target_scene = SettingsManager.pending_scene
-	SettingsManager.pending_scene = ""
-	
-	# Bắt đầu tải
-	_start_loading()
+        # Hiển thị thông tin thiết bị
+        device_label.text = "Thiết bị: %s" % SettingsManager.get_device_tier_name()
+        quality_label.text = "Đồ họa: %s" % SettingsManager.get_quality_name()
+
+        if SettingsManager.was_auto_detected:
+                sub_label.text = "Tự động chọn đồ họa: %s" % SettingsManager.get_quality_name()
+
+        # Đọc target scene từ global
+        target_scene = SettingsManager.pending_scene
+        SettingsManager.pending_scene = ""
+
+        # Phát nhạc menu nếu đang loading từ menu
+        if not AudioManager._music_player.playing:
+                AudioManager.play_music("menu")
+
+        # Bắt đầu tải
+        _start_loading()
 
 func _process(delta):
-	if load_progress < 1.0:
-		load_progress = min(load_progress + delta * 1.2, 1.0)
-		progress_bar.value = load_progress * 100.0
+        if load_progress < 1.0:
+                load_progress = min(load_progress + delta * 1.2, 1.0)
+                progress_bar.value = load_progress * 100.0
 
 func _start_loading():
-	# Đợi 2 frame để UI hiển thị
-	await get_tree().process_frame
-	await get_tree().process_frame
-	
-	if target_scene != "":
-		get_tree().change_scene_to_file(target_scene)
+        # Đợi 2 frame để UI hiển thị
+        await get_tree().process_frame
+        await get_tree().process_frame
+        
+        if target_scene != "":
+                get_tree().change_scene_to_file(target_scene)

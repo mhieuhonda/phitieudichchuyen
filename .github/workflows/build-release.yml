@@ -98,7 +98,7 @@ jobs:
           export DISPLAY=:99
 
           echo "Running Godot editor with OpenGL3 renderer to import project resources..."
-          timeout 180 ./godot_editor --rendering-driver opengl3 --editor --quit-after 30 --path . 2>&1 | head -300 || true
+          timeout 300 ./godot_editor --rendering-driver opengl3 --editor --quit-after 60 --path . 2>&1 | head -400 || true
 
           echo "Import step completed. Checking .godot cache..."
           if [ -d .godot ]; then
@@ -106,7 +106,7 @@ jobs:
             ls .godot/
           else
             echo "WARNING: .godot directory not found, trying again with longer timeout..."
-            timeout 180 ./godot_editor --rendering-driver opengl3 --editor --quit-after 60 --path . 2>&1 | head -300 || true
+            timeout 300 ./godot_editor --rendering-driver opengl3 --editor --quit-after 120 --path . 2>&1 | head -400 || true
             if [ -d .godot ]; then
               echo ".godot directory exists after retry"
             else

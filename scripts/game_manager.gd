@@ -63,79 +63,79 @@ var game_time: float = 0.0
 var total_kills: int = 0
 
 func _ready():
-	reset_game()
+    reset_game()
 
 func _process(delta):
-	if game_active:
-		game_time += delta
-		if combo_count > 0:
-			combo_timer -= delta
-			if combo_timer <= 0:
-				combo_count = 0
+    if game_active:
+        game_time += delta
+        if combo_count > 0:
+            combo_timer -= delta
+            if combo_timer <= 0:
+                combo_count = 0
 
 func reset_game():
-	player_score = 0
-	player_size = initial_player_radius
-	player_hp = player_max_hp
-	zone_radius = map_size.x * 0.45
-	zone_center = map_size / 2.0
-	game_active = true
-	players_alive = num_ai_players + 1
-	combo_count = 0
-	combo_timer = 0.0
-	current_shrink_count = 0
-	game_time = 0.0
-	total_kills = 0
-	emit_signal("player_score_changed", player_score)
-	emit_signal("player_size_changed", player_size)
+    player_score = 0
+    player_size = initial_player_radius
+    player_hp = player_max_hp
+    zone_radius = map_size.x * 0.45
+    zone_center = map_size / 2.0
+    game_active = true
+    players_alive = num_ai_players + 1
+    combo_count = 0
+    combo_timer = 0.0
+    current_shrink_count = 0
+    game_time = 0.0
+    total_kills = 0
+    emit_signal("player_score_changed", player_score)
+    emit_signal("player_size_changed", player_size)
 
 func add_score(points: int):
-	var multiplier = 1.0 + (combo_count * 0.5)
-	var actual_points = int(points * multiplier)
-	player_score += actual_points
-	emit_signal("player_score_changed", player_score)
-	return actual_points
+    var multiplier = 1.0 + (combo_count * 0.5)
+    var actual_points = int(points * multiplier)
+    player_score += actual_points
+    emit_signal("player_score_changed", player_score)
+    return actual_points
 
 func add_size(amount: float):
-	player_size = min(player_size + amount, max_player_size)
-	emit_signal("player_size_changed", player_size)
+    player_size = min(player_size + amount, max_player_size)
+    emit_signal("player_size_changed", player_size)
 
 func register_kill():
-	total_kills += 1
-	combo_count += 1
-	combo_timer = combo_window
-	if combo_count >= 2:
-		emit_signal("combo_achieved", combo_count)
+    total_kills += 1
+    combo_count += 1
+    combo_timer = combo_window
+    if combo_count >= 2:
+        emit_signal("combo_achieved", combo_count)
 
 func take_damage(amount: float) -> bool:
-	player_hp -= amount
-	if player_hp <= 0:
-		player_hp = 0
-		return true
-	return false
+    player_hp -= amount
+    if player_hp <= 0:
+        player_hp = 0
+        return true
+    return false
 
 func heal(amount: float):
-	player_hp = min(player_hp + amount, player_max_hp)
+    player_hp = min(player_hp + amount, player_max_hp)
 
 func shrink_zone():
-	if zone_radius > zone_min_radius:
-		current_shrink_count += 1
-		var actual_amount = zone_shrink_amount * pow(zone_shrink_acceleration, current_shrink_count - 1)
-		zone_radius -= actual_amount
-		zone_radius = max(zone_radius, zone_min_radius)
-		emit_signal("zone_shrank", zone_radius)
+    if zone_radius > zone_min_radius:
+        current_shrink_count += 1
+        var actual_amount = zone_shrink_amount * pow(zone_shrink_acceleration, current_shrink_count - 1)
+        zone_radius -= actual_amount
+        zone_radius = max(zone_radius, zone_min_radius)
+        emit_signal("zone_shrank", zone_radius)
 
 func is_in_zone(pos: Vector2) -> bool:
-	return pos.distance_to(zone_center) <= zone_radius
+    return pos.distance_to(zone_center) <= zone_radius
 
 func get_zone_damage(delta: float) -> float:
-	return zone_damage_per_second * delta
+    return zone_damage_per_second * delta
 
 func request_screen_shake(intensity: float = 5.0, duration: float = 0.3):
-	if SettingsManager.screen_shake_enabled:
-		emit_signal("screen_shake_requested", intensity, duration)
+    if SettingsManager.screen_shake_enabled:
+        emit_signal("screen_shake_requested", intensity, duration)
 
 func get_game_time_str() -> String:
-	var minutes = int(game_time) / 60
-	var seconds = int(game_time) % 60
-	return "%02d:%02d" % [minutes, seconds]
+    var minutes = int(game_time) / 60
+    var seconds = int(game_time) % 60
+    return "%02d:%02d" % [minutes, seconds]

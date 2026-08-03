@@ -27,6 +27,8 @@ var zone_shrink_timer: float = 0.0
 var combo_display_timer: float = 0.0
 var fps_update_timer: float = 0.0
 var quality_notice_timer: float = 0.0
+var zone_warning_sound_timer: float = 0.0
+var was_outside_zone: bool = false
 
 func _ready():
         GameManager.player_score_changed.connect(_on_score_changed)
@@ -34,26 +36,26 @@ func _ready():
         GameManager.zone_shrank.connect(_on_zone_shrank)
         GameManager.combo_achieved.connect(_on_combo_achieved)
         GameManager.screen_shake_requested.connect(_on_screen_shake)
-        
+
         zone_shrink_timer = GameManager.zone_shrink_interval
-        
+
         controls_label.text = "[b]ĐIỀU KHIỂN[/b]\n"
         controls_label.text += "PC: WASD = Di chuyển | Chuột phải = Ngắm & Ném\n"
         controls_label.text += "PC: Space = Dịch chuyển | Esc = Menu\n"
         controls_label.text += "[color=cyan]Mobile:[/color] Joystick = Di chuyển | Nút = Bắn/Dịch chuyển\n"
         controls_label.text += "[color=cyan]Mobile:[/color] Giữ nút bắn = Kẻ đỏ ngắm, kéo xoay hướng, thả = bắn"
-        
+
         game_over_panel.visible = false
         zone_warning.visible = false
         combo_label.visible = false
         mid_flight_hint.visible = false
-        
+
         # FPS counter
         fps_label.visible = SettingsManager.show_fps
-        
+
         # Device info label
         _show_device_info()
-        
+
         # Show quality auto-detect notice
         if SettingsManager.was_auto_detected:
                 quality_notice.visible = true
@@ -95,8 +97,17 @@ func _process(delta):
         # Cảnh báo ngoài vòng bo
         if not GameManager.is_in_zone(player.global_position):
                 zone_warning.visible = true
+                # Phát sound cảnh báo mỗi 1.5s khi ngoài vùng bo
+                zone_warning_sound_timer -= delta
+                if zone_warning_sound_timer <= 0:
+                        AudioManager.play_zone_warning()
+                        zone_warning_sound_timer = 1.5
+                was_outside_zone = true
         else:
                 zone_warning.visible = false
+                if was_outside_zone:
+                        was_outside_zone = false
+                        zone_warning_sound_timer = 0.0
         
         # Cập nhật số người còn sống
         var alive_count = get_tree().get_nodes_in_group("ai_players").filter(func(a): return a.is_alive).size()

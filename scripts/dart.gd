@@ -111,6 +111,7 @@ func _stick_to_position(pos: Vector2):
         _stick_effect()
         lifetime_timer.start(GameManager.dart_lifetime)
         _start_blink_timer()
+        AudioManager.play_dart_stick()
         emit_signal("dart_stuck", self)
 
 func _start_blink_timer():

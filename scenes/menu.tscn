@@ -58,7 +58,7 @@ offset_right = 240.0
 offset_bottom = 320.0
 grow_horizontal = 2
 bbcode_enabled = true
-text = "MỚI v0.7: Full-screen landscape + nút bắn phi tiêu mới + tối ưu mobile!"
+text = "MỚI v0.8: 150+ sound effects + nhạc nền + fix nút mobile + tối ưu!"
 
 [node name="PlayButton" type="Button" parent="."]
 layout_mode = 1
@@ -106,4 +106,4 @@ offset_top = -40.0
 offset_right = 300.0
 offset_bottom = -10.0
 grow_vertical = 0
-text = "v0.7 - Full-screen + Mobile Aim"
+text = "v0.8 - Sound + Mobile Fix"

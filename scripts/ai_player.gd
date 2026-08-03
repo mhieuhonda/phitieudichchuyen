@@ -232,6 +232,7 @@ func _throw_dart_ai():
         dart.dart_consumed.connect(_on_dart_consumed)
         dart.dart_hit_player.connect(_on_dart_hit_player)
         all_darts.append(dart)
+        AudioManager.play_throw()
 
 func _teleport_ai():
         var teleportable_darts = []
@@ -244,6 +245,7 @@ func _teleport_ai():
         target_dart.consume()
         all_darts.erase(target_dart)
         _spawn_ai_teleport_effect(global_position, was_flying)
+        AudioManager.play_teleport()
         _check_teleport_kill(global_position)
 
 func _spawn_ai_teleport_effect(pos: Vector2, was_flying: bool):
@@ -268,6 +270,7 @@ func _check_teleport_kill(pos: Vector2):
                         ai_score += GameManager.score_per_kill
                         current_size = min(current_size + GameManager.size_per_kill, GameManager.max_player_size)
                         _update_visual_size()
+                        AudioManager.play_kill()
 
 func _on_dart_stuck(dart: Node2D): pass
 func _on_dart_expired(dart: Node2D): all_darts.erase(dart)
@@ -295,6 +298,7 @@ func kill(killer: Node2D):
         all_darts.clear()
         sprite.visible = false; hp_bar.visible = false; name_label.visible = false
         collision_shape.set_deferred("disabled", true)
+        AudioManager.play_death()
         emit_signal("ai_died", self, killer)
         get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
 
@@ -304,6 +308,7 @@ func take_damage_from(amount: float, attacker: Node2D):
         var tween = create_tween()
         tween.tween_property(sprite, "modulate", Color(1.0, 0.3, 0.3), 0.05)
         tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0), 0.2)
+        AudioManager.play_hit()
         if current_hp <= 0:
                 current_hp = 0
                 kill(attacker)
@@ -315,6 +320,7 @@ func _respawn():
         var angle = randf() * TAU; var dist = randf() * GameManager.zone_radius * 0.6
         global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
         _update_hp_bar(); _update_visual_size(); _choose_new_state()
+        AudioManager.play_spawn()
 
 func _update_visual_size():
         var new_scale = current_size / GameManager.initial_player_radius

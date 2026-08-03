@@ -2,6 +2,69 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [0.8] - 2026-08-03
+
+### Fixed
+- **[CRITICAL] Fix nút mobile không hiện/không hoạt động**: `MobileControls` và `VirtualJoystick` là con của `Main` (Node2D có Camera2D) → `button.global_position` ở tọa độ WORLD, nhưng touch event ở tọa độ SCREEN → `_is_point_in_throw_button()` luôn fail khi camera di chuyển. Giờ wrap cả 2 trong `CanvasLayer` (UILayer) trong `main.tscn` để global_position luôn ở screen coords
+- **[CRITICAL] Fix visibility check chỉ chạy 1 lần**: `_update_visibility()` chỉ được gọi trong `_ready()`. Nếu device detection chậm hoặc settings thay đổi, controls không update. Giờ gọi mỗi frame trong `_process()`
+- **[CRITICAL] Fix hit test dùng manual rect thay vì `get_global_rect()`**: `mobile_controls.gd` và `virtual_joystick.gd` dùng `Rect2(btn.global_position, btn.size)` manual, không accounting cho anchors/scale. Giờ dùng `Control.get_global_rect()` + `grow(padding)` cho hit area chính xác
+- Fix `_is_touch_device()` không detect một số thiết bị Android cũ: thêm fallback check `OS.get_name() == "Android" or "iOS"` ngoài `OS.has_feature()`
+- Fix `throw_btn.mouse_filter` mặc định (STOP) consume touch event trước khi `_input()` xử lý aim. Giờ set `MOUSE_FILTER_IGNORE` cho throw_btn để touch xuyên qua
+- Fix `mobile_controls._input()` không gọi `set_input_as_handled()` → touch có thể leak sang joystick. Giờ mark handled khi nhấn nút
+- Fix indentation không nhất quán (tab vs space) trong 4 file .gd. Giờ tất cả dùng space (4 spaces per indent level)
+
+### Added
+- **150+ sound effects**: Generate procedurally bằng Python (wave + struct + math) với 47 categories:
+  - Throw (5), Teleport (5), Hit (5), Kill (5), Death (3), Pickup health (3), Pickup dart (3)
+  - UI click (5), UI hover (3), UI toggle (2), Combo (5), Zone warning (3), Zone shrink (2)
+  - Dart stick (3), Dart fly (2), Respawn (2), Footstep (5), Damage (3), Powerup (3), Notification (3)
+  - Whoosh (5), Zap (5), Explosion (3), Sparkle (3), Chime (3)
+  - Drum kick (2), Snare (2), Hihat (2), Crash (2)
+  - Alarm (3), Heartbeat (2), Countdown (3), Success (3), Error (2), Warning (2), Info (2)
+  - Spawn (2), Size grow (2), Aim start (2), Aim loop (1)
+  - Laser (3), Magic (3), Coin (3), Bass (3)
+  - Click light (5), Click heavy (3), Select (3), Confirm (2), Cancel (2), Achievement (2)
+  - **5 nhạc nền**: menu (1), game (2), victory (1), defeat (1) - mỗi track 3-8s loop
+- **AudioManager autoload singleton** (`scripts/audio_manager.gd`):
+  - Pool 16 AudioStreamPlayer để phát nhiều sound cùng lúc
+  - Lazy loading: chỉ load sound khi cần (preload common sounds)
+  - Crossfade giữa music tracks
+  - Helper methods: `play_throw()`, `play_teleport()`, `play_hit()`, `play_kill()`, `play_death()`, `play_pickup_health()`, `play_pickup_dart()`, `play_ui_click()`, `play_ui_hover()`, `play_combo(count)`, `play_zone_warning()`, `play_zone_shrink()`, `play_dart_stick()`, `play_respawn()`, `play_damage()`, `play_success()`, `play_error()`, `play_warning()`, `play_achievement()`, `play_size_grow()`, `play_aim_start()`, `play_spawn()`, `play_music(track)`, `stop_music()`
+  - `play_variation(category)` chọn random sound từ category
+- **Sound settings**: 2 CheckButton mới trong Settings: "Bật âm thanh" + "Bật nhạc nền" + 2 slider volume
+- `SettingsManager.set_sound_volume()`, `set_music_volume()`, `set_sound_enabled()`, `set_music_enabled()`
+- `SettingsManager.sound_enabled`, `music_enabled` fields
+- `SettingsManager.sound_volume_changed`, `music_volume_changed` signals
+- Wire sounds vào tất cả gameplay events: throw, teleport, hit, kill, death, respawn, pickup, damage, dart stick, combo, zone warning, zone shrink, UI click/hover, menu music, game music
+- `assets/audio/sfx/` (150 files) + `assets/audio/music/` (5 files) directories
+- `scripts/generate_sounds.py` - Python script generate all sounds
+
+### Changed
+- `project.godot`: thêm `AudioManager` autoload, `config/version="0.8"`, thêm `[audio]` section
+- `scripts/main.gd`: thêm UILayer CanvasLayer chứa VirtualJoystick + MobileControls (FIX root cause mobile không hiện)
+- `scripts/main.gd`: connect `zone_shrank` + `combo_achieved` signals để play sound
+- `scripts/main.gd`: gọi `AudioManager.play_music("game")` khi vào game
+- `scripts/mobile_controls.gd`: complete rewrite với `get_global_rect()`, `_process()` update visibility, `mouse_filter` fixes, `_is_touch_device()` robust
+- `scripts/virtual_joystick.gd`: dùng `get_global_rect().grow(80)` cho hit area, `_is_touch_device()` robust
+- `scripts/player.gd`: thêm `AudioManager.play_throw/teleport/kill/death/respawn/damage/pickup_health/pickup_dart/aim_start/size_grow` calls
+- `scripts/ai_player.gd`: thêm sound cho AI throw/teleport/kill/death/hit/spawn
+- `scripts/dart.gd`: thêm `AudioManager.play_dart_stick()` khi phi tiêu cắm
+- `scripts/hud.gd`: zone warning sound mỗi 1.5s khi ngoài vòng bo
+- `scripts/menu.gd`: play menu music, UI click/hover sounds, version v0.8
+- `scripts/settings_menu.gd`: sound/music toggle + slider, UI sounds
+- `scripts/loading_screen.gd`: play menu music if not playing
+- `scenes/main.tscn`: thêm UILayer CanvasLayer
+- `scenes/mobile_controls.tscn`: button size 100x100, anchors bottom-right
+- `scenes/settings.tscn`: thêm SoundToggle, MusicToggle, rearrange layout
+- `scenes/menu.tscn`: update NewFeatureLabel + VersionLabel cho v0.8
+- `export_presets.cfg`: version/code 7 → 8, version/name "0.7" → "0.8", file_version "0.7.0.0" → "0.8.0.0"
+- `.github/workflows/build-release.yml`: tăng import timeout 180s → 300s do có thêm 155 audio files
+- `README.md`: cập nhật badge v0.8, thêm section âm thanh, cập nhật "Lỗi đã fix trong v0.8"
+
+### Removed
+- Dead code trong `mobile_controls.gd` (old `_is_point_in_throw_button` manual rect)
+- Dead code trong `virtual_joystick.gd` (old `_is_in_joystick_area` manual rect)
+
 ## [0.7] - 2026-08-02
 
 ### Fixed

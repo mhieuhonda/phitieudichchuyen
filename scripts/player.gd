@@ -226,6 +226,7 @@ func _spawn_dart(direction: Vector2, power: float):
         dart.dart_consumed.connect(_on_dart_consumed)
         all_darts.append(dart)
         emit_signal("dart_thrown", dart)
+        AudioManager.play_throw()
 
 func _get_max_darts() -> int:
         return GameManager.max_darts_per_player + dart_bonus
@@ -259,16 +260,17 @@ func _teleport_to_dart():
                         teleportable_darts.append(dart)
         if teleportable_darts.size() == 0:
                 return
-        
+
         var target_dart = _select_best_dart(teleportable_darts)
         var target_pos = target_dart.get_teleport_position()
         var was_flying = target_dart.is_flying()
-        
+
         _spawn_teleport_effect(global_position, false, was_flying)
         global_position = target_pos
         _spawn_teleport_effect(global_position, true, was_flying)
         GameManager.request_screen_shake(6.0 if was_flying else 4.0, 0.25 if was_flying else 0.15)
-        
+        AudioManager.play_teleport()
+
         target_dart.consume()
         all_darts.erase(target_dart)
         _check_teleport_kill(target_pos)
@@ -296,6 +298,8 @@ func _check_teleport_kill(pos: Vector2):
                         _update_visual_size()
                         _update_size_indicator()
                         GameManager.request_screen_shake(8.0, 0.3)
+                        AudioManager.play_kill()
+                        AudioManager.play_size_grow()
 
 func _on_dart_stuck(dart: Node2D):
         pass
@@ -322,6 +326,7 @@ func _die():
                 if is_instance_valid(dart):
                         dart.queue_free()
         all_darts.clear()
+        AudioManager.play_death()
         emit_signal("player_died", self)
         get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
 
@@ -343,6 +348,7 @@ func _respawn():
         _update_visual_size()
         _update_size_indicator()
         _spawn_teleport_effect(global_position, true, false)
+        AudioManager.play_respawn()
         emit_signal("player_respawned", self)
 
 func _spawn_teleport_effect(pos: Vector2, is_appear: bool, is_mid_flight: bool):
@@ -396,11 +402,13 @@ func heal(amount: float):
         current_hp = min(current_hp + amount, GameManager.player_max_hp)
         GameManager.player_hp = current_hp
         _update_hp_bar()
+        AudioManager.play_pickup_health()
 
 ## Tạm thời tăng giới hạn phi tiêu (từ DART_REFILL pickup)
 func refill_darts(bonus: int, duration: float):
         dart_bonus = max(dart_bonus, bonus)
         dart_bonus_timer = max(dart_bonus_timer, duration)
+        AudioManager.play_pickup_dart()
 
 func take_damage_from(amount: float, attacker: Node2D):
         current_hp -= amount
@@ -409,6 +417,7 @@ func take_damage_from(amount: float, attacker: Node2D):
         var tween = create_tween()
         tween.tween_property(sprite, "modulate", Color(1.0, 0.3, 0.3), 0.05)
         tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0), 0.2)
+        AudioManager.play_damage()
         # Ghi nhận tên kẻ giết để hiển thị khi chết
         if attacker and attacker.has_method("get") and "ai_name" in attacker:
                 last_killer_name = attacker.ai_name

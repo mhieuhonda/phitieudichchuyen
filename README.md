@@ -2,7 +2,7 @@
 
 > Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down dành cho PC và Mobile.
 
-[![Release](https://img.shields.io/badge/release-v0.7-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
+[![Release](https://img.shields.io/badge/release-v0.8-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
 [![Godot](https://img.shields.io/badge/Godot-4.2.2-478CBF.svg)](https://godotengine.org/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-green.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
@@ -19,21 +19,22 @@
 - ⚡ **Dịch chuyển giữa chừng**: Dịch chuyển khi phi tiêu đang bay, tạo yếu tố bất ngờ
 - 🤖 **AI thông minh**: 5 bot đối thủ với hành vi đa dạng (đi tuần, săn đuổi, né tránh, tấn công)
 - 📱 **Hỗ trợ Mobile**: Joystick ảo + nút bấm, tự động hiện trên thiết bị di động
-- 🔴 **Nút bắn phi tiêu mới (v0.7)**: Giữ nút → kẻ chỉ màu đỏ, kéo xoay hướng, thả để bắn
+- 🔴 **Nút bắn phi tiêu (v0.7)**: Giữ nút → kẻ chỉ màu đỏ, kéo xoay hướng, thả để bắn
 - 🖥️ **Full-screen landscape (v0.7)**: Tự động full màn hình + hướng ngang trên mọi thiết bị
+- 🔊 **150+ sound effects + nhạc nền (v0.8)**: Âm thanh cho mọi action: ném, dịch chuyển, trúng đạn, tiêu diệt, hồi sinh, pickup, combo, UI, cảnh báo vòng bo, v.v. + 5 nhạc nền (menu/game/victory/defeat)
 - 🔍 **Auto-detect thiết bị**: Tự nhận diện máy yếu/mạnh, chọn đồ họa phù hợp
 - 🎮 **4 mức đồ họa**: Cực Thấp → Thấp → Trung Bình → Cao
 - 💊 **Vật phẩm**: Hồi máu và nạp phi tiêu rải trên bản đồ
 - 🔥 **Hệ thống Combo**: Tiêu diệt liên tiếp để nhân điểm
 - ⭕ **Vòng bo thu nhỏ**: Khu vực an toàn thu dần, ép người chơi đối đầu
 - 📊 **FPS Counter**: Hiển thị FPS và thông tin thiết bị
-- 📐 **Responsive UI**: Tất cả UI dùng anchors, tự scale mọi kích thước màn hình
+- 📐 **Responsive UI**: Tất cả UI dùng anchors + CanvasLayer, tự scale mọi kích thước màn hình
 
 ---
 
 ## 🎮 Cách chơi
 
-| Hành động | PC (Bàn phím/Chuột) | Mobile (v0.7) |
+| Hành động | PC (Bàn phím/Chuột) | Mobile (v0.8) |
 |-----------|---------------------|--------|
 | Di chuyển | W/A/S/D hoặc Phím mũi tên | Joystick trái |
 | Ngắm phi tiêu | Giữ chuột phải, kéo để điều chỉnh lực | **Giữ nút Bắn** → kẻ chỉ màu đỏ xuất hiện |
@@ -41,6 +42,8 @@
 | Ném phi tiêu | Thả chuột phải | **Thả nút Bắn** |
 | Dịch chuyển | Space | Nút Dịch chuyển |
 | Quay lại menu | Escape | Nút trên HUD |
+| Tắt/bật âm thanh | Settings → Bật âm thanh | Settings → Bật âm thanh |
+| Tắt/bật nhạc | Settings → Bật nhạc nền | Settings → Bật nhạc nền |
 
 ### Cơ chế chính
 
@@ -138,17 +141,40 @@ phitieudichchuyen/
 │   └── workflows/
 │       └── build-release.yml     # CI/CD pipeline
 ├── assets/
-│   └── sprites/                  # Sprite tài nguyên (PNG)
-│       ├── player_blue.png       # Sprite người chơi
-│       ├── ai_*.png              # Sprite AI (10 màu)
-│       ├── dart.png              # Sprite phi tiêu
-│       ├── pickup_health.png     # Sprite hồi máu
-│       ├── pickup_dart.png       # Sprite nạp phi tiêu
-│       ├── joystick_base.png     # Joystick nền
-│       ├── joystick_stick.png    # Joystick cần
-│       ├── btn_teleport.png      # Nút dịch chuyển
-│       ├── btn_throw.png         # Nút ném
-│       └── teleport_effect.png   # Hiệu ứng dịch chuyển
+│   ├── sprites/                  # Sprite tài nguyên (PNG)
+│   │   ├── player_blue.png       # Sprite người chơi
+│   │   ├── ai_*.png              # Sprite AI (10 màu)
+│   │   ├── dart.png              # Sprite phi tiêu
+│   │   ├── pickup_health.png     # Sprite hồi máu
+│   │   ├── pickup_dart.png       # Sprite nạp phi tiêu
+│   │   ├── joystick_base.png     # Joystick nền
+│   │   ├── joystick_stick.png    # Joystick cần
+│   │   ├── btn_teleport.png      # Nút dịch chuyển
+│   │   ├── btn_throw.png         # Nút ném
+│   │   └── teleport_effect.png   # Hiệu ứng dịch chuyển
+│   └── audio/                    # Âm thanh (v0.8) - 155 files
+│       ├── sfx/                  # 150 sound effects (WAV)
+│       │   ├── throw_whoosh_*.wav       # Ném phi tiêu (5 biến thể)
+│       │   ├── teleport_zap_*.wav       # Dịch chuyển (5)
+│       │   ├── hit_impact_*.wav         # Trúng đạn (5)
+│       │   ├── kill_explosion_*.wav     # Tiêu diệt (5)
+│       │   ├── death_*.wav              # Chết (3)
+│       │   ├── pickup_health_*.wav      # Nhặt máu (3)
+│       │   ├── pickup_dart_*.wav        # Nhặt phi tiêu (3)
+│       │   ├── ui_click_*.wav           # Click UI (5)
+│       │   ├── ui_hover_*.wav           # Hover UI (3)
+│       │   ├── combo_*.wav              # Combo (5)
+│       │   ├── zone_warning_*.wav       # Cảnh báo vòng bo (3)
+│       │   ├── dart_stick_*.wav         # Phi tiêu cắm (3)
+│       │   ├── respawn_*.wav            # Hồi sinh (2)
+│       │   ├── damage_*.wav             # Sát thương (3)
+│       │   └── ...                      # + nhiều hơn nữa
+│       └── music/                # 5 nhạc nền (WAV)
+│           ├── menu_music_01.wav        # Nhạc menu
+│           ├── game_music_01.wav        # Nhạc game 1
+│           ├── game_music_02.wav        # Nhạc game 2
+│           ├── victory_music_01.wav     # Nhạc thắng
+│           └── defeat_music_01.wav      # Nhạc thua
 ├── scenes/                       # Godot scene files (.tscn)
 │   ├── main.tscn                 # Scene chính game
 │   ├── menu.tscn                 # Menu chính
@@ -174,6 +200,7 @@ phitieudichchuyen/
 │   ├── pickup.gd                 # Vật phẩm logic
 │   ├── game_manager.gd           # Singleton: quản lý game
 │   ├── settings_manager.gd       # Singleton: cài đặt + device detect (v0.5)
+│   ├── audio_manager.gd          # Singleton: âm thanh + nhạc (v0.8)
 │   ├── mobile_controls.gd        # Nút bấm mobile
 │   ├── virtual_joystick.gd       # Joystick ảo
 │   └── settings_menu.gd          # Menu cài đặt
@@ -183,6 +210,121 @@ phitieudichchuyen/
 ├── CHANGELOG.md                  # Lịch sử thay đổi
 └── README.md                     # File này
 ```
+
+---
+
+## 🔊 Hệ thống âm thanh (v0.8)
+
+Phiên bản 0.8 thêm **155 file âm thanh** (150 SFX + 5 nhạc nền), tất cả được generate procedurally bằng Python (wave + struct + math) với nhiều kỹ thuật synthesis:
+
+### Kỹ thuật synthesis sử dụng
+- **Sine wave + envelope**: Beep, chime, UI sounds
+- **Filtered noise + sweep**: Whoosh, throw, explosion
+- **Frequency sweep**: Zap, laser, teleport
+- **Multiple oscillators (harmonics)**: Bell, magic, powerup
+- **ADSR envelope**: Drum, percussion
+- **AM/FM modulation**: Alarm, magic shimmer
+- **Pitch drop**: Drum kick (150Hz → 40Hz)
+
+### Categories (47 categories, 155 files)
+
+| Category | Files | Mô tả |
+|----------|-------|-------|
+| throw_whoosh | 5 | Ném phi tiêu |
+| teleport_zap | 5 | Dịch chuyển |
+| hit_impact | 5 | Trúng đạn |
+| kill_explosion | 5 | Tiêu diệt đối thủ |
+| death | 3 | Chết |
+| pickup_health | 3 | Nhặt máu |
+| pickup_dart | 3 | Nhặt phi tiêu |
+| ui_click | 5 | Click nút |
+| ui_hover | 3 | Hover nút |
+| combo | 5 | Combo (tăng dần theo combo count) |
+| zone_warning | 3 | Cảnh báo ngoài vòng bo |
+| zone_shrink | 2 | Vòng bo thu nhỏ |
+| dart_stick | 3 | Phi tiêu cắm |
+| respawn | 2 | Hồi sinh |
+| damage | 3 | Bị sát thương |
+| powerup | 3 | Power up |
+| notification | 3 | Notification |
+| whoosh | 5 | Whoosh tổng hợp |
+| zap | 5 | Zap tổng hợp |
+| explosion | 3 | Explosion |
+| sparkle | 3 | Sparkle |
+| chime | 3 | Chime |
+| drum_kick/snare/hihat/crash | 8 | Trống |
+| alarm | 3 | Alarm |
+| heartbeat | 2 | Heartbeat |
+| countdown | 3 | Countdown beep |
+| success/error/warning/info | 9 | Feedback |
+| spawn | 2 | Spawn |
+| size_grow | 2 | Tăng kích thước |
+| aim_start | 2 | Bắt đầu ngắm |
+| laser/magic/coin/bass | 12 | Misc |
+| click_light/heavy | 8 | Click variants |
+| select/confirm/cancel | 7 | UI flow |
+| achievement | 2 | Achievement |
+| **Music** | 5 | menu (1) + game (2) + victory (1) + defeat (1) |
+
+### AudioManager API
+
+```gdscript
+# Helper methods (chọn random variation tự động)
+AudioManager.play_throw()          # Random throw_whoosh_01..05
+AudioManager.play_teleport()       # Random teleport_zap_01..05
+AudioManager.play_hit()            # Random hit_impact_01..05
+AudioManager.play_kill()           # Random kill_explosion_01..05
+AudioManager.play_death()          # Random death_01..03
+AudioManager.play_pickup_health()  # Random pickup_health_01..03
+AudioManager.play_pickup_dart()
+AudioManager.play_ui_click()
+AudioManager.play_ui_hover()
+AudioManager.play_combo(count)     # Combo x2..x6 (chọn file theo combo)
+AudioManager.play_zone_warning()
+AudioManager.play_zone_shrink()
+AudioManager.play_dart_stick()
+AudioManager.play_respawn()
+AudioManager.play_damage()
+AudioManager.play_success()
+AudioManager.play_error()
+AudioManager.play_warning()
+AudioManager.play_achievement()
+AudioManager.play_size_grow()
+AudioManager.play_aim_start()
+AudioManager.play_spawn()
+
+# Music
+AudioManager.play_music("menu")    # Fade in menu music
+AudioManager.play_music("game")    # Fade in game music
+AudioManager.play_music("victory")
+AudioManager.play_music("defeat")
+AudioManager.stop_music()
+
+# Low-level
+AudioManager.play_sound("throw_whoosh_03", volume_db=2.0, pitch=1.05)
+AudioManager.play_variation("throw")  # Random từ category
+```
+
+### Cài đặt âm thanh
+- **Âm thanh SFX**: Toggle on/off + slider volume (0-100%)
+- **Nhạc nền**: Toggle on/off + slider volume (0-100%)
+- Lưu tự động vào `user://settings.cfg`
+- Volume convert từ linear (0..1) sang dB
+
+---
+
+## 🐛 Lỗi đã fix trong v0.8
+
+| # | Mô tả | Mức độ | File |
+|---|-------|--------|------|
+| 1 | **MobileControls/VirtualJoystick là con của Main (Node2D với Camera2D) → button.global_position ở tọa độ WORLD, nhưng touch event ở tọa độ SCREEN → hit test luôn fail khi camera di chuyển** | 🔴 Critical | `scenes/main.tscn`, `scripts/mobile_controls.gd`, `scripts/virtual_joystick.gd` |
+| 2 | `_update_visibility()` chỉ gọi 1 lần trong `_ready()` → controls không update khi settings/device detection thay đổi | 🔴 Critical | `scripts/mobile_controls.gd` |
+| 3 | Hit test dùng `Rect2(btn.global_position, btn.size)` manual, không accounting cho anchors/scale | 🔴 Critical | `scripts/mobile_controls.gd`, `scripts/virtual_joystick.gd` |
+| 4 | `_is_touch_device()` không detect một số thiết bị Android cũ (thiếu fallback `OS.get_name()` check) | 🟡 High | `scripts/mobile_controls.gd`, `scripts/virtual_joystick.gd`, `scripts/settings_manager.gd` |
+| 5 | `throw_btn.mouse_filter` mặc định (STOP) consume touch event trước khi `_input()` xử lý aim | 🟡 High | `scripts/mobile_controls.gd` |
+| 6 | `mobile_controls._input()` không gọi `set_input_as_handled()` → touch leak sang joystick | 🟡 High | `scripts/mobile_controls.gd`, `scripts/virtual_joystick.gd` |
+| 7 | Indentation không nhất quán (tab vs space) trong 4 file .gd | 🟢 Minor | All scripts |
+| 8 | GitHub Actions import timeout quá ngắn (180s) cho 155+ audio files mới | 🟢 Minor | `.github/workflows/build-release.yml` |
 
 ---
 

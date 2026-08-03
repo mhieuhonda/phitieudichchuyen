@@ -14,13 +14,14 @@ config/name="Phi Tiêu Dịch Chuyển"
 config/description="Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down."
 run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.2", "Mobile")
-config/version="0.7"
+config/version="0.8"
 config/icon="res://icon.svg"
 
 [autoload]
 
 GameManager="*res://scripts/game_manager.gd"
 SettingsManager="*res://scripts/settings_manager.gd"
+AudioManager="*res://scripts/audio_manager.gd"
 
 [display]
 
@@ -87,6 +88,10 @@ menu_back={
 [input_devices]
 
 pointing/emulate_touch_from_mouse=true
+
+[audio]
+
+general/default_bus_layout=""
 
 [layer_names]
 
