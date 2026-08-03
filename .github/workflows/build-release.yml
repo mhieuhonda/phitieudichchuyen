@@ -25,6 +25,9 @@ jobs:
   # ============================================
   # JOB 1: Build Android APK (Parallel)
   # ============================================
+  # Uses prebuilt APK template (export_presets.cfg has use_gradle_build=false).
+  # This means we don't need Android SDK / JDK / Gradle — Godot just patches
+  # the prebuilt android_release.apk from the export templates with the game's PCK.
   build-android:
     name: 🤖 Build Android
     runs-on: ubuntu-latest
@@ -32,32 +35,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        run: |
-          # The ubuntu-latest runner has Android SDK preinstalled at /usr/local/lib/android/sdk.
-          # We just need to install the specific packages Godot 4.7 Android export requires.
-          export ANDROID_HOME="/usr/local/lib/android/sdk"
-          export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-          
-          # Install required SDK packages via sdkmanager (auto-accept licenses with `yes`)
-          echo "Installing Android SDK packages..."
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "build-tools;33.0.2" "platforms;android-33" "cmdline-tools;latest"
-          
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "JAVA_HOME=${JAVA_HOME}" >> $GITHUB_ENV
-          
-          echo "=== Installed SDK packages ==="
-          sdkmanager --list_installed 2>/dev/null || sdkmanager --list 2>&1 | grep -E "^\s+(platform-tools|build-tools|platforms)" | head -10
 
       - name: Setup Godot & Export Templates
         run: |
@@ -71,7 +48,7 @@ jobs:
           sudo mv Godot_v${GV}-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
-          # Download export templates
+          # Download export templates (includes prebuilt android_release.apk)
           TPL_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_export_templates.tpz"
           echo "Downloading export templates..."
           wget -q "$TPL_URL" -O godot_templates.tpz
@@ -90,12 +67,10 @@ jobs:
       - name: Export Android APK
         run: |
           mkdir -p build/android
-          echo "=== Env ==="
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "JAVA_HOME=$JAVA_HOME"
           echo "Godot version: $(godot --version)"
           # Use --export-release (Godot 4.x) — NOT --export-pack or --export
+          # use_gradle_build=false in export_presets.cfg means Godot uses the
+          # prebuilt android_release.apk template (no Android SDK needed).
           godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 | tee export.log
           echo "=== Build output ==="
           ls -la build/android/ || true
