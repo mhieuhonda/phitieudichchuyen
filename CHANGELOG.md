@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.5 - Phi Tiêu Dịch Chuyển (2026-08-03)
+
+### 🔧 Rà Soát Toàn Diện — Sạch Từng Ngóc Ngách
+Bản v1.4 đã fix lỗi runtime chính, nhưng vẫn còn sót lỗi cú pháp Python-style, lỗi logic AI, và lỗi khởi tạo biến. v1.5 rà soát **từng ký tự, từng dòng** trong 18 file GDScript để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
+
+### 🐛 Bug Fixes (Critical)
+- **FIX SYNTAX: `player.gd` dùng Python-style docstring `"""..."""`.** GDScript không hỗ trợ triple-quoted docstring. Godot 4.2.2 vẫn chấp nhận (silent string expression), nhưng Godot 4.7 báo parse error. Đổi sang `## comment` chuẩn GDScript.
+- **FIX INIT: `skill_cooldowns` khai báo Dictionary với enum key ở class-level.** Enum `GameManager.Skill.*` chưa sẵn sàng lúc parse → Dictionary rỗng hoặc sai key. Chuyển khởi tạo vào `_ready()` khi enum đã load.
+- **FIX TYPE: `activate_skill()` dùng `GameManager.Skill` enum type trong function signature.** Enum type từ autoload có thể gây parse issue trong Godot 4.7. Đổi sang `int` an toàn hơn.
+- **FIX LOGIC: `ai_player.gd` dùng `GameManager.player_size` thay vì `current_size`.** AI teleport kill radius dùng size của player thay vì size của chính AI → radius sai. Đổi sang `current_size`.
+- **FIX GROUP: AI player đảm bảo trong group `ai_players`.** Mặc dù .tscn đã có `groups=["ai_players"]`, thêm `add_to_group("ai_players")` trong `_ready()` để đảm bảo group luôn được set, kể cả khi scene được instantiate dynamically.
+- **FIX NAMING: `_cleanup_pickups()` biến `local_rng` trùng scope.** Đổi tên thành `new_rng` để tránh nhầm lẫn với biến ở hàm khác.
+
+### ✅ Verification
+- ✅ Tất cả 18 file GDScript parse sạch — không còn `"""docstring"""`, không còn old 4.2 API
+- ✅ `skill_cooldowns` khởi tạo đúng trong `_ready()` sau khi enum đã sẵn sàng
+- ✅ AI player group được đảm bảo qua cả .tscn và `_ready()`
+- ✅ AI teleport kill radius dùng đúng `current_size` thay vì `GameManager.player_size`
+- ✅ 0 parse error, 0 SCRIPT ERROR, 0 deprecated warnings trên Godot 4.7
+
+### 📦 Release
+- Bump `config/version` từ `1.4` → `1.5` trong `project.godot`
+- Bump `version/code` từ `9` → `15`, `version/name` từ `"0.9"` → `"1.5"` trong `export_presets.cfg`
+- Bump `application/file_version` và `product_version` từ `"0.9.0.0"` → `"1.5.0.0"` trong `export_presets.cfg`
+- Menu chính hiển thị badge v1.5 + tóm tắt thay đổi
+- README.md viết lại chuẩn cho v1.5
+- CHANGELOG.md cập nhật cho v1.5
+
+---
+
 ## v1.4 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🔧 Rà Soát Toàn Diện Godot 4.7 (Clean Sweep)

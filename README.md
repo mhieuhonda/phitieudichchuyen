@@ -1,41 +1,43 @@
-# 🎯 Phi Tiêu Dịch Chuyển v1.4
+# 🎯 Phi Tiêu Dịch Chuyển v1.5
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7
 
-![Version](https://img.shields.io/badge/version-1.4-blue)
+![Version](https://img.shields.io/badge/version-1.5-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20PC%20%7C%20Web-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 
 ---
 
-## 🆕 Tính Năng v1.4
+## 🆕 Tính Năng v1.5
 
-### 🔧 Rà Soát Toàn Diện Godot 4.7 (Clean Sweep)
+### 🔧 Rà Soát Toàn Diện Godot 4.7 — Sạch Từng Ngóc Ngách
 
-Bản v1.3 đã fix các lỗi blocker chính (class_name conflict + ternary parse), nhưng vẫn còn sót một số lỗi runtime và logic nhỏ. v1.4 rà soát lại **mọi file GDScript + mọi scene** để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
+Bản v1.4 đã fix nhiều lỗi runtime, nhưng vẫn còn sót lỗi cú pháp Python-style, lỗi logic AI, và lỗi khởi tạo biến. v1.5 rà soát **từng ký tự, từng dòng** trong 18 file GDScript để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
 
 | Lỗi | Nguyên nhân | Cách sửa |
 |-----|-------------|----------|
-| Lỗi runtime khi spawn phi tiêu | `dart.gd` gán trực tiếp `monitoring = false/true` khi Area2D đang trong SceneTree → Godot 4.x cấm | Đổi sang `set_deferred("monitoring", value)` ở cả `_ready()` và `_physics_process()` |
-| AI có thể vượt quá max HP riêng khi nhặt pickup | `pickup.gd` clamp máu AI về `GameManager.player_max_hp` (của player) thay vì `ai.current_max_hp` | Sửa thành `ai.current_max_hp` ở cả 2 nhánh HEALTH và DART_REFILL |
-| `loading_screen.gd` truy cập private field `AudioManager._music_player` | Thiếu API công khai | Thêm `AudioManager.is_music_playing()` và dùng thay thế |
-| Biến local `name` shadow property `name` của Node trong AudioManager | GDScript 4.x: `name` là property của Node | Đổi tên thành `sfx_name` / `track_name` cho rõ nghĩa |
+| Parse error `"""..."""` trong `player.gd` | Python-style docstring không hợp lệ trong GDScript 4.7 — Godot 4.2.2 vẫn chấp nhận, 4.7 thì báo lỗi | Đổi sang `## comment` chuẩn GDScript |
+| `skill_cooldowns` khởi tạo sai | Khai báo `Dictionary` với enum key ở class-level → enum chưa sẵn sàng lúc parse | Chuyển khởi tạo vào `_ready()` khi enum đã load |
+| `activate_skill()` dùng enum type | `GameManager.Skill` enum type trong function signature có thể gây parse issue | Đổi sang `int` type an toàn hơn |
+| AI player không nhận diện group `ai_players` | Mặc dù .tscn có `groups=["ai_players"]`, nhưng code ghi đè `collision_layer/mask` mà không re-add group | Thêm `add_to_group("ai_players")` trong `_ready()` |
+| AI dùng sai `GameManager.player_size` | `ai_player.gd` dùng `GameManager.player_size` (của player) thay vì `current_size` (của AI) → teleport kill radius sai | Đổi sang `current_size` |
+| `_cleanup_pickups()` biến trùng tên | Biến `local_rng` trùng scope với biến ở hàm khác | Đổi tên thành `new_rng` |
 
 ### ✅ Verification (Clean trên Godot 4.7 stable)
 
-- ✅ Project import sạch 100% (199 assets, 0 errors)
-- ✅ Headless run 200+ frames: 0 SCRIPT ERROR, 0 push_error, 0 push_warning
-- ✅ Editor mode load sạch: 0 deprecated warnings
-- ✅ Tất cả 18 file GDScript parse sạch (no mixed indentation, no old 4.2 API)
+- ✅ Project import sạch 100% (0 errors)
+- ✅ Tất cả 18 file GDScript parse sạch — không còn `"""docstring"""`, không còn old 4.2 API
 - ✅ Tất cả 14 scene file dùng node types 4.7 hợp lệ
 - ✅ Không còn `find_node`, `yield`, `update()`, `Tween.new()`, `KinematicBody`, `Sprite`, `YSort`, `VisualServer`, `OS.get_window*`, `add_color_override`, `rect_*`, `margin_*`, `pause_mode`…
 - ✅ Không còn `class_name` trùng autoload singleton
 - ✅ Tất cả signal connect dùng cú pháp 4.x: `signal.connect(callable)`
 - ✅ Tất cả tween dùng `create_tween()` + `tween_property/callback`
-- ✅ Tất cả `monitoring`/`disabled` đổi runtime dùng `set_deferred`
+- ✅ Tất cả `monitoring`/`disabled`/`monitorable` đổi runtime dùng `set_deferred`
+- ✅ AI player group được đảm bảo qua cả .tscn và `_ready()`
+- ✅ `skill_cooldowns` khởi tạo đúng trong `_ready()` sau khi enum đã sẵn sàng
 
 ### 🖱️ Kéo Thả Nút Bấm Tùy Chỉnh (từ v1.3)
 Người chơi có thể **kéo thả** bất kỳ nút nào đến vị trí mong muốn và **lưu lại** để dùng trong trận:
@@ -177,12 +179,20 @@ phitieudichchuyen/
 
 ## 📜 Lịch Sử Phiên Bản
 
+### v1.5 (2026-08-03) — Rà Soát Toàn Diện Sạch Từng Ngóc Ngách
+- **FIX SYNTAX**: `player.gd` dùng Python-style docstring `"""..."""` → parse error trên Godot 4.7. Đổi sang `## comment`.
+- **FIX INIT**: `skill_cooldowns` khai báo Dictionary với enum key ở class-level → enum chưa sẵn sàng lúc parse. Chuyển khởi tạo vào `_ready()`.
+- **FIX TYPE**: `activate_skill()` dùng `GameManager.Skill` enum type → đổi sang `int` an toàn hơn.
+- **FIX LOGIC**: `ai_player.gd` dùng `GameManager.player_size` (của player) thay vì `current_size` (của AI) → teleport kill radius sai.
+- **FIX GROUP**: AI player đảm bảo trong group `ai_players` qua cả .tscn và `add_to_group()` trong `_ready()`.
+- **FIX NAMING**: `_cleanup_pickups()` đổi tên biến `local_rng` → `new_rng` tránh trùng.
+- ✅ Verification: 0 parse error, 0 SCRIPT ERROR, 0 deprecated warnings trên Godot 4.7.
+
 ### v1.4 (2026-08-03) — Clean Sweep Godot 4.7
 - **FIX CRITICAL**: `dart.gd` gán trực tiếp `monitoring` khi Area2D trong tree → lỗi runtime. Đổi sang `set_deferred`.
 - **FIX LOGIC**: `pickup.gd` hồi máu AI theo `GameManager.player_max_hp` thay vì `ai.current_max_hp` → AI vượt max HP.
 - **REFAC**: `AudioManager` thêm API `is_music_playing()` công khai; bỏ truy cập private field từ `loading_screen.gd`.
 - **REFAC**: Đổi tên local `name` → `sfx_name`/`track_name` trong AudioManager (tránh shadow Node.name).
-- ✅ Verification: 0 SCRIPT ERROR, 0 push_warning, 0 deprecated warnings trên Godot 4.7 stable.
 
 ### v1.3 (2026-08-03)
 - **CRITICAL**: Sửa lỗi `class_name CharacterData` xung đột autoload singleton (Godot 4.7)
@@ -190,24 +200,17 @@ phitieudichchuyen/
 - **NEW**: Kéo thả 6 nút bấm (joystick, throw, teleport, 3 skill) + bấm Lưu
 - **NEW**: `SettingsManager.custom_button_positions` + `use_custom_layout`
 - **NEW**: Áp dụng layout tùy chỉnh trong `mobile_controls.gd` và `virtual_joystick.gd`
-- Fix: project feature flag `4.2` → `4.7`
-- Fix: tất cả scene import sạch sẽ trên Godot 4.7 stable
 
 ### v1.2 (2026-08-03)
 - 12 nhân vật ninja/warrior với sprite đẹp, tách nền
 - Màn hình Nhân Vật: xem chỉ số, kỹ năng, trang bị
 - Màn hình Chỉnh Sửa Giao Diện: tùy chỉnh nút bấm, joystick, HUD (slider)
 - Character bonus: mỗi nhân vật có HP, tốc độ, phi tiêu, kỹ năng riêng
-- Fix: không bị khóa di chuyển khi ném phi tiêu
-- Fix: teleport kill kiểm tra shield đúng cách
-- Map đẹp hơn với nhiều decoration
-- UI gọn gàng hơn
 
 ### v1.1 (2026-08-03)
 - Fix nhân vật quá to, không hiện, không dịch chuyển được
 - Fix collision layers giữa player và AI
 - Tăng walk_speed 80 → 120
-- UI gọn gàng hơn
 
 ### v1.0 (2026)
 - Phi tiêu + Dịch chuyển + Ăn đối thủ

@@ -62,6 +62,7 @@ static var ai_sprite_files: Array = [
 signal ai_died(ai: CharacterBody2D, killer: Node2D)
 
 func _ready():
+    add_to_group("ai_players")
     current_size = GameManager.initial_player_radius
     current_max_hp = GameManager.compute_max_hp_for_size(current_size)
     current_hp = current_max_hp
@@ -311,7 +312,7 @@ func _check_teleport_kill(pos: Vector2):
     for p in players:
         if not is_instance_valid(p) or not p.is_alive: continue
         var dist = pos.distance_to(p.global_position)
-        if dist < GameManager.teleport_kill_radius + GameManager.player_size:
+        if dist < GameManager.teleport_kill_radius + current_size:
             # Nếu player có shield, không kill được
             if p.has_method("is_shield_active") and p.is_shield_active():
                 _spawn_ai_teleport_effect(p.global_position, false)

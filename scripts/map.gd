@@ -305,10 +305,10 @@ func _create_pickups():
 func _cleanup_pickups():
     for i in pickups.size():
         if not is_instance_valid(pickups[i]):
-            var local_rng = RandomNumberGenerator.new()
-            local_rng.seed = i * 31 + Time.get_ticks_msec()
-            var px = local_rng.randf_range(150, GameManager.map_size.x - 150)
-            var py = local_rng.randf_range(150, GameManager.map_size.y - 150)
+            var new_rng = RandomNumberGenerator.new()
+            new_rng.seed = i * 31 + Time.get_ticks_msec()
+            var px = new_rng.randf_range(150, GameManager.map_size.x - 150)
+            var py = new_rng.randf_range(150, GameManager.map_size.y - 150)
             var pickup = pickup_scene.instantiate()
             pickup.global_position = Vector2(px, py)
             pickup.pickup_type = [Pickup.PickupType.HEALTH, Pickup.PickupType.DART_REFILL][i % 2]
