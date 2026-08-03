@@ -75,6 +75,57 @@ func _ready():
 
     visible = true
 
+    # v1.3: áp dụng vị trí tùy chỉnh nếu user đã Lưu layout
+    call_deferred("_apply_custom_layout")
+
+## v1.3: Áp dụng vị trí nút tùy chỉnh (đã lưu trong SettingsManager)
+## Vị trí lưu dạng chuẩn hóa 0..1 theo viewport → chuyển sang pixel
+func _apply_custom_layout():
+    if not SettingsManager.use_custom_layout:
+        return
+    var vp_size := get_viewport_rect().size
+    if vp_size.x <= 1 or vp_size.y <= 1:
+        # Viewport chưa có kích thước, thử lại frame kế
+        call_deferred("_apply_custom_layout")
+        return
+    # Vị trí mặc định chuẩn hóa cho mỗi nút (giống DEFAULT_POSITIONS trong ui_customization.gd)
+    var defaults := {
+        "teleport": Vector2(0.78, 0.85),
+        "throw": Vector2(0.88, 0.78),
+        "skill_dash": Vector2(0.50, 0.86),
+        "skill_shield": Vector2(0.58, 0.86),
+        "skill_multishot": Vector2(0.42, 0.86),
+    }
+    _apply_node_position(teleport_btn, "teleport", defaults["teleport"], vp_size)
+    _apply_node_position(throw_btn, "throw", defaults["throw"], vp_size)
+    _apply_node_position(skill_dash_btn, "skill_dash", defaults["skill_dash"], vp_size)
+    _apply_node_position(skill_shield_btn, "skill_shield", defaults["skill_shield"], vp_size)
+    _apply_node_position(skill_multishot_btn, "skill_multishot", defaults["skill_multishot"], vp_size)
+    # Áp dụng button_size scale
+    var bscale := SettingsManager.button_size
+    for n in [teleport_btn, throw_btn, skill_dash_btn, skill_shield_btn, skill_multishot_btn]:
+        if n and is_instance_valid(n):
+            n.scale = Vector2(bscale, bscale)
+    # Áp dụng opacity
+    modulate.a = SettingsManager.ui_opacity
+
+func _apply_node_position(node: Control, key: String, default_pos: Vector2, vp_size: Vector2):
+    if not node or not is_instance_valid(node):
+        return
+    var normalized := SettingsManager.get_button_position(key, default_pos)
+    var px := Vector2(normalized.x * vp_size.x, normalized.y * vp_size.y)
+    # Bỏ anchor để set position tuyệt đối
+    node.set_anchors_preset(Control.PRESET_TOP_LEFT)
+    node.anchor_left = 0.0
+    node.anchor_top = 0.0
+    node.anchor_right = 0.0
+    node.anchor_bottom = 0.0
+    # Căn giữa nút vào điểm chuẩn hóa
+    node.position = px - node.size * 0.5
+    # Clamp để không tràn màn hình
+    node.position.x = clamp(node.position.x, 0, max(0, vp_size.x - node.size.x))
+    node.position.y = clamp(node.position.y, 0, max(0, vp_size.y - node.size.y))
+
 func _process(_delta):
     _update_visibility()
     if throw_btn and is_instance_valid(throw_btn):
