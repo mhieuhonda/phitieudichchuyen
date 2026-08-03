@@ -58,7 +58,7 @@ offset_right = 240.0
 offset_bottom = 320.0
 grow_horizontal = 2
 bbcode_enabled = true
-text = "MỚI v0.9: Fix joystick + multi-touch + nút to hơn + fix AI dart xuyên player!"
+text = "MỚI v1.0: Map đẹp + 3 kỹ năng chủ động + Xếp hạng cuối trận + Hồi 10% HP khi ăn đối thủ!"
 
 [node name="PlayButton" type="Button" parent="."]
 layout_mode = 1
@@ -106,4 +106,4 @@ offset_top = -40.0
 offset_right = 300.0
 offset_bottom = -10.0
 grow_vertical = 0
-text = "v0.9 - Multi-touch Fix"
+text = "v1.0 - Phi Tiêu Dịch Chuyển"

@@ -1,15 +1,26 @@
 extends Node
 
-## GameManager - Quản lý trạng thái toàn cục của game
+## GameManager - Quản lý trạng thái toàn cục của game (v1.0)
 ## Singleton autoload, điều khiển điểm số, combo, respawn, vòng bo, pickups
+##
+## v1.0 changes:
+## - Match time limit (mặc định 5 phút = 300s)
+## - Max HP scale theo size: bigger = more HP
+## - Heal 10% max HP khi ăn đối thủ
+## - Track score/kill cho mọi người chơi (player + AI) cho leaderboard
+## - Active skills system (Dash, Shield, Multishot)
+## - Game over signal với leaderboard data
 
 signal player_score_changed(new_score: int)
 signal player_size_changed(new_size: float)
+signal player_hp_changed(hp: float, max_hp: float)
 signal player_killed(killer_id: int, victim_id: int)
 signal zone_shrank(new_radius: float)
-signal game_over(winner_name: String)
+signal game_over(winner_name: String, leaderboard: Array)
 signal combo_achieved(combo_count: int)
 signal screen_shake_requested(intensity: float, duration: float)
+signal match_time_changed(time_remaining: float)
+signal skill_used(player_id: int, skill_id: String)
 
 # === CẤU HÌNH ===
 @export_group("Phi Tiêu")
@@ -24,7 +35,9 @@ signal screen_shake_requested(intensity: float, duration: float)
 @export_group("Người Chơi")
 @export var walk_speed: float = 80.0
 @export var teleport_kill_radius: float = 40.0
-@export var player_max_hp: float = 100.0
+@export var base_player_max_hp: float = 100.0
+@export var hp_per_size_unit: float = 4.0  # Mỗi đơn vị size tăng thêm 4 HP max
+@export var heal_percent_on_kill: float = 0.10  # Hồi 10% max HP khi ăn đối thủ
 @export var initial_player_radius: float = 20.0
 @export var size_per_kill: float = 5.0
 @export var score_per_kill: int = 100
@@ -48,26 +61,67 @@ signal screen_shake_requested(intensity: float, duration: float)
 @export_group("Map")
 @export var map_size: Vector2 = Vector2(2000, 2000)
 
+@export_group("Trận Đấu")
+@export var match_duration: float = 300.0  # 5 phút tối đa
+@export var match_end_warning_time: float = 30.0  # Cảnh báo khi còn 30s
+
+@export_group("Kỹ Năng Chủ Động")
+@export var skill_dash_cooldown: float = 8.0
+@export var skill_dash_distance: float = 200.0
+@export var skill_dash_duration: float = 0.18
+@export var skill_shield_cooldown: float = 15.0
+@export var skill_shield_duration: float = 3.0
+@export var skill_multishot_cooldown: float = 12.0
+@export var skill_multishot_dart_count: int = 3
+@export var skill_multishot_spread: float = 0.3  # radians spread
+
+## Enum skills - define ở GameManager để truy cập mọi nơi
+enum Skill { DASH, SHIELD, MULTISHOT }
+
 # === TRẠNG THÁI ===
 var player_score: int = 0
 var player_size: float
 var player_hp: float
+var player_max_hp: float  # Dynamic, scale theo size
 var zone_radius: float
 var zone_center: Vector2
 var game_active: bool = false
+var game_ended: bool = false
 var players_alive: int = 0
 var combo_count: int = 0
 var combo_timer: float = 0.0
 var current_shrink_count: int = 0
 var game_time: float = 0.0
 var total_kills: int = 0
+var time_remaining: float = 0.0
+var match_warning_played: bool = false
+
+# === LEADERBOARD ===
+# Mỗi entry: { "id": int, "name": String, "score": int, "kills": int, "is_player": bool, "alive": bool }
+var leaderboard_entries: Array = []
+var player_kills: int = 0
+
+# === CALLBACK CHO RESPAWN ===
+# Khi player/AI respawn, ta cần re-register leaderboard entry alive=true
 
 func _ready():
     reset_game()
 
 func _process(delta):
-    if game_active:
+    if game_active and not game_ended:
         game_time += delta
+        time_remaining = max(0.0, match_duration - game_time)
+        emit_signal("match_time_changed", time_remaining)
+
+        # Cảnh báo 30s cuối
+        if not match_warning_played and time_remaining <= match_end_warning_time and time_remaining > 0:
+            match_warning_played = true
+            AudioManager.play_warning()
+
+        # Kết thúc trận khi hết giờ
+        if time_remaining <= 0:
+            end_match()
+
         if combo_count > 0:
             combo_timer -= delta
             if combo_timer <= 0:
@@ -76,46 +130,93 @@ func _process(delta):
 func reset_game():
     player_score = 0
     player_size = initial_player_radius
+    player_max_hp = compute_max_hp_for_size(player_size)
     player_hp = player_max_hp
     zone_radius = map_size.x * 0.45
     zone_center = map_size / 2.0
     game_active = true
+    game_ended = false
     players_alive = num_ai_players + 1
     combo_count = 0
     combo_timer = 0.0
     current_shrink_count = 0
     game_time = 0.0
     total_kills = 0
+    player_kills = 0
+    time_remaining = match_duration
+    match_warning_played = false
+    leaderboard_entries.clear()
+    # Player entry
+    leaderboard_entries.append({
+        "id": 0, "name": "Player", "score": 0, "kills": 0,
+        "is_player": true, "alive": true
+    })
     emit_signal("player_score_changed", player_score)
     emit_signal("player_size_changed", player_size)
+    emit_signal("player_hp_changed", player_hp, player_max_hp)
+    emit_signal("match_time_changed", time_remaining)
+
+## Tính max HP dựa trên kích thước
+func compute_max_hp_for_size(size: float) -> float:
+    var size_bonus = max(0.0, size - initial_player_radius) * hp_per_size_unit
+    return base_player_max_hp + size_bonus
+
+## Cập nhật max HP khi size thay đổi. Trả về hp_clamped.
+func update_player_max_hp_for_size(new_size: float):
+    var old_max = player_max_hp
+    player_max_hp = compute_max_hp_for_size(new_size)
+    # Giữ tỉ lệ HP nếu max tăng
+    if player_max_hp > old_max:
+        var diff = player_max_hp - old_max
+        player_hp = min(player_hp + diff, player_max_hp)
+    else:
+        player_hp = min(player_hp, player_max_hp)
+    emit_signal("player_hp_changed", player_hp, player_max_hp)
 
 func add_score(points: int):
     var multiplier = 1.0 + (combo_count * 0.5)
     var actual_points = int(points * multiplier)
     player_score += actual_points
+    _update_leaderboard_score(0, player_score)
     emit_signal("player_score_changed", player_score)
     return actual_points
 
 func add_size(amount: float):
+    var old_size = player_size
     player_size = min(player_size + amount, max_player_size)
-    emit_signal("player_size_changed", player_size)
+    if player_size != old_size:
+        update_player_max_hp_for_size(player_size)
+        emit_signal("player_size_changed", player_size)
 
-func register_kill():
+func register_kill_by_player():
     total_kills += 1
+    player_kills += 1
     combo_count += 1
     combo_timer = combo_window
+    _update_leaderboard_kills(0, player_kills)
     if combo_count >= 2:
         emit_signal("combo_achieved", combo_count)
+
+# Legacy alias (cũ)
+func register_kill():
+    register_kill_by_player()
 
 func take_damage(amount: float) -> bool:
     player_hp -= amount
     if player_hp <= 0:
         player_hp = 0
+        emit_signal("player_hp_changed", player_hp, player_max_hp)
         return true
+    emit_signal("player_hp_changed", player_hp, player_max_hp)
     return false
 
 func heal(amount: float):
     player_hp = min(player_hp + amount, player_max_hp)
+    emit_signal("player_hp_changed", player_hp, player_max_hp)
+
+## Hồi máu theo % max HP (khi ăn đối thủ)
+func heal_percent(percent: float):
+    heal(player_max_hp * percent)
 
 func shrink_zone():
     if zone_radius > zone_min_radius:
@@ -136,6 +237,83 @@ func request_screen_shake(intensity: float = 5.0, duration: float = 0.3):
         emit_signal("screen_shake_requested", intensity, duration)
 
 func get_game_time_str() -> String:
-    var minutes = int(game_time) / 60
-    var seconds = int(game_time) % 60
+    var t = int(game_time)
+    var minutes = t / 60
+    var seconds = t % 60
     return "%02d:%02d" % [minutes, seconds]
+
+func get_time_remaining_str() -> String:
+    var t = int(time_remaining)
+    var minutes = t / 60
+    var seconds = t % 60
+    return "%02d:%02d" % [minutes, seconds]
+
+# === LEADERBOARD API ===
+
+func register_ai_leaderboard(ai_id: int, ai_name: String):
+    # Tránh trùng lặp
+    for entry in leaderboard_entries:
+        if entry["id"] == ai_id + 1:
+            entry["alive"] = true
+            entry["name"] = ai_name
+            return
+    leaderboard_entries.append({
+        "id": ai_id + 1, "name": ai_name, "score": 0, "kills": 0,
+        "is_player": false, "alive": true
+    })
+
+func update_ai_score(ai_id: int, score: int):
+    for entry in leaderboard_entries:
+        if entry["id"] == ai_id + 1:
+            entry["score"] = score
+            return
+
+func update_ai_kills(ai_id: int, kills: int):
+    for entry in leaderboard_entries:
+        if entry["id"] == ai_id + 1:
+            entry["kills"] = kills
+            return
+
+func set_ai_alive(ai_id: int, alive: bool):
+    for entry in leaderboard_entries:
+        if entry["id"] == ai_id + 1:
+            entry["alive"] = alive
+            return
+
+func set_player_alive(alive: bool):
+    if leaderboard_entries.size() > 0:
+        leaderboard_entries[0]["alive"] = alive
+
+func _update_leaderboard_score(player_id: int, score: int):
+    if player_id == 0 and leaderboard_entries.size() > 0:
+        leaderboard_entries[0]["score"] = score
+
+func _update_leaderboard_kills(player_id: int, kills: int):
+    if player_id == 0 and leaderboard_entries.size() > 0:
+        leaderboard_entries[0]["kills"] = kills
+
+func get_sorted_leaderboard() -> Array:
+    var sorted = leaderboard_entries.duplicate(true)
+    sorted.sort_custom(func(a, b):
+        if a["score"] != b["score"]:
+            return a["score"] > b["score"]
+        return a["kills"] > b["kills"]
+    )
+    return sorted
+
+# === END MATCH ===
+
+func end_match():
+    if game_ended:
+        return
+    game_ended = true
+    game_active = false
+    var sorted = get_sorted_leaderboard()
+    var winner_name = "Hòa!" if sorted.is_empty() else sorted[0]["name"]
+    if not sorted.is_empty() and sorted[0]["score"] == 0:
+        winner_name = "Không có người thắng!"
+    emit_signal("game_over", winner_name, sorted)
+    AudioManager.play_music("victory" if (sorted.size() > 0 and sorted[0]["is_player"]) else "defeat")
+
+func is_match_over() -> bool:
+    return game_ended

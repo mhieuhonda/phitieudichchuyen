@@ -2,7 +2,7 @@
 
 > Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down dành cho PC và Mobile.
 
-[![Release](https://img.shields.io/badge/release-v0.9-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
+[![Release](https://img.shields.io/badge/release-v1.0-blue.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases/tag/v1.0)
 [![Godot](https://img.shields.io/badge/Godot-4.2.2-478CBF.svg)](https://godotengine.org/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-green.svg)](https://github.com/mhieuhonda/phitieudichchuyen/releases)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
@@ -13,91 +13,139 @@
 
 **Phi Tiêu Dịch Chuyển** là game 2D top-down nơi bạn ném phi tiêu để tấn công, dịch chuyển tức thời đến vị trí phi tiêu để né tránh hoặc tiêu diệt đối thủ. Trò chơi tự động phát hiện thiết bị và chọn mức đồ họa phù hợp, đảm bảo trải nghiệm mượt mà trên mọi nền tảng.
 
-### ✨ Tính năng nổi bật
+Trận đấu diễn ra tối đa **5 phút**, người chơi và 5 bot AI chiến đấu để giành điểm số cao nhất. Khi hết giờ, bảng xếp hạng sẽ hiển thị toàn bộ người chơi kèm điểm số và số kill.
+
+### ✨ Tính năng nổi bật (v1.0)
 
 - 🎯 **Ném phi tiêu & Dịch chuyển**: Cơ chế chiến đấu độc đáo - ném phi tiêu rồi dịch chuyển tức thời đến vị trí phi tiêu
 - ⚡ **Dịch chuyển giữa chừng**: Dịch chuyển khi phi tiêu đang bay, tạo yếu tố bất ngờ
-- 🤖 **AI thông minh**: 5 bot đối thủ với hành vi đa dạng (đi tuần, săn đuổi, né tránh, tấn công)
+- 🤖 **AI thông minh**: 5 bot đối thủ với hành vi đa dạng (đi tuần, săn đuổi, né tránh, tấn công, dash)
 - 📱 **Hỗ trợ Mobile**: Joystick ảo + nút bấm, tự động hiện trên thiết bị di động
-- 👆 **Multi-touch (v0.9)**: Giữ joystick di chuyển + nhấn nút bắn + nhấn nút dịch chuyển CÙNG LÚC - không bao giờ bị dừng giữa chừng
+- 👆 **Multi-touch**: Giữ joystick di chuyển + nhấn nút bắn + nhấn nút dịch chuyển + kỹ năng CÙNG LÚC
 - 🔴 **Nút bắn phi tiêu**: Giữ nút → kẻ chỉ màu đỏ, kéo xoay hướng, thả để bắn
-- 🖥️ **Full-screen landscape**: Tự động full màn hình + hướng ngang trên mọi thiết bị
-- 🔊 **150+ sound effects + nhạc nền**: Âm thanh cho mọi action + 5 nhạc nền (menu/game/victory/defeat)
-- 🔍 **Auto-detect thiết bị**: Tự nhận diện máy yếu/mạnh, chọn đồ họa phù hợp
-- 🎮 **4 mức đồ họa**: Cực Thấp → Thấp → Trung Bình → Cao
+- 🎮 **3 Kỹ năng chủ động**:
+  - **Dash (Q)**: Lướt nhanh đến hướng di chuyển, cooldown 8s
+  - **Shield (E)**: Khiên miễn damage 3s, cooldown 15s
+  - **Multishot (Shift)**: Bắn 3 phi tiêu cùng lúc, cooldown 12s
+- ❤️ **Hệ thống máu thông minh**:
+  - Max HP tăng theo kích thước (càng lớn càng trâu)
+  - Hồi **10% max HP** mỗi khi ăn được đối thủ
+  - Khiên miễn damage hoàn toàn
+- 🗺️ **Bản đồ đẹp hơn**: Grid pattern, chướng ngại vật đa dạng (đá, cây, thùng), decoration (hoa, cỏ, vết nứt), vòng bo gradient glow
+- 🎨 **Sprite tách nền hoàn chỉnh**: Nhân vật ninja/warrior có mắt, đầu bụng, đai lưng - không còn ô vuông thô
+- ⏱️ **Trận 5 phút**: Hiển thị thời gian đếm ngược, cảnh báo 30s cuối, kết thúc bằng bảng xếp hạng
+- 🏆 **Bảng xếp hạng cuối trận**: Hiển thị rank, tên, điểm, số kill của tất cả người chơi
+- 🔊 **155 sound effects + 5 nhạc nền**: Âm thanh cho mọi action + nhạc menu/game/victory/defeat
+- ✨ **Hiệu ứng phong phú**: Particle khi teleport/kill/level-up/dash/shield, floating damage text, hit flash, smoke puff
 - 💊 **Vật phẩm**: Hồi máu và nạp phi tiêu rải trên bản đồ
 - 🔥 **Hệ thống Combo**: Tiêu diệt liên tiếp để nhân điểm
 - ⭕ **Vòng bo thu nhỏ**: Khu vực an toàn thu dần, ép người chơi đối đầu
-- 📊 **FPS Counter**: Hiển thị FPS và thông tin thiết bị
 - 📐 **Responsive UI**: Tất cả UI dùng anchors + CanvasLayer, tự scale mọi kích thước màn hình
 
 ---
 
 ## 🎮 Cách chơi
 
-| Hành động | PC (Bàn phím/Chuột) | Mobile (v0.9) |
+| Hành động | PC (Bàn phím/Chuột) | Mobile |
 |-----------|---------------------|----------------|
-| Di chuyển | W/A/S/D hoặc Phím mũi tên | **Joystick bên trái** (200×200px, hỗ trợ multi-touch) |
-| Ngắm phi tiêu | Giữ chuột phải, kéo để điều chỉnh lực | **Giữ nút Bắn** → kẻ chỉ màu đỏ xuất hiện |
-| Xoay hướng ngắm | Kéo chuột | **Kéo ngón tay** quanh nút Bắn để xoay hướng |
+| Di chuyển | W/A/S/D hoặc Phím mũi tên | **Joystick bên trái** |
+| Ngắm phi tiêu | Giữ chuột phải, kéo để điều chỉnh lực | **Giữ nút Bắn** → kẻ chỉ màu đỏ |
 | Ném phi tiêu | Thả chuột phải | **Thả nút Bắn** |
-| Dịch chuyển | Space | **Nút Dịch chuyển** (140×140px, responsive) |
+| Dịch chuyển | Space | **Nút Dịch chuyển** |
+| **Kỹ năng Dash** | **Q** | **Nút DASH** |
+| **Kỹ năng Shield** | **E** | **Nút SHIELD** |
+| **Kỹ năng Multishot** | **Shift** | **Nút MULTI** |
 | Quay lại menu | Escape | Nút trên HUD |
-| Đa chạm (multi-touch) | N/A | ✅ Giữ joystick + bắn + dịch chuyển cùng lúc |
 
 ### Cơ chế chính
 
-- **Ném phi tiêu (PC)**: Giữ chuột phải để ngắm, kéo để điều chỉnh lực và hướng (slingshot), thả để ném. Tối đa 3 phi tiêu cùng lúc.
-- **Ném phi tiêu (Mobile)**: Giữ nút Bắn → kẻ chỉ màu ĐỎ xuất hiện từ nhân vật. Kéo ngón tay quanh nút để xoay hướng. Kéo xa hơn = lực mạnh hơn. Thả nút để bắn.
-- **Dịch chuyển**: Nhấn nút Dịch chuyển (Mobile) hoặc Space (PC) để dịch chuyển tức thời đến vị trí phi tiêu vừa ném.
+- **Ném phi tiêu**: Giữ chuột phải (PC) hoặc giữ nút Bắn (mobile) để ngắm, kéo để điều chỉnh lực và hướng, thả để ném. Tối đa 3 phi tiêu cùng lúc.
+- **Dịch chuyển**: Nhấn nút Dịch chuyển (mobile) hoặc Space (PC) để dịch chuyển tức thời đến vị trí phi tiêu vừa ném.
 - **Dịch chuyển giữa chừng**: Nhấn khi phi tiêu đang bay để dịch chuyển đến vị trí hiện tại của phi tiêu!
-- **Nuốt đối thủ**: Dịch chuyển đến gần AI đối thủ để tiêu diệt, tăng kích thước và điểm số.
+- **Nuốt đối thủ**: Dịch chuyển đến gần AI đối thủ để tiêu diệt, tăng kích thước, điểm số, và hồi 10% HP.
+- **Kỹ năng Dash**: Lướt nhanh 200px theo hướng di chuyển, hữu ích để né phi tiêu hoặc rút lui.
+- **Kỹ năng Shield**: Kích hoạt khiên miễn damage 3 giây, có thể đánh đổi để băng qua vùng nguy hiểm.
+- **Kỹ năng Multishot**: Bắn 3 phi tiêu cùng lúc với góc lệch nhẹ, gay tải sát thương diện rộng.
+- **Max HP theo size**: Khi bạn lớn lên (nuốt đối thủ), max HP cũng tăng theo. Bạn càng lớn càng trâu bò, nhưng cũng là mục tiêu lớn hơn.
 - **Vòng bo**: Khu vực an toàn thu nhỏ dần, ở ngoài sẽ mất máu.
-- **Combo**: Tiêu diệt liên tiếp trong thời gian ngắn để nhân điểm (x1.5, x2.0, x2.5...).
-- **Nhặt vật phẩm**: Đi qua vật phẩm để hồi máu hoặc nạp phi tiêu.
+- **Combo**: Tiêu diệt liên tiếp trong 2 giây để nhân điểm (x1.5, x2.0, x2.5...).
+- **Trận đấu 5 phút**: Trận kết thúc khi hết giờ hoặc khi 1 người đạt top. Bảng xếp hạng sẽ hiển thị cuối trận.
 
-### 📱 Bố trí điều khiển Mobile (v0.9)
+### 📱 Bố trí điều khiển Mobile
 
 ```
-┌─────────────────────────────────────────────┐
-│  [Điểm/HP/Phi tiêu]              [Kill Feed] │
-│                                              │
-│                                              │
-│              [Vòng bo / Map]                 │
-│                                              │
-│                                              │
-│  ┌──────┐                  ┌───┐  ┌───────┐ │
-│  │      │                  │ T │  │       │ │
-│  │ Joys │                  │ e │  │ Throw │ │
-│  │ 200  │                  │ l │  │  180  │ │
-│  │      │                  │ 140│  │       │ │
-│  └──────┘                  └───┘  └───────┘ │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  [Điểm/HP/Phi tiêu]                       [Kill Feed]        │
+│                  [⏱ 05:00]                                   │
+│                                                              │
+│                    [Vòng bo / Map]                           │
+│                                                              │
+│                                                              │
+│  ┌──────┐         ┌─────┐ ┌─────┐ ┌─────┐ ┌───┐ ┌───────┐   │
+│  │      │         │DASH │ │SHIELD│ │MULTI│ │ T │ │ THROW │   │
+│  │ Joys │         │  Q  │ │  E  │ │Shift│ │ 140│ │  180  │   │
+│  │ 200  │         └─────┘ └─────┘ └─────┘ └───┘ └───────┘   │
+│  │      │                                                   │
+│  └──────┘                                                   │
+└──────────────────────────────────────────────────────────────┘
 ```
-
-- **Joystick**: 200×200px, góc dưới-trái, cách cạnh 30px
-- **Throw button**: 180×180px, góc dưới-phải, cách cạnh 30px
-- **Teleport button**: 140×140px, bên trái Throw, gap 60px
-- **Hit area**: Joystick +80px padding, Throw +25px, Teleport +15px (không overlap)
 
 ---
 
-## 🐛 Lỗi đã fix trong v0.9
+## 🆕 Có gì mới trong v1.0
 
-| # | Mô tả | Mức độ | File |
-|---|-------|--------|------|
-| 1 | **Joystick không di chuyển nhân vật**: `main.gd` dùng `$VirtualJoystick` nhưng node là con của `UILayer` → trả về `null` → joystick không connect với player | 🔴 Critical | `scripts/main.gd` |
-| 2 | **Multi-touch broken: joystick dừng khi nhấn nút khác**: Mouse fallback (emulated từ touch) reset `is_pressed=false` khi BẤT KỲ mouse release nào xảy ra | 🔴 Critical | `scripts/virtual_joystick.gd`, `scripts/mobile_controls.gd` |
-| 3 | **AI dart xuyên player không gây damage**: `dart.gd` `collision_mask` thiếu Player layer (1) | 🔴 Critical | `scripts/dart.gd` |
-| 4 | **Teleport button không phản ứng**: Do bug #1, signal `teleport_pressed` không được connect | 🔴 Critical | `scripts/main.gd` |
-| 5 | **Hit area overlap giữa throw và teleport button**: Touch vào teleport bị throw capture | 🟡 High | `scenes/mobile_controls.tscn`, `scripts/mobile_controls.gd` |
-| 6 | **Duplicate teleport fire**: `teleport_btn.mouse_filter=STOP` + `_input` handling → teleport fire 2 lần | 🟡 High | `scripts/mobile_controls.gd` |
-| 7 | **Duplicate screen shake khi teleport**: `_on_teleport_performed` + `screen_shake_requested` signal cùng trigger | 🟡 High | `scripts/main.gd` |
-| 8 | **Button quá nhỏ (100×100)**: Quá nhỏ cho ngón cái mobile | 🟡 Medium | `scenes/mobile_controls.tscn` |
-| 9 | **Joystick quá nhỏ (160×160)**: Khó điều khiển chính xác | 🟡 Medium | `scenes/virtual_joystick.tscn` |
-| 10 | **`player.aim_touch_index = 0` ambiguous**: Trùng với touch index 0 thực tế | 🟢 Low | `scripts/player.gd` |
-| 11 | **`player._die()` không reset dart_bonus/aim state**: Stuck aim line sau respawn | 🟢 Low | `scripts/player.gd` |
-| 12 | **Empty `_input` trong `hud.gd`**: Dead code | 🟢 Low | `scripts/hud.gd` |
+### 🗺️ Bản đồ vẽ lại
+- **Grid pattern**: Lưới nhẹ 100px + lưới chính 500px cho cảm giác không gian
+- **Obstacles đa dạng**: Đá (shape bất đối xứng), cây (tán nhiều lớp), thùng gỗ (X chữ)
+- **Decoration**: Bụi cỏ, hoa nhỏ, vết nứt sàn không collision
+- **Vòng bo gradient**: Glow đỏ/cam sống động, fill polygon nhẹ bên trong
+- **Tường viền**: Nâu đá với border highlight
+
+### 🎨 Sprite tách nền hoàn chỉnh
+Tất cả sprite được vẽ lại bằng Python PIL với nền **trong suốt hoàn toàn** (alpha=0):
+- **Player/AI**: Ninja/warrior hình tròn với body color, headband màu accent, mắt trắng + pupil, belt + buckle vàng, rim light, gradient highlight
+- **Dart**: Metallic tip + shaft silver gradient + fletching đỏ
+- **Pickups**: Glowing halo + disc + icon (cross/dart)
+- **Buttons**: Teleport (cyan swirl), Throw (target rings)
+- **Joystick**: Recessed base + glossy knob
+
+### ❤️ Hệ thống máu mới
+- `base_player_max_hp = 100` (size 20)
+- `hp_per_size_unit = 4` → size 60 = 100 + (60-20)*4 = 260 HP max
+- Hồi `10% max HP` mỗi khi ăn đối thủ (cả player và AI)
+- Shield miễn damage 100% trong 3s
+
+### 🎮 Kỹ năng chủ động
+| Skill | Phím PC | Nút Mobile | Hiệu ứng | Cooldown |
+|-------|---------|------------|----------|----------|
+| Dash | Q | DASH | Lướt 200px theo hướng di chuyển | 8s |
+| Shield | E | SHIELD | Khiên miễn damage 3s | 15s |
+| Multishot | Shift | MULTI | Bắn 3 phi tiêu cùng lúc | 12s |
+
+AI cũng có thể dùng dash để né/truy đuổi.
+
+### 🏆 Bảng xếp hạng cuối trận
+- Khi hết giờ 5 phút, hiện bảng xếp hạng với:
+  - Rank (#1, #2, ... với màu vàng/bạc/đồng)
+  - Tên người chơi (Player hiện màu cyan + "(Bạn)")
+  - Điểm số
+  - Số kill
+- Nút "Chơi lại" và "Menu chính"
+
+### ✨ Hiệu ứng thêm
+- Particle dash (cyan), shield (blue), buff (orange), kill (red explosion), level-up (gold), smoke puff (grey)
+- Floating text: "+100", "+26 HP", "-25", "BLOCK!" 
+- Hit flash (sprite modulate red)
+- Level-up effect khi tăng size
+
+### 🐛 Lỗi đã fix
+- AI teleport kill không kill được player (chỉ gây 50 dmg) → giờ kill ngay như player
+- AI dart giết đối thủ không ghi score/kill → giờ ghi nhận đúng
+- Player dart giết AI không ghi score/kill → giờ ghi nhận + heal + size
+- Player chết không reset skill state (shield, dash, multishot) → giờ reset hết
+- AI respawn không reset leaderboard entry → giờ reset alive=true, score=0, kills=0
+- Match không có giới hạn thời gian → giờ 5 phút
+- Sprite có nền đen opaque → giờ trong suốt hoàn toàn
 
 ---
 
@@ -136,16 +184,18 @@ Phiên bản tự động phát hiện khả năng thiết bị và chọn mức
 
 Truy cập [Releases](https://github.com/mhieuhonda/phitieudichchuyen/releases) để tải phiên bản mới nhất.
 
-### Phiên bản v0.9
+### Phiên bản v1.0
 
-**Tải xuống:** [Phi Tiêu Dịch Chuyển v0.9](https://github.com/mhieuhonda/phitieudichchuyen/releases/tag/v0.9)
+**Tải xuống:** [Phi Tiêu Dịch Chuyển v1.0](https://github.com/mhieuhonda/phitieudichchuyen/releases/tag/v1.0)
 
 **Nội dung bản phát hành:**
-- 🐛 Fix 4 critical bugs (joystick, multi-touch, AI dart, teleport)
-- 📱 Button mobile to hơn, layout tốt hơn
-- ✨ Multi-touch: giữ joystick + bắn + dịch chuyển cùng lúc
-- 🎨 Visual feedback khi nhấn nút
-- 🧹 Code cleanup, remove dead code
+- 🗺️ Vẽ lại map đẹp: grid pattern, obstacles đa dạng, decoration
+- 🎨 Sprite tách nền hoàn chỉnh: ninja warrior với mắt, đầu bụt, belt
+- 🎮 3 kỹ năng chủ động: Dash, Shield, Multishot
+- ❤️ Max HP theo size + hồi 10% HP khi ăn đối thủ
+- ⏱️ Trận đấu 5 phút + bảng xếp hạng cuối trận
+- ✨ Hiệu ứng: particle, floating text, hit flash, level-up
+- 🐛 Fix toàn bộ lỗi logic game
 
 ---
 
@@ -155,7 +205,7 @@ Truy cập [Releases](https://github.com/mhieuhonda/phitieudichchuyen/releases) 
 |-----------|----------|
 | **Engine** | [Godot 4.2.2](https://godotengine.org/) |
 | **Ngôn ngữ** | GDScript |
-| **Đồ họa** | 2D Sprite-based |
+| **Đồ họa** | 2D Sprite-based (PIL procedural generation) |
 | **Nền tảng phát hành** | GitHub Actions CI/CD |
 | **License** | MIT |
 
@@ -196,16 +246,17 @@ phitieudichchuyen/
 │   └── workflows/
 │       └── build-release.yml     # CI/CD pipeline
 ├── assets/
-│   ├── sprites/                  # Sprite tài nguyên (PNG)
-│   │   ├── player_blue.png       # Sprite người chơi
+│   ├── sprites/                  # Sprite tài nguyên (PNG, v1.0: regenerated)
+│   │   ├── player_blue.png       # Sprite người chơi (ninja xanh)
 │   │   ├── ai_*.png              # Sprite AI (10 màu)
-│   │   ├── dart.png              # Sprite phi tiêu
-│   │   ├── pickup_health.png     # Sprite hồi máu
-│   │   ├── pickup_dart.png       # Sprite nạp phi tiêu
+│   │   ├── dart.png              # Sprite phi tiêu (metallic + fletching)
+│   │   ├── pickup_health.png     # Sprite hồi máu (cross đỏ)
+│   │   ├── pickup_dart.png       # Sprite nạp phi tiêu (dart icon)
+│   │   ├── shield.png            # Sprite khiên (hex rune)
 │   │   ├── joystick_base.png     # Joystick nền
 │   │   ├── joystick_stick.png    # Joystick cần
-│   │   ├── btn_teleport.png      # Nút dịch chuyển
-│   │   ├── btn_throw.png         # Nút ném
+│   │   ├── btn_teleport.png      # Nút dịch chuyển (cyan swirl)
+│   │   ├── btn_throw.png         # Nút ném (target rings)
 │   │   └── teleport_effect.png   # Hiệu ứng dịch chuyển
 │   └── audio/                    # Âm thanh - 155 files
 │       ├── sfx/                  # 150 sound effects (WAV)
@@ -214,33 +265,33 @@ phitieudichchuyen/
 │   ├── main.tscn                 # Scene chính game
 │   ├── menu.tscn                 # Menu chính
 │   ├── loading.tscn              # Loading screen
-│   ├── map.tscn                  # Bản đồ
-│   ├── player.tscn               # Người chơi
+│   ├── map.tscn                  # Bản đồ (v1.0: grid + decor layers)
+│   ├── player.tscn               # Người chơi (v1.0: +ShieldSprite)
 │   ├── ai_player.tscn            # AI đối thủ
 │   ├── dart.tscn                 # Phi tiêu
-│   ├── hud.tscn                  # Giao diện HUD
+│   ├── hud.tscn                  # HUD (v1.0: +MatchTimer, +SkillPanel, +ResultsPanel)
 │   ├── pickup.tscn               # Vật phẩm
-│   ├── mobile_controls.tscn      # Nút bấm mobile (v0.9: button to hơn)
-│   ├── virtual_joystick.tscn     # Joystick ảo (v0.9: 200×200)
+│   ├── mobile_controls.tscn      # Nút bấm mobile (v1.0: +3 skill buttons)
+│   ├── virtual_joystick.tscn     # Joystick ảo
 │   └── settings.tscn             # Menu cài đặt
 ├── scripts/                      # GDScript files (.gd)
-│   ├── main.gd                   # Scene chính logic (v0.9: fix @onready paths)
+│   ├── main.gd                   # Scene chính logic (v1.0: +skill handlers)
 │   ├── menu.gd                   # Menu logic
 │   ├── loading_screen.gd         # Loading screen
-│   ├── player.gd                 # Người chơi logic (v0.9: reset state on die)
-│   ├── ai_player.gd              # AI logic
-│   ├── dart.gd                   # Phi tiêu logic (v0.9: fix collision_mask)
-│   ├── hud.gd                    # HUD logic
-│   ├── map.gd                    # Bản đồ logic
+│   ├── player.gd                 # Player (v1.0: +skills, +heal on kill, +floating text)
+│   ├── ai_player.gd              # AI (v1.0: +max HP scale, +leaderboard, +dash)
+│   ├── dart.gd                   # Phi tiêu logic
+│   ├── hud.gd                    # HUD (v1.0: +skill UI, +results panel, +leaderboard)
+│   ├── map.gd                    # Map (v1.0: +grid, +decorations, +obstacle types)
 │   ├── pickup.gd                 # Vật phẩm logic
-│   ├── game_manager.gd           # Singleton: quản lý game
+│   ├── game_manager.gd           # Singleton (v1.0: +match timer, +leaderboard, +skills config)
 │   ├── settings_manager.gd       # Singleton: cài đặt + device detect
 │   ├── audio_manager.gd          # Singleton: âm thanh + nhạc
-│   ├── mobile_controls.gd        # Nút bấm mobile (v0.9: multi-touch fix)
-│   ├── virtual_joystick.gd       # Joystick ảo (v0.9: multi-touch fix)
+│   ├── mobile_controls.gd        # Mobile controls (v1.0: +skill button handlers)
+│   ├── virtual_joystick.gd       # Joystick ảo
 │   └── settings_menu.gd          # Menu cài đặt
-├── project.godot                 # Godot project config (v0.9)
-├── export_presets.cfg            # Export presets (v0.9)
+├── project.godot                 # Godot project config (v1.0)
+├── export_presets.cfg            # Export presets
 ├── icon.svg                      # App icon
 ├── CHANGELOG.md                  # Lịch sử thay đổi
 ├── LICENSE                       # MIT License
@@ -249,7 +300,7 @@ phitieudichchuyen/
 
 ---
 
-## 🔊 Hệ thống âm thanh (v0.8+)
+## 🔊 Hệ thống âm thanh
 
 Phiên bản 0.8 thêm **155 file âm thanh** (150 SFX + 5 nhạc nền), tất cả được generate procedurally bằng Python với nhiều kỹ thuật synthesis.
 
@@ -265,32 +316,12 @@ Phiên bản 0.8 thêm **155 file âm thanh** (150 SFX + 5 nhạc nền), tất 
 | pickup_health | 3 | Nhặt máu |
 | pickup_dart | 3 | Nhặt phi tiêu |
 | ui_click | 5 | Click nút |
-| ui_hover | 3 | Hover nút |
 | combo | 5 | Combo (tăng dần theo combo count) |
 | zone_warning | 3 | Cảnh báo ngoài vòng bo |
-| zone_shrink | 2 | Vòng bo thu nhỏ |
-| dart_stick | 3 | Phi tiêu cắm |
-| respawn | 2 | Hồi sinh |
-| damage | 3 | Bị sát thương |
+| powerup | 3 | Kích hoạt kỹ năng |
+| whoosh | 5 | Dash skill |
 | **Music** | 5 | menu (1) + game (2) + victory (1) + defeat (1) |
 | ... | ... | + nhiều categories khác |
-
-### AudioManager API
-
-```gdscript
-# Helper methods (chọn random variation tự động)
-AudioManager.play_throw()          # Random throw_whoosh_01..05
-AudioManager.play_teleport()       # Random teleport_zap_01..05
-AudioManager.play_hit()            # Random hit_impact_01..05
-AudioManager.play_kill()           # Random kill_explosion_01..05
-AudioManager.play_ui_click()
-AudioManager.play_combo(count)     # Combo x2..x6
-
-# Music
-AudioManager.play_music("menu")    # Fade in menu music
-AudioManager.play_music("game")    # Fade in game music
-AudioManager.stop_music()
-```
 
 ---
 
@@ -302,6 +333,7 @@ Xem [CHANGELOG.md](CHANGELOG.md) để biết chi tiết các thay đổi theo t
 
 | Version | Tính năng chính |
 |---------|-----------------|
+| **v1.0** | Map đẹp + 3 kỹ năng chủ động + Max HP theo size + Hồi 10% HP khi ăn + Sprite tách nền + Bảng xếp hạng cuối trận + Trận 5 phút |
 | **v0.9** | Fix joystick, multi-touch, AI dart xuyên player, teleport button. Button to hơn. |
 | **v0.8** | 150+ sound effects + nhạc nền, fix nút mobile, tối ưu |
 | **v0.7** | Full-screen landscape, nút bắn phi tiêu mới (hold-red line-rotate-release) |
@@ -339,4 +371,4 @@ Dự án phân phối dưới giấy phép **MIT**. Xem file [LICENSE](LICENSE) 
 
 ---
 
-> 🎯 **Phi Tiêu Dịch Chuyển** - Ném phi tiêu, dịch chuyển, nuốt đối thủ!
+> 🎯 **Phi Tiêu Dịch Chuyển v1.0** - Ném phi tiêu, dịch chuyển, nuốt đối thủ, giành hạng nhất!

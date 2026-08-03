@@ -2,6 +2,92 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.0] - 2026-08-03
+
+### Major Release - "Phi Tiêu Dịch Chuyển v1.0"
+
+### Added
+- **🎯 3 Kỹ năng chủ động**:
+  - **Dash (Q)**: Lướt nhanh 200px theo hướng di chuyển, cooldown 8s, dùng để né/truy đuổi
+  - **Shield (E)**: Khiên miễn damage 3 giây, cooldown 15s, có sprite khiên hex rune xoay
+  - **Multishot (Shift)**: Bắn 3 phi tiêu cùng lúc với spread 0.3 rad, cooldown 12s
+  - AI cũng có thể dùng dash để né dart hoặc rút lui
+  - HUD hiển thị cooldown từng skill
+  - 3 nút skill riêng trên mobile (DASH, SHIELD, MULTI)
+- **❤️ Hệ thống máu mới**:
+  - Max HP scale theo size: `max_hp = 100 + (size - 20) * 4`
+  - Size 60 (max) = 260 HP max
+  - Hồi **10% max HP** mỗi khi ăn đối thủ (cả player và AI)
+  - Signal `player_hp_changed(hp, max_hp)` để HUD cập nhật dynamic max HP
+- **⏱️ Trận đấu 5 phút**:
+  - `match_duration = 300.0` trong GameManager
+  - HUD hiển thị thời gian đếm ngược lớn ở giữa-top
+  - Cảnh báo âm thanh khi còn 30s cuối
+  - Tự động kết thúc trận khi hết giờ
+- **🏆 Bảng xếp hạng cuối trận**:
+  - Khi hết giờ hoặc trận kết thúc, hiện ResultsPanel full-screen
+  - Hiển thị rank (#1 vàng, #2 bạc, #3 đồng), tên, điểm, số kill
+  - Player được highlight màu cyan + "(Bạn)"
+  - Nút "Chơi lại" và "Menu chính"
+  - Sort theo score desc, rồi kills desc
+- **🗺️ Map vẽ lại hoàn chỉnh**:
+  - Grid pattern: lưới 100px nhẹ + lưới 500px đậm
+  - 3 loại obstacles: đá (shape bất đối xứ), cây (tán 3 lớp), thùng gỗ (X chữ)
+  - 20 obstacles đặt chiến lược
+  - Decoration layer: 40 bụi cỏ, hoa, vết nứt (không collision)
+  - Vòng bo: Line2D width 4 + Polygon2D fill nhẹ, màu đỏ/cam sống động
+  - Tường viền nâu đá với border highlight
+- **🎨 Sprite tách nền hoàn chỉnh** (regenerated bằng Python PIL):
+  - Player/AI: ninja warrior tròn với body color, headband accent, mắt trắng+pupil, belt+buckle vàng, rim light, gradient highlight
+  - 10 màu AI: red, green, purple, yellow, orange, cyan, pink, lime, teal, brown
+  - Dart: metallic tip + shaft silver gradient + fletching đỏ với shadow
+  - Pickup health: glowing halo + disc trắng + cross đỏ
+  - Pickup dart: glowing halo + disc vàng + mini dart icon
+  - Buttons: teleport (cyan swirl), throw (target rings), shield (hex rune)
+  - Joystick: recessed base + glossy knob
+  - **Tất cả corner pixels có alpha=0** (trong suốt hoàn toàn, không còn nền đen)
+- **✨ Hiệu ứng thêm**:
+  - Particle khi dash (cyan, hướng ngược dash direction)
+  - Particle khi shield (blue, surround player)
+  - Particle khi buff multishot (orange)
+  - Particle khi kill (red explosion, gravity)
+  - Particle khi level-up (gold, gravity âm)
+  - Smoke puff khi throw dart
+  - Floating text: "+100", "+26 HP", "-25", "BLOCK!" với tween rise+fade
+  - Hit flash: sprite modulate red 0.05s
+- **🎮 Input actions mới**: skill_dash (Q), skill_shield (E), skill_multishot (Shift)
+
+### Fixed
+- **[CRITICAL] AI teleport kill không kill được player**: `_check_teleport_kill` trong `ai_player.gd` chỉ gọi `p.take_damage_from(50, self)` → nếu player còn 50+ HP thì không chết nhưng AI vẫn ghi score/kill. Giờ fix: nếu player có shield → skip; ngược lại gọi `take_damage_from(9999.0, self)` để chắc chắn chết, chỉ ghi score/kill nếu player thực sự chết
+- **[CRITICAL] AI dart giết đối thủ không ghi score/kill**: `_on_dart_hit_player` trong `ai_player.gd` chỉ gọi `take_damage_from` không check kết quả. Giờ check `was_alive` trước và `is_alive` sau, nếu chuyển từ alive→dead thì AI được +score/kill/size/heal
+- **[CRITICAL] Player dart giết AI không ghi score/kill**: Tương tự, `_on_dart_hit_player` trong `player.gd` giờ check kết quả và ghi nhận +score/kill/size/heal + floating text
+- **[HIGH] Player chết không reset skill state**: `_die()` không reset `shield_active`, `is_dashing`, `multishot_ready`. Giờ reset tất cả + hide shield_sprite
+- **[HIGH] AI respawn không reset leaderboard**: `_respawn()` không set alive=true trong leaderboard. Giờ gọi `GameManager.set_ai_alive(ai_id, true)`, `update_ai_score(ai_id, 0)`, `update_ai_kills(ai_id, 0)`
+- **[HIGH] Player respawn không update max HP**: `_respawn()` set `player_size` về initial nhưng không gọi `update_player_max_hp_for_size()`. Giờ gọi để max HP reset về 100
+- **[MEDIUM] HUD hiển thị max HP cũ khi size thay đổi**: `hp_bar.max_value` hardcode 100. Giờ update theo `GameManager.player_max_hp` động
+- **[MEDIUM] Match không có giới hạn thời gian**: Trận chạy vô tận. Giờ có 5 phút + bảng xếp hạng
+- **[MEDIUM] Sprite nền đen opaque**: Player/AI sprite có nền đen (0,0,0,255) → nhìn như ô vuông. Giờ regenerate với nền trong suốt hoàn toàn
+- **[LOW] `Line2D.get_point()` không tồn tại trong Godot 4**: Map.gd dùng `border.get_point(0)` → error. Giờ dùng `get_point_position(0)`
+- **[LOW] `add_theme_font_size_override("font", ...)` sai tên**: Godot 4 dùng `"font_size"`. Đã fix
+- **[LOW] `True`/`False` viết hoa**: GDScript dùng `true`/`false` viết thường. Đã fix trong game_manager.gd
+
+### Changed
+- `scripts/game_manager.gd`: Thêm `match_duration`, `hp_per_size_unit`, `heal_percent_on_kill`, skill cooldown config; thêm `compute_max_hp_for_size()`, `update_player_max_hp_for_size()`, `heal_percent()`, leaderboard API (`register_ai_leaderboard`, `update_ai_score`, `update_ai_kills`, `set_ai_alive`, `get_sorted_leaderboard`), `end_match()`; thêm `game_over` signal với leaderboard data; thêm `match_time_changed` signal; đổi `player_max_hp` từ const thành dynamic var
+- `scripts/player.gd`: Thêm skill system (Dash/Shield/Multishot), shield_sprite, `skill_cooldowns` dict, `_update_skills()`, `_do_dash()`, `_do_shield()`, `_do_multishot()`, `_deactivate_shield()`, `is_shield_active()`, `_spawn_dash_effect()`, `_spawn_shield_effect()`, `_spawn_buff_effect()`, `_spawn_kill_effect()`, `_spawn_level_up_effect()`, `_spawn_smoke_puff()`, `_spawn_floating_text()`; `_check_teleport_kill` giờ heal 10% max HP; `_on_dart_hit_player` giờ check kill và ghi score; `take_damage_from` giờ check shield; `_die` reset skill state; `_respawn` update max HP
+- `scripts/ai_player.gd`: Thêm `current_max_hp`, `ai_kills`, `ai_shield_active`, `dash_cooldown`; `_check_teleport_kill` giờ kill ngay (không phải 50 dmg); `_on_dart_hit_player` check kill; `_grow_size` update max HP; `_heal_on_kill` hồi 10% max HP; `_ai_dash` cho AI; `_spawn_level_up_effect`; `_respawn` reset leaderboard
+- `scripts/hud.gd`: Thêm `MatchTimerLabel`, `SkillPanel` (3 labels), `ResultsPanel` (title + list + 2 buttons); `_update_skill_ui()`; `_on_match_time_changed()`; `_on_game_over()`; `_show_results()`; `_on_hp_changed()` cập nhật dynamic max HP; `_get_dart_info` hiển thị [MULTI!] khi multishot_ready
+- `scripts/map.gd`: Rewrite hoàn toàn - `_setup_background`, `_create_grid` (2 layer grid), `_create_walls` với border, `_create_obstacles` với 3 types (rock/tree/crate), `_create_decorations` (grass/flower/crack), `_update_zone_visual` với fill polygon
+- `scripts/mobile_controls.gd`: Thêm 3 skill button handlers (`skill_dash_pressed`, `skill_shield_pressed`, `skill_multishot_pressed` signals), `_dash_rect`, `_shield_rect`, `_multishot_rect`, touch tracking cho 3 skill buttons
+- `scripts/main.gd`: Connect skill signals từ mobile_controls, `_on_mobile_skill_dash/shield/multishot` handlers, connect `game_over` signal
+- `scenes/player.tscn`: Thêm `ShieldSprite` (load shield.png), `SkillCooldownLabel` (hidden), sprite scale 0.3
+- `scenes/ai_player.tscn`: Sprite scale 0.3
+- `scenes/dart.tscn`: Sprite scale 0.25, collision radius 10, collision_mask 29
+- `scenes/pickup.tscn`: Sprite scale 0.4, collision radius 18, TypeLabel hidden
+- `scenes/map.tscn`: Thêm `GridLayer`, `DecorLayer`, `ZoneFill` (Polygon2D)
+- `scenes/hud.tscn`: Thêm `MatchTimerLabel`, `SkillPanel` (3 sub-labels), `ResultsPanel` (title + list + 2 buttons)
+- `scenes/mobile_controls.tscn`: Thêm 3 skill buttons (DASH/SHIELD/MULTI), reposition teleport/throw
+- `project.godot`: Version 1.0, thêm input actions skill_dash/shield/multishot
+
 ## [0.9] - 2026-08-03
 
 ### Fixed

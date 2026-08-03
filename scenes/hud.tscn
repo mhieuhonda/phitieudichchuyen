@@ -10,6 +10,7 @@ offset_top = 10.0
 offset_right = 260.0
 offset_bottom = 35.0
 text = "Điểm: 0"
+theme_override_font_sizes/font_size = 18
 
 [node name="HpBar" type="ProgressBar" parent="."]
 offset_left = 10.0
@@ -43,7 +44,7 @@ text = "Còn sống: 6"
 [node name="SizeLabel" type="Label" parent="."]
 offset_left = 10.0
 offset_top = 150.0
-offset_right = 260.0
+offset_right = 280.0
 offset_bottom = 175.0
 text = "Kích thước: 20"
 
@@ -53,6 +54,19 @@ offset_top = 180.0
 offset_right = 260.0
 offset_bottom = 205.0
 text = "00:00"
+
+[node name="MatchTimerLabel" type="Label" parent="."]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -100.0
+offset_top = 10.0
+offset_right = 100.0
+offset_bottom = 50.0
+grow_horizontal = 2
+text = "⏱ 05:00"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 
 [node name="ComboLabel" type="Label" parent="."]
 visible = false
@@ -74,9 +88,9 @@ anchors_preset = 7
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -240.0
-offset_top = 10.0
+offset_top = 60.0
 offset_right = 240.0
-offset_bottom = 50.0
+offset_bottom = 100.0
 grow_horizontal = 2
 
 [node name="ZoneWarningLabel" type="Label" parent="ZoneWarning"]
@@ -98,9 +112,9 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -360.0
-offset_top = 10.0
+offset_top = 60.0
 offset_right = -10.0
-offset_bottom = 200.0
+offset_bottom = 250.0
 grow_horizontal = 0
 alignment = 2
 
@@ -125,7 +139,7 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 10.0
-offset_top = -110.0
+offset_top = -130.0
 offset_right = 360.0
 offset_bottom = -10.0
 grow_vertical = 0
@@ -172,6 +186,63 @@ grow_horizontal = 2
 text = "Tự respawn sau 3s..."
 horizontal_alignment = 1
 
+[node name="SkillPanel" type="Panel" parent="."]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -270.0
+offset_top = -90.0
+offset_right = 270.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="SkillDashLabel" type="Label" parent="SkillPanel"]
+layout_mode = 1
+anchor_left = 0.0
+anchor_right = 0.33
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -4.0
+offset_bottom = 70.0
+text = "Q: Dash
+SẴN SÀNG"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.4, 1, 0.9, 1)
+
+[node name="SkillShieldLabel" type="Label" parent="SkillPanel"]
+layout_mode = 1
+anchor_left = 0.33
+anchor_right = 0.66
+offset_left = 4.0
+offset_top = 8.0
+offset_right = -4.0
+offset_bottom = 70.0
+text = "E: Shield
+SẴN SÀNG"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.5, 0.9, 1, 1)
+
+[node name="SkillMultishotLabel" type="Label" parent="SkillPanel"]
+layout_mode = 1
+anchor_left = 0.66
+anchor_right = 1.0
+offset_left = 4.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 70.0
+text = "Shift: Multi
+SẴN SÀNG"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 0.7, 0.2, 1)
+
 [node name="FPSLabel" type="Label" parent="."]
 visible = false
 anchors_preset = 3
@@ -217,3 +288,72 @@ grow_horizontal = 2
 text = "Tu dong chon do hoa: Trung Binh"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.3, 0.8, 1, 1)
+
+[node name="ResultsPanel" type="Panel" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ResultsTitle" type="Label" parent="ResultsPanel"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 40.0
+offset_right = 400.0
+offset_bottom = 130.0
+grow_horizontal = 2
+text = "KẾT THÚC TRANH ĐẤU!"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 32
+
+[node name="ResultsList" type="VBoxContainer" parent="ResultsPanel"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -350.0
+offset_top = 160.0
+offset_right = 350.0
+offset_bottom = 480.0
+grow_horizontal = 2
+alignment = 1
+
+[node name="ResultsRestartBtn" type="Button" parent="ResultsPanel"]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -80.0
+offset_right = -20.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "CHƠI LẠI"
+
+[node name="ResultsMenuBtn" type="Button" parent="ResultsPanel"]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -80.0
+offset_right = 200.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "MENU CHÍNH"

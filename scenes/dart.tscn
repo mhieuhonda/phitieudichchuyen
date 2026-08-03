@@ -2,19 +2,19 @@
 [ext_resource type="Script" path="res://scripts/dart.gd" id="1"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_dart"]
-radius = 8.0
+radius = 10.0
 
 [node name="Dart" type="Area2D" groups=["darts"]]
 collision_layer = 2
-collision_mask = 20
+collision_mask = 29
 script = ExtResource("1")
 
 [node name="Sprite" type="Sprite2D" parent="."]
-scale = Vector2(0.5, 0.5)
+scale = Vector2(0.25, 0.25)
 
 [node name="GlowSprite" type="Sprite2D" parent="."]
 visible = false
-scale = Vector2(0.6, 0.6)
+scale = Vector2(0.3, 0.3)
 modulate = Color(0.3, 0.8, 1, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

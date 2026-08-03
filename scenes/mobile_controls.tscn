@@ -11,6 +11,57 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1")
 
+[node name="SkillDashButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -690.0
+offset_top = -90.0
+offset_right = -560.0
+offset_bottom = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "DASH
+Q"
+theme_override_font_sizes/font_size = 14
+
+[node name="SkillShieldButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -560.0
+offset_top = -90.0
+offset_right = -430.0
+offset_bottom = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "SHIELD
+E"
+theme_override_font_sizes/font_size = 14
+
+[node name="SkillMultishotButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -430.0
+offset_top = -90.0
+offset_right = -300.0
+offset_bottom = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "MULTI
+Shift"
+theme_override_font_sizes/font_size = 12
+
 [node name="TeleportButton" type="TextureButton" parent="."]
 layout_mode = 1
 anchors_preset = 3
