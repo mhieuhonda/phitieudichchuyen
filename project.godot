@@ -14,7 +14,7 @@ config/name="Phi Tiêu Dịch Chuyển"
 config/description="Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down."
 run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.2", "Mobile")
-config/version="1.1"
+config/version="1.2"
 config/icon="res://icon.svg"
 
 [autoload]
@@ -22,6 +22,7 @@ config/icon="res://icon.svg"
 GameManager="*res://scripts/game_manager.gd"
 SettingsManager="*res://scripts/settings_manager.gd"
 AudioManager="*res://scripts/audio_manager.gd"
+CharacterData="*res://scripts/character_data.gd"
 
 [display]
 

@@ -47,16 +47,16 @@ static func reset_name_index():
     ai_name_index = 0
 
 static var ai_sprite_files: Array = [
-    "res://assets/sprites/ai_red.png",
-    "res://assets/sprites/ai_green.png",
-    "res://assets/sprites/ai_purple.png",
-    "res://assets/sprites/ai_yellow.png",
-    "res://assets/sprites/ai_orange.png",
-    "res://assets/sprites/ai_cyan.png",
-    "res://assets/sprites/ai_pink.png",
-    "res://assets/sprites/ai_lime.png",
-    "res://assets/sprites/ai_teal.png",
-    "res://assets/sprites/ai_brown.png",
+    "res://assets/sprites/characters/ai_red.png",
+    "res://assets/sprites/characters/ai_green.png",
+    "res://assets/sprites/characters/ai_purple.png",
+    "res://assets/sprites/characters/ai_yellow.png",
+    "res://assets/sprites/characters/ai_orange.png",
+    "res://assets/sprites/characters/ai_cyan.png",
+    "res://assets/sprites/characters/ai_pink.png",
+    "res://assets/sprites/characters/ai_lime.png",
+    "res://assets/sprites/characters/ai_teal.png",
+    "res://assets/sprites/characters/ai_brown.png",
 ]
 
 signal ai_died(ai: CharacterBody2D, killer: Node2D)

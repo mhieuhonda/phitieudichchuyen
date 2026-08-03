@@ -1,17 +1,18 @@
 extends CanvasLayer
 
-## HUD - Giao diện người chơi (v1.1)
+## HUD - Giao diện người chơi (v1.2)
 ## - Giao diện gọn gàng, không rối mắt
 ## - Thanh máu, điểm, phi tiêu, kỹ năng
 ## - Leaderboard khi kết thúc trận
+## - FIX: UI tối giản, không rối
 
-@onready var score_label: Label = $ScoreLabel
-@onready var hp_bar: ProgressBar = $HpBar
-@onready var dart_count_label: Label = $DartCountLabel
+@onready var score_label: Label = $TopBar/ScoreLabel
+@onready var hp_bar: ProgressBar = $TopBar/HpBar
+@onready var dart_count_label: Label = $TopBar/DartCountLabel
 @onready var zone_warning: Panel = $ZoneWarning
-@onready var zone_timer_label: Label = $ZoneTimerLabel
+@onready var zone_timer_label: Label = $TopBar/ZoneTimerLabel
 @onready var kill_feed: VBoxContainer = $KillFeed
-@onready var alive_label: Label = $AliveLabel
+@onready var alive_label: Label = $TopBar/AliveLabel
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var game_over_label: Label = $GameOverPanel/GameOverLabel
 @onready var restart_label: Label = $GameOverPanel/RestartLabel
@@ -56,11 +57,20 @@ func _ready():
 
     fps_label.visible = SettingsManager.show_fps
 
-    # Buttons kết quả
     if results_restart_btn:
         results_restart_btn.pressed.connect(_on_results_restart)
     if results_menu_btn:
         results_menu_btn.pressed.connect(_on_results_menu)
+
+    # Apply UI opacity
+    _apply_ui_opacity()
+
+func _apply_ui_opacity():
+    var opacity = SettingsManager.ui_opacity
+    if $TopBar:
+        $TopBar.modulate.a = opacity
+    if skill_panel:
+        skill_panel.modulate.a = opacity
 
 func set_player(p: CharacterBody2D):
     player = p
@@ -157,9 +167,6 @@ func _update_skill_ui():
         if cd > 0:
             skill_multishot_label.text = "Multi\n%.1fs" % cd
             skill_multishot_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-        elif player.multishot_ready:
-            skill_multishot_label.text = "Multi\nSẴN SÀNG!"
-            skill_multishot_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2))
         else:
             skill_multishot_label.text = "Multi\nSẴN SÀNG"
             skill_multishot_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2))
@@ -176,7 +183,7 @@ func _get_dart_info() -> String:
                 flying += 1
             elif dart.is_stuck():
                 stuck += 1
-    var max_darts = GameManager.max_darts_per_player + player.dart_bonus
+    var max_darts = GameManager.max_darts_per_player + player.dart_bonus + player.char_dart_bonus
     if flying > 0:
         return "Phi tiêu: %d bay + %d cắm / %d" % [flying, stuck, max_darts]
     elif stuck > 0:
@@ -250,14 +257,12 @@ func _add_kill_feed(text: String, color: Color = Color.WHITE):
     var label = Label.new()
     label.text = text
     label.add_theme_color_override("font_color", color)
-    label.add_theme_font_size_override("font_size", 13)
+    label.add_theme_font_size_override("font_size", 12)
     kill_feed.add_child(label)
     get_tree().create_timer(3.0).timeout.connect(label.queue_free)
 
 func _restart_game():
     get_tree().reload_current_scene()
-
-# === MATCH OVER / LEADERBOARD ===
 
 func _on_game_over(winner_name: String, leaderboard: Array):
     _show_results(winner_name, leaderboard)
@@ -271,11 +276,9 @@ func _show_results(winner_name: String, leaderboard: Array):
     else:
         results_title.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
 
-    # Xóa entries cũ
     for child in results_list.get_children():
         child.queue_free()
 
-    # Thêm entries mới
     for i in range(leaderboard.size()):
         var entry = leaderboard[i]
         var row = HBoxContainer.new()
@@ -284,7 +287,7 @@ func _show_results(winner_name: String, leaderboard: Array):
         var rank_label = Label.new()
         rank_label.text = "#%d" % (i + 1)
         rank_label.custom_minimum_size = Vector2(60, 0)
-        rank_label.add_theme_font_size_override("font_size", 22)
+        rank_label.add_theme_font_size_override("font_size", 20)
         if i == 0:
             rank_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
         elif i == 1:
@@ -296,7 +299,7 @@ func _show_results(winner_name: String, leaderboard: Array):
         var name_label2 = Label.new()
         name_label2.text = entry["name"]
         name_label2.custom_minimum_size = Vector2(160, 0)
-        name_label2.add_theme_font_size_override("font_size", 20)
+        name_label2.add_theme_font_size_override("font_size", 18)
         if entry.get("is_player", false):
             name_label2.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
             name_label2.text = entry["name"] + " (Bạn)"
@@ -304,14 +307,14 @@ func _show_results(winner_name: String, leaderboard: Array):
 
         var score_lbl = Label.new()
         score_lbl.text = "Điểm: %d" % entry["score"]
-        score_lbl.custom_minimum_size = Vector2(140, 0)
-        score_lbl.add_theme_font_size_override("font_size", 20)
+        score_lbl.custom_minimum_size = Vector2(120, 0)
+        score_lbl.add_theme_font_size_override("font_size", 18)
         row.add_child(score_lbl)
 
         var kills_lbl = Label.new()
         kills_lbl.text = "Kill: %d" % entry["kills"]
-        kills_lbl.custom_minimum_size = Vector2(100, 0)
-        kills_lbl.add_theme_font_size_override("font_size", 20)
+        kills_lbl.custom_minimum_size = Vector2(80, 0)
+        kills_lbl.add_theme_font_size_override("font_size", 18)
         row.add_child(kills_lbl)
 
         results_list.add_child(row)

@@ -25,11 +25,11 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -340.0
-offset_top = 60.0
+offset_top = 40.0
 offset_right = 340.0
-offset_bottom = 160.0
+offset_bottom = 120.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 48
+theme_override_font_sizes/font_size = 44
 text = "PHI TIÊU DỊCH CHUYỂN"
 horizontal_alignment = 1
 
@@ -39,11 +39,11 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -290.0
-offset_top = 160.0
+offset_top = 120.0
 offset_right = 290.0
-offset_bottom = 200.0
+offset_bottom = 150.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!"
 horizontal_alignment = 1
 
@@ -52,13 +52,13 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -240.0
-offset_top = 220.0
-offset_right = 240.0
-offset_bottom = 320.0
+offset_left = -260.0
+offset_top = 165.0
+offset_right = 260.0
+offset_bottom = 260.0
 grow_horizontal = 2
 bbcode_enabled = true
-text = "MỚI v1.1: Fix nhân vật + Dịch chuyển tức thì + Map đẹp + Giao diện gọn!"
+text = "MỚI v1.2!"
 
 [node name="PlayButton" type="Button" parent="."]
 layout_mode = 1
@@ -66,11 +66,23 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -150.0
+offset_top = 280.0
+offset_right = 150.0
+offset_bottom = 325.0
+grow_horizontal = 2
+text = "⚔ CHƠI NGAY"
+
+[node name="CharactersButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
 offset_top = 340.0
 offset_right = 150.0
-offset_bottom = 390.0
+offset_bottom = 385.0
 grow_horizontal = 2
-text = "CHƠI NGAY"
+text = "🥷 NHÂN VẬT"
 
 [node name="SettingsButton" type="Button" parent="."]
 layout_mode = 1
@@ -78,11 +90,11 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -150.0
-offset_top = 410.0
+offset_top = 400.0
 offset_right = 150.0
-offset_bottom = 460.0
+offset_bottom = 445.0
 grow_horizontal = 2
-text = "CÀI ĐẶT"
+text = "⚙ CÀI ĐẶT"
 
 [node name="QuitButton" type="Button" parent="."]
 layout_mode = 1
@@ -90,9 +102,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -150.0
-offset_top = 480.0
+offset_top = 460.0
 offset_right = 150.0
-offset_bottom = 530.0
+offset_bottom = 505.0
 grow_horizontal = 2
 text = "THOÁT"
 
@@ -106,4 +118,4 @@ offset_top = -40.0
 offset_right = 300.0
 offset_bottom = -10.0
 grow_vertical = 0
-text = "v1.1 - Phi Tiêu Dịch Chuyển"
+text = "v1.2 - Phi Tiêu Dịch Chuyển"

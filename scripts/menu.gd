@@ -1,10 +1,11 @@
 extends Control
 
-## Menu - Menu chính (v1.0)
+## Menu - Menu chính (v1.2)
 
 @onready var title_label: Label = $TitleLabel
 @onready var subtitle_label: Label = $SubtitleLabel
 @onready var play_button: Button = $PlayButton
+@onready var characters_button: Button = $CharactersButton
 @onready var settings_button: Button = $SettingsButton
 @onready var quit_button: Button = $QuitButton
 @onready var version_label: Label = $VersionLabel
@@ -12,14 +13,15 @@ extends Control
 
 func _ready():
 	play_button.pressed.connect(_on_play_pressed)
+	characters_button.pressed.connect(_on_characters_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
 
-	for btn in [play_button, settings_button, quit_button]:
+	for btn in [play_button, characters_button, settings_button, quit_button]:
 		btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-	new_feature_label.text = "[color=cyan][b]v1.0:[/b][/color] Map mới + Skill chủ động (Dash/Shield/Multishot) + Xếp hạng cuối trận\n[color=yellow]v1.0:[/color] Max HP theo size + Hồi 10% HP khi ăn đối thủ + Sprite tách nền đẹp\n[color=green]v1.0:[/color] Trận 5 phút + Hiệu ứng đẹp + Fix toàn bộ lỗi logic"
-	version_label.text = "v1.0 - Phi Tiêu Dịch Chuyển"
+	new_feature_label.text = "[color=cyan][b]v1.2:[/b][/color] 12 nhân vật độc đáo + Xem & trang bị nhân vật + Chỉnh sửa giao diện\n[color=yellow]v1.2:[/color] Sprite nhân vật đẹp + Tách nền + Nhiều effect + Sound effect\n[color=green]v1.2:[/color] Fix toàn bộ lỗi di chuyển + UI gọn gàng + Kỹ năng nhân vật riêng"
+	version_label.text = "v1.2 - Phi Tiêu Dịch Chuyển"
 
 	AudioManager.play_music("menu")
 
@@ -28,6 +30,10 @@ func _on_play_pressed():
 	AudioManager.play_confirm()
 	SettingsManager.pending_scene = "res://scenes/main.tscn"
 	get_tree().change_scene_to_file("res://scenes/loading.tscn")
+
+func _on_characters_pressed():
+	AudioManager.play_ui_click()
+	get_tree().change_scene_to_file("res://scenes/character_screen.tscn")
 
 func _on_settings_pressed():
 	AudioManager.play_ui_click()

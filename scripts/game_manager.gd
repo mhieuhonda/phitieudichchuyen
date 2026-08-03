@@ -130,6 +130,11 @@ func _process(delta):
 func reset_game():
     player_score = 0
     player_size = initial_player_radius
+    # Apply character HP bonus
+    var char_hp_bonus = 0.0
+    if CharacterData:
+        char_hp_bonus = CharacterData.get_hp_bonus(CharacterData.selected_character_id)
+    base_player_max_hp = 100.0 + char_hp_bonus
     player_max_hp = compute_max_hp_for_size(player_size)
     player_hp = player_max_hp
     zone_radius = map_size.x * 0.45
