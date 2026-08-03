@@ -1,131 +1,164 @@
-# 🎯 Phi Tiêu Dịch Chuyển
+# 🎯 Phi Tiêu Dịch Chuyển v1.2
 
-> Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!
+> **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
+> 
+> Game 2D top-down multiplayer arena được xây dựng bằng Godot Engine 4.2
 
-Game 2D top-down multiplayer-like được làm bằng **Godot 4.2**. Bạn ném phi tiêu, dịch chuyển tới vị trí phi tiêu, và tiêu diệt đối thủ!
-
-![Version](https://img.shields.io/badge/version-1.1-blue)
+![Version](https://img.shields.io/badge/version-1.2-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.2-blue)
-![Platform](https://img.shields.io/badge/platform-PC%20%7C%20Android%20%7C%20iOS-green)
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20PC-green)
 
 ---
 
 ## 🎮 Cách Chơi
 
-1. **Di chuyển**: WASD / Joystick ảo
-2. **Ném phi tiêu**: Chuột phải (PC) / Nút Bắn (Mobile) - Kéo và thả để ngắm
-3. **Dịch chuyển**: Space (PC) / Nút Dịch Chuyển (Mobile) - Dịch chuyển tức thì tới phi tiêu đang bay hoặc đã cắm
-4. **Ăn đối thủ**: Dịch chuyển tới vị trí có đối thủ gần phi tiêu để tiêu diệt
-5. **Kỹ năng**:
-   - **Q / Dash**: Lao nhanh về phía trước
-   - **E / Shield**: Khiên bảo vệ 3 giây
-   - **Shift / Multi**: Lần ném tiếp bắn 3 phi tiêu cùng lúc
-6. **Vòng bo**: Thu nhỏ dần, ở ngoài sẽ mất máu
-7. **Pickups**: Nhặt máu (+) và phi tiêu bổ sung (D)
+1. **Ném phi tiêu** (chuột phải / nút Ném) → nhắm và ném phi tiêu vào đối thủ
+2. **Dịch chuyển** (Space / nút Dịch Chuyển) → dịch chuyển tức thời đến vị trí phi tiêu
+3. **Ăn đối thủ** → dịch chuyển đến gần đối thủ để tiêu diệt và thu thập điểm
+4. **Thu thập** → nhặt vật phẩm hồi máu và tăng phi tiêu
+5. **Sinh tồn** → tránh vòng bo thu nhỏ, sống sót đến cuối trận!
 
-## ✨ Tính Năng
+## 🆕 Tính Năng v1.2
 
-- 🎯 Ném phi tiêu + dịch chuyển tức thì (mid-flight teleport)
-- 🤖 5 AI đối thủ với hành vi thông minh (né, rượt, bắn, dash)
-- 🔄 Vòng bo thu nhỏ dần (battle royale)
-- ⚔️ 3 kỹ năng chủ động: Dash, Shield, Multishot
-- 💊 Pickups: Hồi máu + Tăng giới hạn phi tiêu
-- 🏆 Xếp hạng cuối trận (leaderboard)
-- 💚 Hồi 10% max HP khi ăn đối thủ
-- 📱 Mobile controls + Joystick ảo
-- 🖥️ Tự động chọn đồ họa theo thiết bị
-- 🎵 Âm thanh & hiệu ứng đầy đủ
+### 🥷 12 Nhân Vật Độc Đáo
+| # | Tên | Loại | Đặc điểm | Kỹ năng riêng |
+|---|------|------|-----------|---------------|
+| 1 | Rồng Đỏ | Chiến Binh | +15 HP | Dash mạnh hơn 20% |
+| 2 | Phượng Xanh | Pháp Sư | +1 Phi tiêu | Multishot bắn 4 phi tiêu |
+| 3 | Hổ Vàng | Quyền Sư | +25 HP | Shield lâu hơn 50% |
+| 4 | Báo Lục | Sát Thủ | +20 Tốc độ | Dash cooldown giảm 30% |
+| 5 | Sói Tím | Chiến Binh | +10 HP, +5 Tốc độ | Dash để lại vệt tối |
+| 6 | Cáo Hồng | Pháp Sư | +1 Phi tiêu, +15 Tốc độ | Phi tiêu homing nhẹ |
+| 7 | Gấu Nâu | Quyền Sư | +30 HP | Shield phản damage 20% |
+| 8 | Diều Cam | Sát Thủ | +15 Tốc độ | Dash xuyên đối thủ |
+| 9 | Cọp Xanh | Chiến Binh | +10 HP, +10 Tốc độ | Dash tạo sóng nước |
+| 10 | Chồn Bạc | Sát Thủ | +25 Tốc độ | Dash 2 lần liên tiếp |
+| 11 | Thiên Long | Pháp Sư | +2 Phi tiêu | Multishot bắn 5 phi tiêu |
+| 12 | Hắc Vũ | Sát Thủ | +30 Tốc độ | Dash vô hình 1s |
 
-## 🛠️ Cài Đặt & Chạy
+### 🎨 Chỉnh Sửa Giao Diện
+- Kích thước joystick (50% - 150%)
+- Kích thước nút bấm (50% - 150%)
+- Độ trong suốt UI (30% - 100%)
+- Bố cục nút kỹ năng (Ngang / Dọc trái / Dọc phải)
+- Vị trí nút ném và dịch chuyển
+- Bố cục HUD (Trên / Dưới / Tối giản)
 
-### Yêu cầu
-- [Godot 4.2+](https://godotengine.org/download)
+### 🖼️ Nhân Vật Mới
+- Sprite nhân vật đẹp, tách nền trong suốt
+- Màn hình xem nhân vật: chỉ số, kỹ năng, trang bị
+- Mỗi nhân vật có bonus chỉ số riêng
+- Mỗi nhân vật có kỹ năng đặc biệt riêng
 
-### Chạy
-1. Clone repo:
-   ```bash
-   git clone https://github.com/mhieuhonda/phitieudichchuyen.git
-   ```
-2. Mở project bằng Godot Editor
-3. Nhấn **Play** (F5)
+### ✨ Hiệu Ứng & Âm Thanh
+- 155+ sound effects với variation ngẫu nhiên
+- 5 nhạc nền (menu, game, game_alt, victory, defeat)
+- Hiệu ứng particle khi: ném phi tiêu, dịch chuyển, kill, dash, shield
+- Floating text cho damage, heal, kill
+- Screen shake khi kill và dịch chuyển
+- Combo hiển thị với âm thanh đặc biệt
 
-### Export
-- **Android**: Project → Export → Add Android, cấu hình keystore và export
-- **iOS**: Project → Export → Add iOS
-- **Windows/Linux/Mac**: Project → Export → Add Desktop
+### 🐛 Bug Fixes
+- ✅ Fix: không bị khóa di chuyển khi đang ném phi tiêu
+- ✅ Fix: teleport kill kiểm tra shield đúng cách
+- ✅ Fix: nhân vật hiển thị đúng với sprite mới
+- ✅ Fix: UI gọn gàng hơn, không rối mắt
+- ✅ Fix: map đẹp hơn với nhiều decoration
 
-## 📁 Cấu Trúc Project
+## 🕹️ Điều Khiển
+
+### PC
+| Phím | Hành động |
+|------|-----------|
+| WASD / ←↑↓→ | Di chuyển |
+| Chuột phải | Nhắm & ném phi tiêu |
+| Space | Dịch chuyển đến phi tiêu |
+| Q | Kỹ năng Dash |
+| E | Kỹ năng Shield |
+| Shift | Kỹ năng Multishot |
+| ESC | Quay lại menu |
+
+### Mobile
+- Joystick ảo (trái): Di chuyển
+- Nút Ném (phải): Nhắm & ném phi tiêu
+- Nút Dịch Chuyển: Dịch chuyển đến phi tiêu
+- Nút Dash / Shield / Multishot: Kỹ năng
+
+## 🛠️ Kỹ Năng
+
+| Kỹ năng | Phím | Cooldown | Mô tả |
+|---------|------|----------|-------|
+| Dash | Q | 8s | Lao về phía trước với tốc độ cao |
+| Shield | E | 15s | Miễn damage trong 3 giây |
+| Multishot | Shift | 12s | Lần ném tiếp theo bắn 3 phi tiêu cùng lúc |
+
+## 🏗️ Công Nghệ
+
+- **Engine**: Godot 4.2
+- **Ngôn ngữ**: GDScript
+- **Nền tảng**: Android, iOS, PC, Web
+- **Đồ họa**: Tự phát hiện thiết bị và chọn chất lượng phù hợp
+- **Âm thanh**: Pool AudioStreamPlayer với 155+ sound effects
+
+## 📁 Cấu Trúc Dự Án
 
 ```
 phitieudichchuyen/
-├── scenes/           # Godot scenes (.tscn)
-│   ├── main.tscn     # Scene game chính
-│   ├── menu.tscn     # Menu chính
-│   ├── player.tscn   # Nhân vật người chơi
-│   ├── ai_player.tscn # AI đối thủ
-│   ├── dart.tscn     # Phi tiêu
-│   ├── map.tscn      # Bản đồ
-│   ├── hud.tscn      # Giao diện HUD
-│   ├── pickup.tscn   # Vật phẩm nhặt
-│   ├── mobile_controls.tscn
-│   ├── settings.tscn
-│   ├── loading.tscn
-│   └── virtual_joystick.tscn
-├── scripts/          # GDScript (.gd)
-│   ├── player.gd     # Logic người chơi
-│   ├── ai_player.gd  # Logic AI
-│   ├── dart.gd       # Logic phi tiêu
-│   ├── game_manager.gd # Singleton quản lý game
-│   ├── map.gd        # Logic bản đồ + obstacles + pickups
-│   ├── hud.gd        # Logic giao diện
-│   ├── main.gd       # Scene chính
-│   ├── mobile_controls.gd
-│   ├── menu.gd
-│   ├── settings_menu.gd
-│   ├── audio_manager.gd
-│   ├── settings_manager.gd
-│   ├── pickup.gd
-│   ├── virtual_joystick.gd
-│   └── loading_screen.gd
 ├── assets/
-│   ├── sprites/      # Hình ảnh PNG
-│   └── audio/        # Âm thanh WAV
-├── project.godot     # Cấu hình Godot
-├── CHANGELOG.md
-├── LICENSE
-└── README.md
+│   ├── audio/
+│   │   ├── music/          # 5 nhạc nền
+│   │   └── sfx/            # 155+ sound effects
+│   └── sprites/
+│       └── characters/     # 12 nhân vật + AI sprites
+├── scenes/
+│   ├── main.tscn           # Scene chính game
+│   ├── menu.tscn           # Menu chính
+│   ├── character_screen.tscn # Màn hình nhân vật
+│   ├── settings.tscn       # Cài đặt
+│   ├── ui_customization.tscn # Chỉnh sửa giao diện
+│   ├── hud.tscn            # HUD game
+│   ├── player.tscn         # Player
+│   ├── ai_player.tscn      # AI
+│   ├── dart.tscn            # Phi tiêu
+│   └── ...                 # Scenes khác
+├── scripts/
+│   ├── game_manager.gd     # Singleton quản lý game
+│   ├── settings_manager.gd # Singleton cài đặt
+│   ├── audio_manager.gd    # Singleton âm thanh
+│   ├── character_data.gd   # Singleton dữ liệu nhân vật
+│   ├── player.gd           # Script player
+│   ├── ai_player.gd        # Script AI
+│   └── ...                 # Scripts khác
+└── project.godot           # Cấu hình Godot
 ```
 
-## 🎮 Điều Khiển
+## 📜 Lịch Sử Phiên Bản
 
-| Hành động | PC | Mobile |
-|-----------|-----|--------|
-| Di chuyển | WASD / Arrow keys | Joystick trái |
-| Ngắm & Ném | Chuột phải (kéo-thả) | Nút Bắn (kéo-thả) |
-| Dịch chuyển | Space | Nút Dịch Chuyển |
-| Dash | Q | Nút Dash |
-| Shield | E | Nút Shield |
-| Multishot | Shift | Nút Multi |
-| Quay menu | Esc | Nút Back |
+### v1.2 (2026-08-03)
+- 12 nhân vật ninja/warrior với sprite đẹp, tách nền
+- Màn hình Nhân Vật: xem chỉ số, kỹ năng, trang bị
+- Màn hình Chỉnh Sửa Giao Diện: tùy chỉnh nút bấm, joystick, HUD
+- Character bonus: mỗi nhân vật có HP, tốc độ, phi tiêu, kỹ năng riêng
+- Fix: không bị khóa di chuyển khi ném phi tiêu
+- Fix: teleport kill kiểm tra shield đúng cách
+- Map đẹp hơn với nhiều decoration
+- UI gọn gàng hơn
 
-## 📋 Changelog
+### v1.0 (2026)
+- Phi tiêu + Dịch chuyển + Ăn đối thủ
+- 3 kỹ năng chủ động: Dash, Shield, Multishot
+- AI đối thủ thông minh
+- Vòng bo thu nhỏ
+- Leaderboard cuối trận
+- 155+ sound effects + 5 nhạc nền
+- Tự phát hiện thiết bị
 
-### v1.1 (2026-08-03)
-- Fix nhân vật quá to / không hiện
-- Fix không thể dịch chuyển sau khi bắn / khi phi tiêu đang bay
-- Fix nút dịch chuyển phản hồi chậm
-- Fix không thể ăn đối thủ
-- Giao diện gọn gàng hơn
-- Map đẹp hơn
-- Tăng tốc độ di chuyển & teleport kill radius
+## 📄 Giấy Phép
 
-### v1.0
-- Phiên bản đầu tiên
-
-## 📄 License
-
-Xem file [LICENSE](LICENSE) để biết chi tiết.
+Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 
 ---
 
-**Phi Tiêu Dịch Chuyển** - Made with ❤️ using Godot Engine
+<p align="center">
+  <b>Phi Tiêu Dịch Chuyển</b> - Ném phi tiêu, dịch chuyển, nuốt đối thủ!
+</p>
