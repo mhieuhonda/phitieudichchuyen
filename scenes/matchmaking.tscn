@@ -73,5 +73,3 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 50)
 theme_override_font_sizes/font_size = 20
 text = "HỦY TÌM TRẬN"
-
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

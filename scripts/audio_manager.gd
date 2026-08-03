@@ -188,7 +188,7 @@ func play_music(track_name: String, fade_time: float = 0.5):
         _music_fade_tween.tween_property(_music_player, "volume_db", -40.0, fade_time)
         _music_fade_tween.tween_callback(func():
             _music_player.stream = stream
-            _music_player.volume_db = _music_volume_db
+            _music_player.volume_db = -40.0
             _music_player.play()
         )
         _music_fade_tween.tween_property(_music_player, "volume_db", _music_volume_db, fade_time)

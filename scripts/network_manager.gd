@@ -76,6 +76,12 @@ func _process(delta):
                         connection_state = ConnectionState.DISCONNECTED
                         disconnected_from_server.emit()
                         _try_reconnect()
+                elif connection_state == ConnectionState.CONNECTING:
+                        # Initial connection attempt failed before reaching STATE_OPEN.
+                        # Without this branch the user would be stuck on "Connecting..." forever.
+                        connection_state = ConnectionState.DISCONNECTED
+                        connection_error.emit("Không thể kết nối đến server")
+                        _try_reconnect()
         elif state == WebSocketPeer.STATE_OPEN:
                 if not _is_connected:
                         _is_connected = true
@@ -88,6 +94,7 @@ func _process(delta):
                 _ping_timer += delta
                 if _ping_timer >= 15.0:
                         _ping_timer = 0.0
+                        _last_ping_time = Time.get_ticks_msec()
                         _send_message("ping", {})
 
 # === PUBLIC API ===
@@ -97,6 +104,11 @@ func connect_to_server(url: String = ""):
                 server_url = url
         if _is_connected:
                 return
+        # Re-enable auto-reconnect and reset attempts for fresh connect attempt
+        auto_reconnect = true
+        _reconnect_attempts = 0
+        # Recreate peer to clear any leftover state from a previous closed connection
+        _ws = WebSocketPeer.new()
         connection_state = ConnectionState.CONNECTING
         var err = _ws.connect_to_url(server_url)
         if err != OK:
@@ -216,7 +228,9 @@ func _send_message(type: String, data: Dictionary):
         if not _ws or not _is_connected:
                 return
         var msg = JSON.stringify({ "type": type, "data": data })
-        _ws.send_text(msg)
+        var err := _ws.send_text(msg)
+        if err != OK and OS.is_debug_build():
+                push_warning("[NetworkManager] send_text failed (%d) for type=%s" % [err, type])
 
 func _handle_message(raw: String):
         var json = JSON.new()
@@ -362,6 +376,9 @@ func _try_reconnect():
                 return
         _reconnect_attempts += 1
         get_tree().create_timer(reconnect_delay).timeout.connect(func():
+                # Re-check auto_reconnect in case disconnect_from_server() was called meanwhile
+                if not auto_reconnect:
+                        return
                 connect_to_server(server_url)
         )
 

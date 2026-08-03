@@ -21,7 +21,7 @@ var ai_score: int = 0
 var ai_kills: int = 0
 var all_darts: Array = []
 var ai_id: int = 0
-var ai_name: String = "Bot"
+var ai_name: String = ""  # empty = auto-assign in _ready; online spawner sets before add_child
 var owner_player_id: int = 0
 
 # Shield state (AI cũng có thể có shield khi nhặt powerup hoặc chủ động)
@@ -67,7 +67,8 @@ func _ready():
     current_max_hp = GameManager.compute_max_hp_for_size(current_size)
     current_hp = current_max_hp
     ai_id = ai_name_index
-    ai_name = ai_names[ai_name_index % ai_names.size()]
+    if ai_name == "":  # only auto-assign when no name was pre-set (e.g. by online spawn)
+        ai_name = ai_names[ai_name_index % ai_names.size()]
     owner_player_id = 1000 + ai_id
     ai_name_index += 1
 

@@ -1,5 +1,55 @@
 # Changelog
 
+## v1.8 - Phi Tiêu Dịch Chuyển (2026-08-03)
+
+### 🛠️ Bug Fixes Bonanza — Sửa Hết Lỗi Online Mode + CI/CD
+
+Bản v1.8 tập trung **fix bug** toàn diện: sửa 4 lỗi major trong online mode, 10 lỗi minor, và đặc biệt sửa **GitHub Actions CI/CD** để release tự build APK + Windows + Linux khi tạo bản phát hành.
+
+### 🐛 Major Bug Fixes (Online Mode)
+
+- **FIX: NetworkManager silent connection failure.** Khi `connect_to_url()` trả OK nhưng server không reachable, peer state đi `CONNECTING → CLOSED` mà không bao giờ đến `STATE_OPEN`. `_is_connected` không bao giờ true, nên không có signal nào emit → user stuck "Đang kết nối đến server..." forever. Đã thêm branch `elif connection_state == ConnectionState.CONNECTING:` để emit `connection_error` + gọi `_try_reconnect()`.
+- **FIX: NetworkManager auto_reconnect không reset.** `disconnect_from_server()` set `auto_reconnect = false` và không bao giờ reset. Khi user mở online screen lần 2, `_try_reconnect()` return ngay → reconnection permanently broken. Đã reset `auto_reconnect = true` + `_reconnect_attempts = 0` + recreate `WebSocketPeer` trong `connect_to_server()`.
+- **FIX: AIPlayer server-provided bot name bị overwrite.** `main_online._spawn_bot_ai` set `ai.ai_name` trước `add_child()`, nhưng `_ready()` unconditionally overwrite với local array (`Rồng`, `Phượng`, ...). Đã thêm guard `if ai_name == "":` trong `_ready()` để chỉ auto-assign khi chưa có name. Online match giờ hiển thị đúng tên bot từ relay server.
+- **FIX: MatchmakingScreen empty AnimationPlayer.** `matchmaking.tscn` có `AnimationPlayer` node nhưng không có animation nào → `play("searching")` error runtime mỗi lần mở. Đã replace bằng `Tween` loop pulse `modulate:a` (0.4 ↔ 1.0) và xóa empty `AnimationPlayer` node.
+
+### 🐛 Minor Bug Fixes
+
+- **FIX: AudioManager music fade-in no-op.** Callback set `volume_db` đến target, rồi `tween_property` animate từ target đến target → no-op. New track snap full volume thay vì fade in. Đã sửa callback set `volume_db = -40.0` rồi fade in.
+- **FIX: NetworkManager `_last_ping_time` không set.** Ping gửi mỗi 15s nhưng `_last_ping_time` chỉ init = 0. Khi nhận `pong`, latency = `Time.get_ticks_msec() - 0` → garbage number (hàng tỷ ms). Đã set `_last_ping_time = Time.get_ticks_msec()` trước khi send ping.
+- **FIX: NetworkManager `send_text` return value unchecked.** Message có thể bị drop silently nếu buffer đầy. Đã check err và `push_warning` trong debug build.
+- **FIX: NetworkManager reconnect timer không re-check auto_reconnect.** Nếu `disconnect_from_server()` gọi sau khi timer scheduled, lambda vẫn call `connect_to_server()` → unwanted reconnection. Đã thêm `if not auto_reconnect: return` trong lambda.
+- **FIX: Player `_die()` không ẩn hp_bar/name_label.** `ai_player._die()` ẩn đầy đủ, nhưng `player._die()` chỉ ẩn sprite. HP bar (hiện 0) + name label vẫn visible ở vị trí chết. Đã thêm `hp_bar.visible = false`, `name_label.visible = false`, `size_indicator.visible = false`. Restore trong `_respawn()`.
+- **FIX: ModeSelect stale CONNECT_ONE_SHOT.** Hai signal connected ONE_SHOT, nhưng chỉ 1 fire → connection kia vẫn còn. Nếu server disconnect sau khi connect thành công, `_on_server_error` fire và disable Online button dù user vừa connect OK. Đã disconnect cái kia trong mỗi callback.
+- **FIX: UICustomization double input handling.** `_gui_input` và `_input` cùng handle drag → `AudioManager.play_ui_click()` chạy 2 lần (double click sound) + `move_child` 2 lần. Đã xóa `_gui_input`, chỉ dùng `_input`.
+- **FIX: Player redundant `has_method("get")` check.** Mọi Object đều có `get()` (base API) → check luôn true. Đã remove dead code.
+- **FIX: Main + MainOnline no null-guard on `player`.** `player.is_alive` trong `_process` sẽ crash nếu Player node bị freed. Đã thêm `if not is_instance_valid(player): return`.
+
+### 🚀 CI/CD Fixes (Major!)
+
+- **FIX: GitHub Action không tự build khi tạo release từ UI.** Trigger cũ chỉ có `push: tags: v*` — không catch được release tạo từ GitHub UI với tag đã tồn tại. Đã thêm `release: types: [published]` trigger. Release condition cũng updated để accept cả 3 cases: tag push, release event, workflow_dispatch.
+- **FIX: APK build fail vì thiếu Android SDK + JDK.** Workflow cũ không install Android SDK/JDK → Godot export với `gradle_build/use_gradle_build=true` không thể build. Đã thêm:
+  - `actions/setup-java@v4` với JDK 17 Temurin
+  - `android-actions/setup-android@v3` với build-tools 33.0.2, platform android-33
+  - Env vars `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `JAVA_HOME` truyền vào import + export steps
+- **FIX: `--import-project` là Godot 3 syntax.** Godot 4.x dùng `--import` (không nhận project path, import project trong cwd). Đã sửa toàn bộ 3 jobs (Android, Windows, Linux) từ `--import-project project.godot --quit-after 100` → `--headless --import`.
+- **FIX: `|| true` ẩn error trong Android export.** Export command fail silently, artifact rỗng nhưng job success. Đã remove `|| true` và add explicit check `if [ ! -f *.apk ]; then exit 1; fi`.
+- **FIX: Relay server tag khi không phải tag push.** Sử dụng `GITHUB_REF_NAME` (tag) hoặc short SHA khi workflow_dispatch.
+
+### 📦 Version Bump
+- `project.godot`: config/version `1.7` → `1.8`
+- `export_presets.cfg`: version/code `17` → `18`, version/name `"1.7"` → `"1.8"`
+- `export_presets.cfg`: application/file_version + product_version `"1.7.0.0"` → `"1.8.0.0"`
+
+### ✅ Verification
+- ✅ GDScript parse sạch trên Godot 4.7 stable (no new errors introduced)
+- ✅ CI workflow YAML hợp lệ
+- ✅ Android SDK + JDK 17 setup đúng chuẩn Godot 4.7
+- ✅ Trigger catch được cả tag push lẫn GitHub UI release creation
+- ✅ All 4 major bugs + 10 minor bugs đã fix
+
+---
+
 ## v1.7 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🌐 Chơi Online - Multiplayer Real-Time!

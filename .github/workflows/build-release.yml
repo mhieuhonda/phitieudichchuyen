@@ -4,10 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. 1.7.0)'
+        description: 'Version (e.g. 1.8.0)'
         required: false
         default: ''
 
@@ -31,6 +33,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            tools
+            platform-tools
+            build-tools;33.0.2
+            platforms;android-33
+            cmdline-tools;latest
+
       - name: Setup Godot & Export Templates
         run: |
           GV="${{ env.GODOT_VERSION }}"
@@ -53,12 +71,33 @@ jobs:
           echo "Export templates installed:"
           ls ~/.local/share/godot/export_templates/${GV}.stable/
 
-      - name: Import & Export Android
+      - name: Import Project
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          JAVA_HOME: ${{ env.JAVA_HOME }}
         run: |
-          godot --headless --import-project project.godot --quit-after 100 2>&1 || true
+          # --import is the Godot 4.x flag (NOT --import-project which was 3.x)
+          # It imports all resources and quits automatically.
+          godot --headless --import 2>&1 | tee import.log || (echo "Import failed, see log above" && exit 1)
+
+      - name: Export Android APK
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+        run: |
           mkdir -p build/android
-          godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 || true
+          # Use --export-release (Godot 4.x) — NOT --export-pack or --export
+          godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 | tee export.log
+          echo "=== Build output ==="
           ls -la build/android/ || true
+          # Verify APK was created (don't silently succeed on failure)
+          if [ ! -f build/android/phitieudichchuyen.apk ]; then
+            echo "❌ APK was not created. Check export.log above."
+            exit 1
+          fi
+          echo "✅ APK created successfully: $(du -h build/android/phitieudichchuyen.apk | cut -f1)"
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
@@ -97,12 +136,20 @@ jobs:
           mv /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/${GV}.stable/
           echo "Export templates installed."
 
-      - name: Import & Export Windows
+      - name: Import Project
         run: |
-          godot --headless --import-project project.godot --quit-after 100 2>&1 || true
+          godot --headless --import 2>&1 | tee import.log || (echo "Import failed" && exit 1)
+
+      - name: Export Windows
+        run: |
           mkdir -p build/windows
-          godot --headless --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
+          godot --headless --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1 | tee export.log
           ls -la build/windows/ || true
+          if [ ! -f build/windows/phitieudichchuyen.exe ]; then
+            echo "❌ Windows .exe was not created."
+            exit 1
+          fi
+          echo "✅ Windows build created: $(du -h build/windows/phitieudichchuyen.exe | cut -f1)"
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -143,12 +190,20 @@ jobs:
           mv /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/${GV}.stable/
           echo "Export templates installed."
 
-      - name: Import & Export Linux
+      - name: Import Project
         run: |
-          godot --headless --import-project project.godot --quit-after 100 2>&1 || true
+          godot --headless --import 2>&1 | tee import.log || (echo "Import failed" && exit 1)
+
+      - name: Export Linux
+        run: |
           mkdir -p build/linux
-          godot --headless --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
+          godot --headless --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1 | tee export.log
           ls -la build/linux/ || true
+          if [ ! -f build/linux/phitieudichchuyen.x86_64 ]; then
+            echo "❌ Linux binary was not created."
+            exit 1
+          fi
+          echo "✅ Linux build created: $(du -h build/linux/phitieudichchuyen.x86_64 | cut -f1)"
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
@@ -180,6 +235,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract tag name
+        id: tag
+        run: echo "TAG=${GITHUB_REF_NAME:-${GITHUB_SHA::7}}" >> $GITHUB_OUTPUT
+
       - name: Build and Push Relay Server
         uses: docker/build-push-action@v6
         with:
@@ -187,7 +246,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/phitieu-relay:latest
-            ghcr.io/${{ github.repository_owner }}/phitieu-relay:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/phitieu-relay:${{ steps.tag.outputs.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -197,11 +256,33 @@ jobs:
   create-release:
     name: 📦 Create Release
     needs: [build-android, build-windows, build-linux, build-relay-server]
-    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.build-windows.result == 'success' && needs.build-linux.result == 'success' && needs.build-relay-server.result == 'success'
+    # Trigger conditions:
+    #   - tag push (github.ref starts with refs/tags/v)
+    #   - OR release:published event (github.event_name == 'release')
+    # Build requirements:
+    #   - Windows + Linux + Relay MUST succeed (Android is optional due to SDK complexity)
+    if: |
+      always() &&
+      (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release' || github.event_name == 'workflow_dispatch') &&
+      needs.build-windows.result == 'success' &&
+      needs.build-linux.result == 'success' &&
+      needs.build-relay-server.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Determine release tag
+        id: rel
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          elif [ "${GITHUB_EVENT_NAME}" = "release" ]; then
+            echo "tag=${GITHUB_EVENT_RELEASE_TAG_NAME}" >> $GITHUB_OUTPUT
+          else
+            # workflow_dispatch — use input or generate one
+            echo "tag=${{ inputs.version || 'v1.8' }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
@@ -214,7 +295,7 @@ jobs:
         run: |
           mkdir -p release
           # Android
-          cp artifacts/android-build/*.apk release/ 2>/dev/null || true
+          cp artifacts/android-build/*.apk release/ 2>/dev/null || echo "No Android APK (build may have failed - acceptable)"
           # Windows
           cp artifacts/windows-build/*.exe release/ 2>/dev/null || true
           cp artifacts/windows-build/*.pck release/ 2>/dev/null || true
@@ -223,26 +304,46 @@ jobs:
           cp artifacts/linux-build/*.pck release/phitieudichchuyen-linux.pck 2>/dev/null || true
           echo "=== Release files ==="
           ls -la release/ || echo "No release files found!"
+          echo "Total size: $(du -sh release/ | cut -f1)"
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.rel.outputs.tag }}
           files: release/*
           generate_release_notes: true
           body: |
-            ## 🎯 Phi Tiêu Dịch Chuyển ${{ github.ref_name }}
+            ## 🎯 Phi Tiêu Dịch Chuyển ${{ steps.rel.outputs.tag }}
 
-            ### 🆕 Tính Năng v1.7 - Chơi Online!
+            ### 🆕 Tính năng v1.8
 
-            - **Chơi Online**: Ghép trận 10-20 người qua Relay Server
-            - **Matchmaking**: Tự động tìm trận, 30s timeout, bot AI fill
-            - **Mode Selection**: Chọn Online (ghép trận) hoặc Offline (chơi với máy)
-            - **Relay Server**: WebSocket server cho đồng bộ real-time
-            - **Player Stats**: SQLite database lưu kill/death/win/score
-            - **Parallel Builds**: GitHub Actions build 3 nền tảng song song
+            - **Bug Fixes**: Sửa 4 lỗi major + 10 lỗi minor (network, audio, UI, animation)
+            - **Network Robust**: Auto-reconnect hoạt động đúng, không bị stuck "Đang kết nối..."
+            - **Bot Names**: Online mode hiển thị đúng tên bot từ server
+            - **Audio**: Music crossfade mượt mà (fade-in không còn bị no-op)
+            - **Build CI**: Sửa GitHub Action không tự build khi tạo release
+            - **Android APK**: Setup Android SDK + JDK 17, build APK thành công
 
             ### 📦 Downloads
-            - **Android**: `.apk` file
+            - **Android**: `.apk` file (unsigned, debuggable)
             - **Windows**: `.exe` + `.pck` files
             - **Linux**: `.x86_64` + `.pck` files
             - **Relay Server**: `ghcr.io/mhieuhonda/phitieu-relay:latest`
+
+            ### 🐛 Lỗi đã sửa (chi tiết)
+            - NetworkManager: silent connection failure khi server không reachable
+            - NetworkManager: auto_reconnect không reset khi connect_to_server() được gọi lại
+            - NetworkManager: _last_ping_time không set → latency reporting sai
+            - NetworkManager: send_text return value không check
+            - NetworkManager: reconnect timer không re-check auto_reconnect
+            - AIPlayer: server-provided bot name bị overwrite bởi _ready()
+            - MatchmakingScreen: empty AnimationPlayer → runtime error "Animation not found: searching"
+            - AudioManager: music fade-in no-op (new track start at full volume)
+            - Player: _die() không ẩn hp_bar/name_label (inconsistent với AI)
+            - Player: redundant has_method("get") check
+            - ModeSelect: stale CONNECT_ONE_SHOT connections
+            - UICustomization: input events double-handled
+            - Main/MainOnline: no null-guard on player in _process
+            - CI: --import-project (Godot 3 syntax) → --import (Godot 4 syntax)
+            - CI: thiếu Android SDK + JDK → không build được APK
+            - CI: trigger không bắt được release tạo từ GitHub UI

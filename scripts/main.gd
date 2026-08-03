@@ -72,6 +72,8 @@ func _setup_camera():
     original_camera_offset = camera.offset
 
 func _process(delta):
+    if not is_instance_valid(player):
+        return
     if player.is_alive:
         camera.position = player.global_position
 

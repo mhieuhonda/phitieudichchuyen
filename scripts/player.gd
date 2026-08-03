@@ -539,6 +539,12 @@ func _die():
         teleport_ready_indicator.visible = false
         if shield_sprite:
                 shield_sprite.visible = false
+        if hp_bar:
+                hp_bar.visible = false
+        if name_label:
+                name_label.visible = false
+        if size_indicator:
+                size_indicator.visible = false
         for dart in all_darts:
                 if is_instance_valid(dart):
                         dart.queue_free()
@@ -563,6 +569,12 @@ func _respawn():
         GameManager.set_player_alive(true)
         sprite.visible = true
         collision_shape.set_deferred("disabled", false)
+        if hp_bar:
+                hp_bar.visible = true
+        if name_label:
+                name_label.visible = true
+        if size_indicator:
+                size_indicator.visible = true
         var angle = randf() * TAU
         var dist = randf() * GameManager.zone_radius * 0.5
         global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
@@ -805,9 +817,9 @@ func take_damage_from(amount: float, attacker: Node2D):
         tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0), 0.2)
         AudioManager.play_damage()
         _spawn_floating_text("-%d" % int(amount), Color(1.0, 0.3, 0.3), global_position + Vector2(0, -10))
-        if attacker and attacker.has_method("get") and "ai_name" in attacker:
+        if attacker and "ai_name" in attacker:
                 last_killer_name = attacker.ai_name
-        elif attacker and attacker.has_method("get") and "player_name" in attacker:
+        elif attacker and "player_name" in attacker:
                 last_killer_name = attacker.player_name
         else:
                 last_killer_name = KILLER_NONE
