@@ -33,7 +33,7 @@ apksigner sign \
 apksigner verify --verbose signed.apk  # verify
 ```
 
-Cũng cập nhật `export_presets.cfg`: `package/signed=false` → `package/signed=true`.
+Cũng cập nhật `export_presets.cfg`: giữ `package/signed=false` (Godot export ra unsigned APK), sau đó CI ký ngoài bằng apksigner. Lý do: `package/signed=true` yêu cầu Godot tìm Android SDK path trong Editor Settings, gây lỗi "A valid Android SDK path is required" trong CI environment.
 
 ### 🐛 Bug Fixes (Code)
 
@@ -73,7 +73,7 @@ Cũng cập nhật `export_presets.cfg`: `package/signed=false` → `package/sig
 ### 📦 Version Bump
 - `project.godot`: config/version `1.8` → `1.9`
 - `export_presets.cfg`: version/code `18` → `19`, version/name `"1.8"` → `"1.9"`
-- `export_presets.cfg`: `package/signed=false` → `package/signed=true`
+- `export_presets.cfg`: giữ `package/signed=false` (ký ngoài bằng apksigner trong CI)
 - `export_presets.cfg`: Windows file_version + product_version `"1.8.0.0"` → `"1.9.0.0"`
 - `menu.gd`: version label `v1.7` → `v1.9`
 
