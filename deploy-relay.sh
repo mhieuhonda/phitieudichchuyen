@@ -67,6 +67,6 @@ docker ps --filter name=phitieu-relay --format "table {{.Names}}\t{{.Status}}\t{
 
 echo ""
 echo "✅ Relay Server deployed successfully!"
-echo "   WebSocket: ws://10.187.247.3:25671/ws"
-echo "   HTTP API:  http://10.187.247.3:25672/health"
-echo "   Leaderboard: http://10.187.247.3:25672/api/leaderboard"
+echo "   WebSocket: ws://163.44.96.79:25671/ws"
+echo "   HTTP API:  http://163.44.96.79:25672/health"
+echo "   Leaderboard: http://163.44.96.79:25672/api/leaderboard"
