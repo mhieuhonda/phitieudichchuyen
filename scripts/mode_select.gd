@@ -1,6 +1,9 @@
 extends Control
 
 ## ModeSelectScreen - Chọn chế độ chơi: Online hoặc Offline (v1.7)
+## v1.9 FIX: Cleanup ONE_SHOT signal handlers on scene exit to avoid
+## "Invalid access to property or method on freed instance" errors when
+## the connection state changes after the user has already navigated away.
 
 @onready var title_label: Label = $CenterContainer/PanelContainer/VBoxContainer/TitleLabel
 @onready var online_button: Button = $CenterContainer/PanelContainer/VBoxContainer/OnlineButton
@@ -27,9 +30,23 @@ func _ready():
 
         AudioManager.play_music("menu")
 
+func _exit_tree():
+        # v1.9 FIX: Make sure no stale ONE_SHOT handlers remain attached to NetworkManager
+        # after this scene is freed. Otherwise, when the server eventually responds, the
+        # callback would try to access freed UI nodes and crash.
+        _cleanup_status_handlers()
+
+func _cleanup_status_handlers():
+        if NetworkManager.connected_to_server.is_connected(_on_server_connected):
+                NetworkManager.connected_to_server.disconnect(_on_server_connected)
+        if NetworkManager.connection_error.is_connected(_on_server_error):
+                NetworkManager.connection_error.disconnect(_on_server_error)
+
 func _check_server_status():
         # Try to connect briefly to check if server is reachable
         server_status_label.text = "Đang kết nối đến server..."
+        # Cleanup any previous handlers first (idempotent)
+        _cleanup_status_handlers()
         NetworkManager.connected_to_server.connect(_on_server_connected, CONNECT_ONE_SHOT)
         NetworkManager.connection_error.connect(_on_server_error, CONNECT_ONE_SHOT)
         NetworkManager.connect_to_server()

@@ -77,11 +77,12 @@ func _process(delta):
     if player.is_alive:
         camera.position = player.global_position
 
-    if shake_timer > 0:
+    if shake_timer > 0 and shake_duration > 0.001:
         shake_timer -= delta
         var intensity = shake_intensity * (shake_timer / shake_duration)
         camera.offset = Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
     else:
+        shake_timer = 0.0
         camera.offset = original_camera_offset
 
 func _on_mobile_teleport():

@@ -168,7 +168,7 @@ func _update_ai(delta):
             elif state_timer <= 0:
                 _choose_new_state()
         AIState.FLEEING:
-            if target_player:
+            if is_instance_valid(target_player):
                 velocity = (global_position - target_player.global_position).normalized() * GameManager.walk_speed * 0.8
                 # Dash để bỏ chạy
                 if dash_cooldown <= 0 and randf() < 0.02:
@@ -177,7 +177,7 @@ func _update_ai(delta):
                 velocity = Vector2.ZERO
             if state_timer <= 0: _choose_new_state()
         AIState.HUNTING:
-            if target_player and target_player.is_alive:
+            if is_instance_valid(target_player) and target_player.is_alive:
                 velocity = (target_player.global_position - global_position).normalized() * GameManager.walk_speed * 0.7
                 var dist = global_position.distance_to(target_player.global_position)
                 if dist < 300 and _count_active_darts() < GameManager.max_darts_per_player:
@@ -237,7 +237,10 @@ func _find_nearest_player() -> Node2D:
     var nearest: Node2D = null
     var nearest_dist: float = 600.0
     for p in players:
-        if not p.is_alive: continue
+        if not is_instance_valid(p):
+            continue
+        if not ("is_alive" in p) or not p.is_alive:
+            continue
         var dist = global_position.distance_to(p.global_position)
         if dist < nearest_dist:
             nearest_dist = dist
@@ -368,8 +371,17 @@ func kill(killer: Node2D):
     sprite.visible = false; hp_bar.visible = false; name_label.visible = false
     collision_shape.set_deferred("disabled", true)
     AudioManager.play_death()
-    ai_died.emit(self, killer)
-    get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
+    if killer and is_instance_valid(killer):
+        ai_died.emit(self, killer)
+    else:
+        ai_died.emit(self, null)
+    # v1.9 FIX: guard respawn callback — if AI is freed during respawn timer,
+    # the lambda checks is_instance_valid before calling _respawn.
+    var self_ref = self
+    get_tree().create_timer(GameManager.respawn_time).timeout.connect(func():
+        if is_instance_valid(self_ref):
+            self_ref._respawn()
+    )
 
 func take_damage_from(amount: float, attacker: Node2D):
     if not is_alive:
@@ -386,7 +398,7 @@ func take_damage_from(amount: float, attacker: Node2D):
     if current_hp <= 0:
         current_hp = 0
         # Ghi nhận điểm cho attacker nếu là player
-        if attacker and attacker.is_in_group("players"):
+        if attacker and is_instance_valid(attacker) and attacker.is_in_group("players"):
             # Player giết AI - register_kill_by_player đã được gọi trong player._check_teleport_kill
             # Hoặc nếu giết bằng dart, attacker sẽ handle trong _on_dart_hit_player
             pass

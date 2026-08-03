@@ -552,7 +552,13 @@ func _die():
         AudioManager.play_death()
         GameManager.set_player_alive(false)
         player_died.emit(self)
-        get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
+        # v1.9 FIX: guard respawn callback — if player is freed during respawn timer
+        # (e.g. scene change), the lambda checks is_instance_valid before calling _respawn.
+        var self_ref = self
+        get_tree().create_timer(GameManager.respawn_time).timeout.connect(func():
+                if is_instance_valid(self_ref):
+                        self_ref._respawn()
+        )
 
 func get_killer_name() -> String:
         return last_killer_name

@@ -21,8 +21,8 @@ func _ready():
         for btn in [play_button, characters_button, settings_button, quit_button]:
                 btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-        new_feature_label.text = "[color=cyan][b]v1.7:[/b][/color] CHƠI ONLINE! Ghép trận 10-20 người, matchmaking tự động, bot AI fill\n[color=yellow]v1.7:[/color] Relay Server + WebSocket, đồng bộ trạng thái real-time giữa các người chơi\n[color=green]v1.6:[/color] Rà soát toàn diện Godot 4.7 - Modern GDScript idioms, collision mask sync"
-        version_label.text = "v1.7 - Phi Tiêu Dịch Chuyển"
+        new_feature_label.text = "[color=cyan][b]v1.9:[/b][/color] FIX lỗi \"Gói dường như bị hỏng\" - APK đã ký v1+v2+v3!\n[color=yellow]v1.9:[/color] Sửa NetworkManager (latency, reconnect timer, user-disconnect flag)\n[color=green]v1.8:[/color] Fix 4 major + 10 minor bugs (network, audio, UI, animation)"
+        version_label.text = "v1.9 - Phi Tiêu Dịch Chuyển"
 
         AudioManager.play_music("menu")
 

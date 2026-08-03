@@ -44,8 +44,12 @@ var _room_id: String = ""
 var _reconnect_attempts: int = 0
 var _ping_timer: float = 0.0
 var _last_ping_time: int = 0
+var _last_latency_ms: int = 0
 var _is_in_matchmaking: bool = false
 var _is_in_match: bool = false
+var _reconnect_timer: SceneTreeTimer = null
+var _reconnect_timer_cancelled: bool = false
+var _user_disconnect: bool = false  # true khi user chủ động disconnect, không retry
 
 # Remote players cache
 var remote_players: Dictionary = {}  # playerId -> { name, characterId, x, y, hp, maxHp, size, alive, score, kills, isBot }
@@ -71,6 +75,11 @@ func _process(delta):
 
         var state = _ws.get_ready_state()
         if state == WebSocketPeer.STATE_CLOSED:
+                if _user_disconnect:
+                        # User explicitly called disconnect_from_server(); don't emit signals
+                        # nor try to reconnect. Just stop processing.
+                        set_process(false)
+                        return
                 if _is_connected:
                         _is_connected = false
                         connection_state = ConnectionState.DISCONNECTED
@@ -104,9 +113,12 @@ func connect_to_server(url: String = ""):
                 server_url = url
         if _is_connected:
                 return
+        # Cancel any pending reconnect timer before starting fresh
+        _cancel_reconnect_timer()
         # Re-enable auto-reconnect and reset attempts for fresh connect attempt
         auto_reconnect = true
         _reconnect_attempts = 0
+        _user_disconnect = false
         # Recreate peer to clear any leftover state from a previous closed connection
         _ws = WebSocketPeer.new()
         connection_state = ConnectionState.CONNECTING
@@ -118,9 +130,13 @@ func connect_to_server(url: String = ""):
         set_process(true)
 
 func disconnect_from_server():
+        # Mark as user-initiated: _process should NOT emit disconnected_from_server
+        # nor call _try_reconnect (which would re-establish connection against user's will)
+        _user_disconnect = true
         auto_reconnect = false
         _is_in_matchmaking = false
         _is_in_match = false
+        _cancel_reconnect_timer()
         if _ws:
                 _ws.close()
         _is_connected = false
@@ -147,7 +163,7 @@ func get_room_id() -> String:
         return _room_id
 
 func get_latency() -> int:
-        return 0  # Updated on pong
+        return _last_latency_ms
 
 # === LOGIN ===
 
@@ -366,21 +382,38 @@ func _handle_message(raw: String):
 
                 "pong":
                         var latency = Time.get_ticks_msec() - _last_ping_time
+                        _last_latency_ms = latency
                         pong_received.emit(latency)
 
 func _try_reconnect():
         if not auto_reconnect:
                 return
+        if _user_disconnect:
+                return
         if _reconnect_attempts >= max_reconnect_attempts:
                 connection_error.emit("Không thể kết nối lại sau %d lần thử" % max_reconnect_attempts)
                 return
         _reconnect_attempts += 1
-        get_tree().create_timer(reconnect_delay).timeout.connect(func():
+        # Cancel any existing timer to avoid stacking multiple reconnect attempts
+        _cancel_reconnect_timer()
+        _reconnect_timer_cancelled = false
+        _reconnect_timer = get_tree().create_timer(reconnect_delay)
+        _reconnect_timer.timeout.connect(func():
+                _reconnect_timer = null
+                # If cancelled while pending, do nothing
+                if _reconnect_timer_cancelled:
+                        return
                 # Re-check auto_reconnect in case disconnect_from_server() was called meanwhile
-                if not auto_reconnect:
+                if not auto_reconnect or _user_disconnect:
                         return
                 connect_to_server(server_url)
         )
+
+func _cancel_reconnect_timer():
+        # Mark the pending timer as cancelled so its lambda does nothing when it fires.
+        # (Godot 4.7 Signal has no disconnect_all(); this flag-based approach is equivalent.)
+        _reconnect_timer_cancelled = true
+        _reconnect_timer = null
 
 func _get_stored_player_id() -> String:
         var config = ConfigFile.new()

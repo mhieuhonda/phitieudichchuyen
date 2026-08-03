@@ -115,8 +115,12 @@ func _process(delta):
             zone_warning_sound_timer = 0.0
 
     # Cập nhật số người còn sống
-    var alive_count = get_tree().get_nodes_in_group("ai_players").filter(func(a): return a.is_alive).size()
-    alive_count += 1 if player.is_alive else 0
+    var alive_count = 0
+    for a in get_tree().get_nodes_in_group("ai_players"):
+        if is_instance_valid(a) and "is_alive" in a and a.is_alive:
+            alive_count += 1
+    if is_instance_valid(player) and player.is_alive:
+        alive_count += 1
     alive_label.text = "Sống: %d" % alive_count
 
     # Cập nhật thời gian trận
@@ -245,9 +249,10 @@ func _on_player_respawned(p: CharacterBody2D):
 
 func _on_dart_thrown(dart: Node2D):
     mid_flight_hint.visible = true
+    var hint_ref = mid_flight_hint
     get_tree().create_timer(1.5).timeout.connect(func():
-        if not _has_flying_darts():
-            mid_flight_hint.visible = false
+        if is_instance_valid(hint_ref):
+            hint_ref.visible = false
     )
 
 func _on_teleport_performed(player: CharacterBody2D, to_position: Vector2):

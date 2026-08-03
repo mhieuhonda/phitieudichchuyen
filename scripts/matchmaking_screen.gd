@@ -32,6 +32,19 @@ func _ready():
         tween.tween_property(status_label, "modulate:a", 0.4, 0.6).set_trans(Tween.TRANS_SINE)
         tween.tween_property(status_label, "modulate:a", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
 
+func _exit_tree():
+        # v1.9 FIX: disconnect network signal handlers so they don't fire on freed scene
+        if NetworkManager.matchmaking_update.is_connected(_on_matchmaking_update):
+                NetworkManager.matchmaking_update.disconnect(_on_matchmaking_update)
+        if NetworkManager.matchmaking_found.is_connected(_on_match_found):
+                NetworkManager.matchmaking_found.disconnect(_on_match_found)
+        if NetworkManager.matchmaking_timeout.is_connected(_on_matchmaking_timeout):
+                NetworkManager.matchmaking_timeout.disconnect(_on_matchmaking_timeout)
+        if NetworkManager.match_countdown.is_connected(_on_match_countdown):
+                NetworkManager.match_countdown.disconnect(_on_match_countdown)
+        if NetworkManager.match_start.is_connected(_on_match_start):
+                NetworkManager.match_start.disconnect(_on_match_start)
+
 func _on_cancel_pressed():
         AudioManager.play_cancel()
         NetworkManager.leave_matchmaking()

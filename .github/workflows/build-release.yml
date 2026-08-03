@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. 1.8.0)'
+        description: 'Version (e.g. 1.9.0)'
         required: false
         default: ''
 
@@ -26,8 +26,9 @@ jobs:
   # JOB 1: Build Android APK (Parallel)
   # ============================================
   # Uses prebuilt APK template (export_presets.cfg has use_gradle_build=false).
-  # This means we don't need Android SDK / JDK / Gradle — Godot just patches
-  # the prebuilt android_release.apk from the export templates with the game's PCK.
+  # Godot patches the prebuilt android_release.apk from export templates with the game's PCK.
+  # After export, we zipalign + sign with apksigner using a debug keystore (generated in CI)
+  # so the APK installs on Android devices without "package seems corrupted" error.
   build-android:
     name: 🤖 Build Android
     runs-on: ubuntu-latest
@@ -58,28 +59,103 @@ jobs:
           echo "Export templates installed:"
           ls ~/.local/share/godot/export_templates/${GV}.stable/
 
+      - name: Setup Java 17 (for apksigner)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK (for build-tools apksigner + zipalign)
+        run: |
+          # Install Android SDK command-line tools + build-tools 34.0.0 (provides apksigner + zipalign)
+          export ANDROID_HOME=$HOME/android-sdk
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget -q "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          cd $ANDROID_HOME
+          yes | ./cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          ./cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platform-tools" "platforms;android-34" > /dev/null 2>&1
+          echo "Build tools installed:"
+          ls $ANDROID_HOME/build-tools/34.0.0/ | grep -E "apksigner|zipalign"
+
       - name: Import Project
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: |
           # --import is the Godot 4.x flag (NOT --import-project which was 3.x)
           # It imports all resources and quits automatically.
           godot --headless --import 2>&1 | tee import.log || (echo "Import failed, see log above" && exit 1)
 
-      - name: Export Android APK
+      - name: Export Android APK (unsigned, from Godot)
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: |
           mkdir -p build/android
           echo "Godot version: $(godot --version)"
-          # Use --export-release (Godot 4.x) — NOT --export-pack or --export
-          # use_gradle_build=false in export_presets.cfg means Godot uses the
-          # prebuilt android_release.apk template (no Android SDK needed).
-          godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 | tee export.log
+          # Use --export-release (Godot 4.x). use_gradle_build=false means Godot uses the
+          # prebuilt android_release.apk template from export templates.
+          godot --headless --export-release "Android" build/android/phitieudichchuyen.unsigned.apk 2>&1 | tee export.log
           echo "=== Build output ==="
           ls -la build/android/ || true
           # Verify APK was created (don't silently succeed on failure)
-          if [ ! -f build/android/phitieudichchuyen.apk ]; then
+          if [ ! -f build/android/phitieudichchuyen.unsigned.apk ]; then
             echo "❌ APK was not created. Check export.log above."
             exit 1
           fi
-          echo "✅ APK created successfully: $(du -h build/android/phitieudichchuyen.apk | cut -f1)"
+          echo "✅ Unsigned APK created: $(du -h build/android/phitieudichchuyen.unsigned.apk | cut -f1)"
+
+      - name: Zipalign + Sign APK with apksigner
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+        run: |
+          export PATH="$ANDROID_HOME/build-tools/34.0.0:$PATH"
+
+          # Generate a debug keystore (self-signed, 10000-day validity).
+          # For production, replace with a stored release keystore via GitHub Secret.
+          KEYSTORE_PATH="$HOME/phitieu-debug.keystore"
+          keytool -genkey -v \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass android \
+            -alias phitieu \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN"
+
+          # Zipalign: -p 4 means page-align .so files to 4 KiB
+          echo "Zipaligning APK..."
+          zipalign -v -p 4 build/android/phitieudichchuyen.unsigned.apk build/android/phitieudichchuyen.aligned.apk > /dev/null
+
+          # apksigner: sign with v1 (JAR) + v2 (Android 7+) + v3 (Android 9+) schemes
+          echo "Signing APK (v1+v2+v3)..."
+          apksigner sign \
+            --ks "$KEYSTORE_PATH" \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --ks-key-alias phitieu \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out build/android/phitieudichchuyen.apk \
+            build/android/phitieudichchuyen.aligned.apk
+
+          # Verify signature
+          echo "Verifying APK signature..."
+          apksigner verify --verbose --print-certs build/android/phitieudichchuyen.apk | head -20
+
+          # Clean up intermediate files
+          rm -f build/android/phitieudichchuyen.unsigned.apk build/android/phitieudichchuyen.aligned.apk
+
+          echo "=== Final APK ==="
+          ls -la build/android/phitieudichchuyen.apk
+          echo "✅ Signed APK size: $(du -h build/android/phitieudichchuyen.apk | cut -f1)"
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
@@ -241,6 +317,7 @@ jobs:
     # Trigger conditions:
     #   - tag push (github.ref starts with refs/tags/v)
     #   - OR release:published event (github.event_name == 'release')
+    #   - OR workflow_dispatch
     # Build requirements:
     #   - Windows + Linux + Relay MUST succeed (Android is optional due to SDK complexity)
     if: |
@@ -257,8 +334,8 @@ jobs:
       - name: Determine release tag
         id: rel
         run: |
-          # For push (tag) events: use the pushed tag name (e.g. "v1.8")
-          # For release events: use the release's tag_name (e.g. "v1.8")
+          # For push (tag) events: use the pushed tag name (e.g. "v1.9")
+          # For release events: use the release's tag_name (e.g. "v1.9")
           # For workflow_dispatch: use the input, but ensure it starts with "v"
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             TAG="${GITHUB_REF_NAME}"
@@ -291,7 +368,7 @@ jobs:
       - name: Organize Release Files
         run: |
           mkdir -p release
-          # Android
+          # Android (signed APK)
           cp artifacts/android-build/*.apk release/ 2>/dev/null || echo "No Android APK (build may have failed - acceptable)"
           # Windows
           cp artifacts/windows-build/*.exe release/ 2>/dev/null || true
@@ -312,35 +389,30 @@ jobs:
           body: |
             ## 🎯 Phi Tiêu Dịch Chuyển ${{ steps.rel.outputs.tag }}
 
-            ### 🆕 Tính năng v1.8
+            ### 🆕 Tính năng v1.9
 
-            - **Bug Fixes**: Sửa 4 lỗi major + 10 lỗi minor (network, audio, UI, animation)
-            - **Network Robust**: Auto-reconnect hoạt động đúng, không bị stuck "Đang kết nối..."
-            - **Bot Names**: Online mode hiển thị đúng tên bot từ server
-            - **Audio**: Music crossfade mượt mà (fade-in không còn bị no-op)
-            - **Build CI**: Sửa GitHub Action không tự build khi tạo release
-            - **Android APK**: Setup Android SDK + JDK 17, build APK thành công
+            - **FIX lỗi "Gói dường như bị hỏng"**: APK đã được ký đúng chuẩn (v1+v2+v3 signature) bằng apksigner, giờ đây cài đặt trên Android không còn báo lỗi corrupted.
+            - **NetworkManager v1.9**: Sửa `get_latency()` luôn trả về 0; sửa timer reconnect bị stack-up; thêm cờ `_user_disconnect` để tách biệt user-initiated disconnect vs network drop.
+            - **ModeSelect/Multiplayer scenes**: Cleanup ONE_SHOT signal handlers khi rời scene, tránh crash "Invalid access to freed instance" khi server phản hồi chậm.
+            - **AI/Player respawn timers**: Guard `is_instance_valid` trước khi gọi `_respawn()`, tránh crash nếu node bị freed giữa chừng.
+            - **AI `_find_nearest_player` / `AIState.HUNTING` / `FLEEING`**: Thêm `is_instance_valid(target_player)` để tránh null-ref.
+            - **HUD alive_count**: Filter an toàn với `is_instance_valid` check.
+            - **Screen shake**: Guard chia 0 khi `shake_duration == 0`.
 
             ### 📦 Downloads
-            - **Android**: `.apk` file (unsigned, debuggable)
+            - **Android**: `.apk` file (đã ký với debug keystore, có thể cài trực tiếp)
             - **Windows**: `.exe` + `.pck` files
             - **Linux**: `.x86_64` + `.pck` files
             - **Relay Server**: `ghcr.io/mhieuhonda/phitieu-relay:latest`
 
-            ### 🐛 Lỗi đã sửa (chi tiết)
-            - NetworkManager: silent connection failure khi server không reachable
-            - NetworkManager: auto_reconnect không reset khi connect_to_server() được gọi lại
-            - NetworkManager: _last_ping_time không set → latency reporting sai
-            - NetworkManager: send_text return value không check
-            - NetworkManager: reconnect timer không re-check auto_reconnect
-            - AIPlayer: server-provided bot name bị overwrite bởi _ready()
-            - MatchmakingScreen: empty AnimationPlayer → runtime error "Animation not found: searching"
-            - AudioManager: music fade-in no-op (new track start at full volume)
-            - Player: _die() không ẩn hp_bar/name_label (inconsistent với AI)
-            - Player: redundant has_method("get") check
-            - ModeSelect: stale CONNECT_ONE_SHOT connections
-            - UICustomization: input events double-handled
-            - Main/MainOnline: no null-guard on player in _process
-            - CI: --import-project (Godot 3 syntax) → --import (Godot 4 syntax)
-            - CI: thiếu Android SDK + JDK → không build được APK
-            - CI: trigger không bắt được release tạo từ GitHub UI
+            ### 🐛 Lỗi đã sửa (chi tiết v1.9)
+            - APK unsigned → Android báo "gói dường như bị hỏng" khi tải về. Đã thêm step zipalign + apksigner sign (v1+v2+v3) trong CI.
+            - NetworkManager `get_latency()` luôn return 0 (comment nói "Updated on pong" nhưng không có field lưu trữ). Đã thêm `_last_latency_ms`.
+            - NetworkManager `_try_reconnect()` nếu được gọi nhiều lần (vd. nhiều STATE_CLOSED events), tạo nhiều timer → multiple connection attempts đan xen. Đã thêm `_cancel_reconnect_timer()`.
+            - NetworkManager `disconnect_from_server()` không set cờ tách user-disconnect vs network-drop → emit `disconnected_from_server` signal + retry không đúng. Đã thêm `_user_disconnect` flag.
+            - ModeSelect/Multiplayer/MainOnline: signal connections đến autoload NetworkManager không disconnect khi scene freed → callbacks fire on freed instance. Đã thêm `_exit_tree()` cleanup.
+            - AIPlayer `_find_nearest_player` không check `is_instance_valid(p)` trước khi `p.is_alive` → crash nếu player vừa bị freed.
+            - AIPlayer `target_player` trong HUNTING/FLEEING states có thể bị freed giữa chừng.
+            - HUD `_process` filter `ai_players` không check `is_instance_valid` → crash nếu AI vừa bị queue_free.
+            - Player/AI `_die()` dùng `create_timer().timeout.connect(_respawn)` không guard → callback fire trên freed node.
+            - Main/MainOnline `_process` chia `shake_timer / shake_duration` → NaN nếu duration=0.

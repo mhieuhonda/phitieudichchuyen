@@ -1,14 +1,40 @@
-# 🎯 Phi Tiêu Dịch Chuyển v1.7
+# 🎯 Phi Tiêu Dịch Chuyển v1.9
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — giờ đã có **Online Multiplayer**!
 
-![Version](https://img.shields.io/badge/version-1.7-blue)
+![Version](https://img.shields.io/badge/version-1.9-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 ![Multiplayer](https://img.shields.io/badge/multiplayer-Online%20%2B%20Offline-orange)
+
+---
+
+## 🆕 Tính Năng v1.9 — Fix Lỗi APK Corrupted!
+
+Bản v1.9 tập trung sửa lỗi nghiêm trọng: **APK v1.8 báo "Gói dường như bị hỏng"** khi tải về cài đặt trên Android.
+
+### 🔥 Fix Lỗi APK "Gói dường như bị hỏng"
+
+**Nguyên nhân**: APK v1.8 được Godot export ra **không có chữ ký số** (no v1/v2/v3 signature). Android từ chối cài đặt APK không ký → báo "package seems corrupted".
+
+**Cách fix**: CI workflow thêm 2 step sau khi Godot export:
+
+1. `zipalign` — Căn chỉnh 4-byte cho .so files
+2. `apksigner sign` — Ký APK với v1+v2+v3 signature schemes
+
+APK v1.9 giờ đã ký đúng chuẩn, cài đặt trên Android không còn báo lỗi.
+
+### 🐛 Bug Fixes Khác
+
+- **NetworkManager**: `get_latency()` luôn return 0; `_try_reconnect` stack-up timers; `disconnect_from_server()` không phân biệt user-initiated vs network-drop
+- **ModeSelect/Matchmaking/MainOnline**: Signal leaks khi rời scene → crash "Invalid access to freed instance"
+- **AIPlayer**: `_find_nearest_player` không check `is_instance_valid`; `target_player` không guard trong HUNTING/FLEEING; `kill()` respawn timer không guard
+- **Player**: `_die()` respawn timer không guard
+- **HUD**: Filter `ai_players` không check `is_instance_valid`; `_on_dart_thrown` lambda truy cập freed node
+- **Main/MainOnline**: Screen shake chia 0 khi `duration=0`
 
 ---
 

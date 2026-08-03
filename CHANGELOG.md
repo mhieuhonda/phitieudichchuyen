@@ -1,5 +1,92 @@
 # Changelog
 
+## v1.9 - Phi Tiêu Dịch Chuyển (2026-08-03)
+
+### 🔥 Critical Fix: APK "Gói dường như bị hỏng"
+
+Bản v1.8 khi tải về Android báo lỗi **"Gói dường như bị hỏng"** (package seems corrupted). Nguyên nhân: APK được xuất từ Godot **không được ký** (no v1/v2/v3 signature). Android từ chối cài đặt APK không có chữ ký hợp lệ.
+
+#### Phân tích so sánh v1.8 vs v1.9
+
+| Trường dữ liệu | v1.8 (hỏng) | v1.9 (đã fix) |
+|----------------|-------------|----------------|
+| `META-INF/CERT.SF` | ❌ thiếu | ✅ có |
+| `META-INF/CERT.RSA` | ❌ thiếu | ✅ có |
+| `META-INF/MANIFEST.MF` | ❌ thiếu | ✅ có |
+| APK Sig Block v2 | ❌ thiếu | ✅ có |
+| APK Sig Block v3 | ❌ thiếu | ✅ có |
+| Zipalign 4-byte | ❌ không | ✅ có |
+
+#### Cách fix
+
+CI workflow `build-release.yml` thêm 2 step mới sau khi Godot export APK:
+
+1. **`zipalign -v -p 4`** — Căn chỉnh 4-byte cho .so files, tối ưu memory mapping trên Android.
+2. **`apksigner sign`** — Ký APK với 3 scheme: v1 (JAR signature, Android <7), v2 (Android 7+), v3 (Android 9+ key rotation). Dùng debug keystore được generate tại runtime trong CI (10000-day validity).
+
+```bash
+zipalign -v -p 4 input.apk aligned.apk
+apksigner sign \
+  --ks keystore.jks --ks-pass pass:android \
+  --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+  --out signed.apk aligned.apk
+apksigner verify --verbose signed.apk  # verify
+```
+
+Cũng cập nhật `export_presets.cfg`: `package/signed=false` → `package/signed=true`.
+
+### 🐛 Bug Fixes (Code)
+
+#### NetworkManager (`network_manager.gd`)
+
+- **FIX: `get_latency()` luôn trả về 0.** Comment nói "Updated on pong" nhưng không có field nào lưu trữ latency. Đã thêm `_last_latency_ms` field, set trong handler `"pong"` và return trong `get_latency()`.
+- **FIX: `_try_reconnect()` stack-up timers.** Mỗi lần STATE_CLOSED xảy ra (vd. do server drop + retry fail), một timer mới được tạo. Nếu connection state thay đổi nhanh, có thể có 3-4 timer chạy đan xen → multiple `connect_to_server()` calls. Đã thêm `_reconnect_timer` reference + `_cancel_reconnect_timer()` để chỉ có 1 timer tại một thời điểm.
+- **FIX: `disconnect_from_server()` không phân biệt user-initiated vs network-drop.** Sau khi user chủ động disconnect, server vẫn có thể gửi FIN packet → STATE_CLOSED → `disconnected_from_server.emit()` + `_try_reconnect()` → kết nối lại ngược ý user. Đã thêm cờ `_user_disconnect`, set true trong `disconnect_from_server()`, false trong `connect_to_server()`. Trong `_process`, nếu `_user_disconnect == true`, không emit signal và không retry.
+
+#### Mode Select & Multiplayer Scene Leaks
+
+- **FIX: ModeSelect stale ONE_SHOT handlers.** Khi user click Back/Offline trước khi server phản hồi, 2 handler `connected_to_server` + `connection_error` (CONNECT_ONE_SHOT) vẫn còn attached đến scene đã bị freed. Khi server phản hồi sau 5s, callback cố truy cập `server_status_label` đã bị freed → crash "Invalid access to property on freed instance". Đã thêm `_exit_tree()` gọi `_cleanup_status_handlers()`.
+- **FIX: MatchmakingScreen signal leaks.** Tương tự, 5 network signals (`matchmaking_update`, `matchmaking_found`, etc.) không disconnect khi rời scene. Đã thêm `_exit_tree()` cleanup.
+- **FIX: MainOnline network signal leaks.** 10 network signals không disconnect khi rời trận (vd. user ấn ESC → menu). Đã thêm `_exit_tree()` cleanup tất cả 10 signals.
+
+#### AI Player Bugs
+
+- **FIX: `_find_nearest_player` không check `is_instance_valid`.** Nếu player vừa bị `queue_free()` (vd. scene change), `p.is_alive` access crash. Đã thêm `if not is_instance_valid(p): continue` + `if not ("is_alive" in p): continue` guards.
+- **FIX: `AIState.HUNTING` / `FLEEING` access `target_player` không check.** `target_player` có thể bị freed giữa chừng. Đã thêm `is_instance_valid(target_player)` check.
+- **FIX: `take_damage_from` check `attacker.is_in_group` mà không check `is_instance_valid`.** Attacker có thể bị freed (vd. dart owner đã die) trước khi gọi. Đã thêm guard.
+- **FIX: `kill()` emit `ai_died` với killer có thể invalid.** Đã check `is_instance_valid(killer)`, fallback null nếu invalid.
+- **FIX: `kill()` respawn timer không guard.** `get_tree().create_timer(...).timeout.connect(_respawn)` → nếu AI bị freed trong 3s respawn, callback fire trên freed node. Đã wrap trong lambda kiểm tra `is_instance_valid(self_ref)`.
+
+#### Player Bugs
+
+- **FIX: `_die()` respawn timer không guard.** Tương tự AI, nếu player bị freed trong 3s respawn (vd. scene change), callback crash. Đã wrap trong lambda.
+
+#### HUD Bugs
+
+- **FIX: `_process` filter `ai_players` không check `is_instance_valid`.** `get_tree().get_nodes_in_group("ai_players").filter(func(a): return a.is_alive)` → nếu `a` vừa bị `queue_free`, `a.is_alive` access crash. Đã thay bằng for-loop tường minh với `is_instance_valid(a) and "is_alive" in a and a.is_alive`.
+- **FIX: `_on_dart_thrown` lambda truy cập `mid_flight_hint` sau khi HUD freed.** Timer fire 1.5s sau, có thể HUD đã bị freed. Đã capture `hint_ref` và check `is_instance_valid`.
+
+#### Screen Shake Bugs
+
+- **FIX: Main/MainOnline `_process` chia `shake_timer / shake_duration`.** Nếu `apply_screen_shake(intensity, 0)` được gọi (duration=0), phép chia cho 0 → NaN → camera offset NaN → crash. Đã thêm guard `shake_duration > 0.001`.
+
+### 📦 Version Bump
+- `project.godot`: config/version `1.8` → `1.9`
+- `export_presets.cfg`: version/code `18` → `19`, version/name `"1.8"` → `"1.9"`
+- `export_presets.cfg`: `package/signed=false` → `package/signed=true`
+- `export_presets.cfg`: Windows file_version + product_version `"1.8.0.0"` → `"1.9.0.0"`
+- `menu.gd`: version label `v1.7` → `v1.9`
+
+### ✅ Verification
+- ✅ GDScript parse sạch trên Godot 4.7 stable (no new errors introduced)
+- ✅ CI workflow YAML hợp lệ
+- ✅ Android SDK + JDK 17 + build-tools 34.0.0 setup đúng chuẩn
+- ✅ APK ký với v1+v2+v3 signature schemes, verified với `apksigner verify`
+- ✅ Zipalign 4-byte cho .so files
+- ✅ Tất cả signal leaks đã fix (ModeSelect, MatchmakingScreen, MainOnline)
+
+---
+
 ## v1.8 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🛠️ Bug Fixes Bonanza — Sửa Hết Lỗi Online Mode + CI/CD

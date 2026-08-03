@@ -78,6 +78,31 @@ func _ready():
 
         _is_match_active = true
 
+func _exit_tree():
+        # v1.9 FIX: disconnect network signal handlers so they don't fire on freed scene
+        # (which would cause "Invalid access to property/method on freed instance" errors)
+        _is_match_active = false
+        if NetworkManager.state_sync.is_connected(_on_state_sync):
+                NetworkManager.state_sync.disconnect(_on_state_sync)
+        if NetworkManager.remote_dart_throw.is_connected(_on_remote_dart_throw):
+                NetworkManager.remote_dart_throw.disconnect(_on_remote_dart_throw)
+        if NetworkManager.remote_teleport.is_connected(_on_remote_teleport):
+                NetworkManager.remote_teleport.disconnect(_on_remote_teleport)
+        if NetworkManager.remote_player_killed.is_connected(_on_remote_player_killed):
+                NetworkManager.remote_player_killed.disconnect(_on_remote_player_killed)
+        if NetworkManager.remote_skill_used.is_connected(_on_remote_skill_used):
+                NetworkManager.remote_skill_used.disconnect(_on_remote_skill_used)
+        if NetworkManager.remote_player_respawned.is_connected(_on_remote_player_respawned):
+                NetworkManager.remote_player_respawned.disconnect(_on_remote_player_respawned)
+        if NetworkManager.zone_shrank.is_connected(_on_net_zone_shrank):
+                NetworkManager.zone_shrank.disconnect(_on_net_zone_shrank)
+        if NetworkManager.match_end.is_connected(_on_match_end):
+                NetworkManager.match_end.disconnect(_on_match_end)
+        if NetworkManager.room_player_joined.is_connected(_on_room_player_joined):
+                NetworkManager.room_player_joined.disconnect(_on_room_player_joined)
+        if NetworkManager.room_player_left.is_connected(_on_room_player_left):
+                NetworkManager.room_player_left.disconnect(_on_room_player_left)
+
 func _spawn_initial_remote_players():
         for pid in NetworkManager.remote_players:
                 var rp_data = NetworkManager.remote_players[pid]
@@ -122,11 +147,12 @@ func _process(delta):
         if player.is_alive:
                 camera.position = player.global_position
 
-        if shake_timer > 0:
+        if shake_timer > 0 and shake_duration > 0.001:
                 shake_timer -= delta
                 var intensity = shake_intensity * (shake_timer / shake_duration)
                 camera.offset = Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
         else:
+                shake_timer = 0.0
                 camera.offset = original_camera_offset
 
         # Sync local player state to server
