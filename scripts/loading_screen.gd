@@ -24,7 +24,7 @@ func _ready():
         SettingsManager.pending_scene = ""
 
         # Phát nhạc menu nếu đang loading từ menu
-        if not AudioManager._music_player.playing:
+        if not AudioManager.is_music_playing():
                 AudioManager.play_music("menu")
 
         # Bắt đầu tải

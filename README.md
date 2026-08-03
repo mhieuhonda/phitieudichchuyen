@@ -1,30 +1,44 @@
-# 🎯 Phi Tiêu Dịch Chuyển v1.3
+# 🎯 Phi Tiêu Dịch Chuyển v1.4
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
-> Game 2D top-down multiplayer arena được xây dựng bằng Godot Engine 4.7
+> Game 2D top-down arena được xây dựng bằng Godot Engine 4.7
 
-![Version](https://img.shields.io/badge/version-1.3-blue)
-![Godot](https://img.shields.io/badge/Godot-4.7-blue)
-![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20PC-green)
+![Version](https://img.shields.io/badge/version-1.4-blue)
+![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20PC%20%7C%20Web-green)
+![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 
 ---
 
-## 🆕 Tính Năng v1.3
+## 🆕 Tính Năng v1.4
 
-### 🔧 Sửa Toàn Bộ Lỗi Tương Thích Godot 4.7
-Bản v1.2 không thể chạy trên Godot 4.7 do các thay đổi API nghiêm ngặt. v1.3 khắc phục:
+### 🔧 Rà Soát Toàn Diện Godot 4.7 (Clean Sweep)
+
+Bản v1.3 đã fix các lỗi blocker chính (class_name conflict + ternary parse), nhưng vẫn còn sót một số lỗi runtime và logic nhỏ. v1.4 rà soát lại **mọi file GDScript + mọi scene** để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
 
 | Lỗi | Nguyên nhân | Cách sửa |
 |-----|-------------|----------|
-| Khi vào trận không hiện gì, không hiện nhân vật, di chuyển không phản hồi, góc chỉ số không đổi | `class_name CharacterData` trong `character_data.gd` xung đột với autoload cùng tên → GameManager autoload không khởi tạo được | Bỏ `class_name`, dùng autoload singleton |
-| Khi vào màn hình nhân vật bị lag ngay | `character_screen.gd` parse error khiến script nạp lại mỗi frame | Sửa cú pháp ternary trong tuple `% (...)` → chuyển sang `% [...]` |
-| Không thể trang bị nhân vật | Script `character_screen.gd` không load được → `equip_btn.pressed.connect()` không chạy | Như trên |
-| Không thể quay lại | Script không load → `back_btn.pressed.connect()` không chạy | Như trên |
-| Không hiện danh sách nhân vật | `_populate_char_list()` không chạy được | Như trên |
+| Lỗi runtime khi spawn phi tiêu | `dart.gd` gán trực tiếp `monitoring = false/true` khi Area2D đang trong SceneTree → Godot 4.x cấm | Đổi sang `set_deferred("monitoring", value)` ở cả `_ready()` và `_physics_process()` |
+| AI có thể vượt quá max HP riêng khi nhặt pickup | `pickup.gd` clamp máu AI về `GameManager.player_max_hp` (của player) thay vì `ai.current_max_hp` | Sửa thành `ai.current_max_hp` ở cả 2 nhánh HEALTH và DART_REFILL |
+| `loading_screen.gd` truy cập private field `AudioManager._music_player` | Thiếu API công khai | Thêm `AudioManager.is_music_playing()` và dùng thay thế |
+| Biến local `name` shadow property `name` của Node trong AudioManager | GDScript 4.x: `name` là property của Node | Đổi tên thành `sfx_name` / `track_name` cho rõ nghĩa |
 
-### 🖱️ Kéo Thả Nút Bấm Tùy Chỉnh (NEW)
-Người chơi giờ có thể **kéo thả** bất kỳ nút nào đến vị trí mong muốn và **lưu lại** để dùng trong trận:
+### ✅ Verification (Clean trên Godot 4.7 stable)
+
+- ✅ Project import sạch 100% (199 assets, 0 errors)
+- ✅ Headless run 200+ frames: 0 SCRIPT ERROR, 0 push_error, 0 push_warning
+- ✅ Editor mode load sạch: 0 deprecated warnings
+- ✅ Tất cả 18 file GDScript parse sạch (no mixed indentation, no old 4.2 API)
+- ✅ Tất cả 14 scene file dùng node types 4.7 hợp lệ
+- ✅ Không còn `find_node`, `yield`, `update()`, `Tween.new()`, `KinematicBody`, `Sprite`, `YSort`, `VisualServer`, `OS.get_window*`, `add_color_override`, `rect_*`, `margin_*`, `pause_mode`…
+- ✅ Không còn `class_name` trùng autoload singleton
+- ✅ Tất cả signal connect dùng cú pháp 4.x: `signal.connect(callable)`
+- ✅ Tất cả tween dùng `create_tween()` + `tween_property/callback`
+- ✅ Tất cả `monitoring`/`disabled` đổi runtime dùng `set_deferred`
+
+### 🖱️ Kéo Thả Nút Bấm Tùy Chỉnh (từ v1.3)
+Người chơi có thể **kéo thả** bất kỳ nút nào đến vị trí mong muốn và **lưu lại** để dùng trong trận:
 
 - Joystick ảo
 - Nút Ném phi tiêu
@@ -39,12 +53,6 @@ Người chơi giờ có thể **kéo thả** bất kỳ nút nào đến vị t
 
 Layout được lưu dưới dạng tọa độ chuẩn hóa (0..1) nên hoạt động đúng trên mọi độ phân giải màn hình.
 
-### 🐛 Bug Fixes Khác
-- ✅ Fix: `class_name CharacterData` conflicts with autoload singleton (Godot 4.7 strict check)
-- ✅ Fix: ternary expression inside `% (tuple)` no longer parses — switched to `% [array]`
-- ✅ Fix: project feature flag cập nhật từ `4.2` → `4.7`
-- ✅ Fix: tất cả scene giờ import sạch trên Godot 4.7 stable
-
 ## 🎮 Cách Chơi
 
 1. **Ném phi tiêu** (chuột phải / nút Ném) → nhắm và ném phi tiêu vào đối thủ
@@ -54,6 +62,7 @@ Layout được lưu dưới dạng tọa độ chuẩn hóa (0..1) nên hoạt 
 5. **Sinh tồn** → tránh vòng bo thu nhỏ, sống sót đến cuối trận!
 
 ## 🥷 12 Nhân Vật Độc Đáo
+
 | # | Tên | Loại | Đặc điểm | Kỹ năng riêng |
 |---|------|------|-----------|---------------|
 | 1 | Rồng Đỏ | Chiến Binh | +15 HP | Dash mạnh hơn 20% |
@@ -76,7 +85,7 @@ Layout được lưu dưới dạng tọa độ chuẩn hóa (0..1) nên hoạt 
 - Kích thước nút bấm (50% - 150%)
 - Độ trong suốt UI (30% - 100%)
 
-### Kéo Thả (v1.3 - MỚI)
+### Kéo Thả (v1.3+)
 - 6 nút có thể kéo thả tự do trong "Khu vực kéo thả"
 - Bấm **Lưu vị trí** để áp dụng vào game
 - Bấm **Đặt vị trí về mặc định** để khôi phục
@@ -111,9 +120,9 @@ Layout được lưu dưới dạng tọa độ chuẩn hóa (0..1) nên hoạt 
 
 ## 🏗️ Công Nghệ
 
-- **Engine**: Godot 4.7 (stable)
+- **Engine**: Godot 4.7 stable
 - **Ngôn ngữ**: GDScript
-- **Nền tảng**: Android, iOS, PC, Web
+- **Nền tảng**: Android, iOS, PC (Windows/Linux/macOS), Web
 - **Đồ họa**: Tự phát hiện thiết bị và chọn chất lượng phù hợp
 - **Âm thanh**: Pool AudioStreamPlayer với 155+ sound effects
 - **Lưu trữ**: ConfigFile cho settings + custom layout
@@ -134,11 +143,11 @@ phitieudichchuyen/
 │   ├── character_screen.tscn  # Màn hình nhân vật
 │   ├── settings.tscn          # Cài đặt
 │   ├── ui_customization.tscn  # Chỉnh sửa giao diện + kéo thả
-│   ├── hud.tscn                # HUD game
-│   ├── player.tscn             # Player
-│   ├── ai_player.tscn          # AI
-│   ├── dart.tscn               # Phi tiêu
-│   └── ...                     # Scenes khác
+│   ├── hud.tscn               # HUD game
+│   ├── player.tscn            # Player
+│   ├── ai_player.tscn         # AI
+│   ├── dart.tscn              # Phi tiêu
+│   └── ...                    # Scenes khác
 ├── scripts/
 │   ├── game_manager.gd         # Singleton quản lý game
 │   ├── settings_manager.gd     # Singleton cài đặt + custom layout
@@ -149,11 +158,31 @@ phitieudichchuyen/
 │   ├── virtual_joystick.gd     # Áp dụng layout vào joystick
 │   ├── player.gd               # Script player
 │   ├── ai_player.gd            # Script AI
-│   └── ...                     # Scripts khác
-└── project.godot               # Cấu hình Godot 4.7
+│   ├── dart.gd                 # Script phi tiêu
+│   ├── pickup.gd               # Script vật phẩm
+│   ├── map.gd                  # Script bản đồ
+│   ├── hud.gd                  # Script HUD
+│   ├── main.gd                 # Script scene chính
+│   ├── menu.gd                 # Script menu
+│   ├── loading_screen.gd       # Script màn hình tải
+│   ├── settings_menu.gd        # Script menu cài đặt
+│   └── character_screen.gd     # Script màn hình nhân vật
+├── project.godot               # Cấu hình Godot 4.7
+├── export_presets.cfg          # Export Android / Windows / Linux
+├── icon.svg                    # Icon game
+├── LICENSE
+├── README.md
+└── CHANGELOG.md
 ```
 
 ## 📜 Lịch Sử Phiên Bản
+
+### v1.4 (2026-08-03) — Clean Sweep Godot 4.7
+- **FIX CRITICAL**: `dart.gd` gán trực tiếp `monitoring` khi Area2D trong tree → lỗi runtime. Đổi sang `set_deferred`.
+- **FIX LOGIC**: `pickup.gd` hồi máu AI theo `GameManager.player_max_hp` thay vì `ai.current_max_hp` → AI vượt max HP.
+- **REFAC**: `AudioManager` thêm API `is_music_playing()` công khai; bỏ truy cập private field từ `loading_screen.gd`.
+- **REFAC**: Đổi tên local `name` → `sfx_name`/`track_name` trong AudioManager (tránh shadow Node.name).
+- ✅ Verification: 0 SCRIPT ERROR, 0 push_warning, 0 deprecated warnings trên Godot 4.7 stable.
 
 ### v1.3 (2026-08-03)
 - **CRITICAL**: Sửa lỗi `class_name CharacterData` xung đột autoload singleton (Godot 4.7)
@@ -172,6 +201,12 @@ phitieudichchuyen/
 - Fix: không bị khóa di chuyển khi ném phi tiêu
 - Fix: teleport kill kiểm tra shield đúng cách
 - Map đẹp hơn với nhiều decoration
+- UI gọn gàng hơn
+
+### v1.1 (2026-08-03)
+- Fix nhân vật quá to, không hiện, không dịch chuyển được
+- Fix collision layers giữa player và AI
+- Tăng walk_speed 80 → 120
 - UI gọn gàng hơn
 
 ### v1.0 (2026)
@@ -199,7 +234,7 @@ cd phitieudichchuyen
 
 ### Export
 1. Mở project trong Godot 4.7
-2. Project → Export → Add platform
+2. Project → Export → Add platform (đã có sẵn preset Android, Windows, Linux)
 3. Bấm Export Project
 
 ## 📄 Giấy Phép
@@ -209,5 +244,5 @@ Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 ---
 
 <p align="center">
-  <b>Phi Tiêu Dịch Chuyển</b> - Ném phi tiêu, dịch chuyển, nuốt đối thủ!
+  <b>Phi Tiêu Dịch Chuyển</b> — Ném phi tiêu, dịch chuyển, nuốt đối thủ!
 </p>

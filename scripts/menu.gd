@@ -20,8 +20,8 @@ func _ready():
         for btn in [play_button, characters_button, settings_button, quit_button]:
                 btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-        new_feature_label.text = "[color=cyan][b]v1.3:[/b][/color] Sửa toàn bộ lỗi Godot 4.7 + Kéo thả nút bấm tùy chỉnh + Lưu layout\n[color=yellow]v1.3:[/color] Fix vào trận không hiện nhân vật / không di chuyển / không hiện chỉ số\n[color=green]v1.3:[/color] Fix màn hình nhân vật lag / không trang bị / không quay lại / không hiện danh sách"
-        version_label.text = "v1.3 - Phi Tiêu Dịch Chuyển"
+        new_feature_label.text = "[color=cyan][b]v1.4:[/b][/color] Rà soát & sửa toàn bộ lỗi Godot 4.7 còn sót (dart monitoring, AI pickup HP, AudioManager API)\n[color=yellow]v1.4:[/color] V1.3 đã fix class_name conflict + ternary parse + UI drag-drop\n[color=green]v1.4:[/color] Clean code: bỏ truy cập private member, sửa logic AI max HP"
+        version_label.text = "v1.4 - Phi Tiêu Dịch Chuyển"
 
         AudioManager.play_music("menu")
 

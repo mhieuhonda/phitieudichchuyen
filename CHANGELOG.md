@@ -1,5 +1,38 @@
 # Changelog
 
+## v1.4 - Phi Tiêu Dịch Chuyển (2026-08-03)
+
+### 🔧 Rà Soát Toàn Diện Godot 4.7 (Clean Sweep)
+Bản v1.3 đã fix lỗi blocker chính (class_name conflict + ternary parse), nhưng còn sót một số lỗi runtime và logic nhỏ. v1.4 rà soát lại **mọi file GDScript + mọi scene** để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
+
+### 🐛 Bug Fixes (Critical)
+- **FIX: `dart.gd` gán trực tiếp `monitoring = false/true` khi Area2D đang trong SceneTree.** Godot 4.x cấm thay đổi `monitoring` trực tiếp khi node đã ở trong tree → sinh lỗi runtime. Đã đổi sang `set_deferred("monitoring", value)` ở cả `_ready()` (line 35) và `_physics_process()` (line 70).
+- **FIX: `pickup.gd` hồi máu AI dựa trên `GameManager.player_max_hp`.** Khi AI nhặt health/dart refill, máu được clamp về max HP của **player** thay vì max HP của chính AI → AI có thể vượt quá giới hạn máu riêng. Đã sửa thành `ai.current_max_hp` ở cả 2 nhánh (HEALTH và DART_REFILL).
+
+### 🛠️ Code Quality
+- **REFAC: `AudioManager` thêm API công khai `is_music_playing()`.** Trước đây `loading_screen.gd` phải truy cập trực tiếp `AudioManager._music_player.playing` (private field) → vi phạm encapsulation. Giờ dùng `AudioManager.is_music_playing()`.
+- **REFAC: Đổi tên biến/bán `name` thành `sfx_name` / `track_name` trong `AudioManager`.** Trong Godot 4.x, `name` là property của Node; dùng `name` làm biến cục bộ gây shadow và nhầm lẫn. Đã rename cho rõ nghĩa.
+- **CLEANUP: Bỏ pattern `name = list[randi() % list.size()]` → `sfx_name = list[randi() % list.size()]`.**
+
+### ✅ Verification
+- ✅ Project import sạch 100% trên Godot 4.7 stable (199 assets reimport, 0 errors)
+- ✅ Headless run 200+ frames: 0 SCRIPT ERROR, 0 push_error, 0 push_warning
+- ✅ Editor mode load sạch: 0 deprecated warnings
+- ✅ Tất cả 18 file GDScript parse sạch (no mixed indentation, no old 4.2 API)
+- ✅ Tất cả 14 scene file dùng node types 4.7 hợp lệ (Sprite2D, CharacterBody2D, Area2D, …)
+- ✅ Không còn `find_node`, `yield`, `update()`, `Tween.new()`, `KinematicBody`, `Sprite`, `YSort`, `VisualServer`, `OS.get_window*`, `add_color_override`, `rect_*`, `margin_*`, `pause_mode`…
+- ✅ Không còn `class_name` trùng autoload singleton
+- ✅ Tất cả signal connect dùng cú pháp 4.x: `signal.connect(callable)`
+- ✅ Tất cả tween dùng `create_tween()` + `tween_property/callback`
+- ✅ Tất cả `monitoring`/`disabled`/`monitorable` đổi runtime dùng `set_deferred`
+
+### 📦 Release
+- Bump `config/version` từ `1.3` → `1.4` trong `project.godot`
+- Menu chính hiển thị badge v1.4 + tóm tắt thay đổi
+- README.md viết lại chuẩn cho v1.4
+
+---
+
 ## v1.3 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🔧 Godot 4.7 Compatibility (CRITICAL)

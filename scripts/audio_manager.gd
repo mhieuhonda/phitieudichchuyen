@@ -115,46 +115,46 @@ func _preload_common_sounds():
                   "pickup_health_01", "pickup_dart_01", "ui_click_01", "ui_click_02",
                   "combo_01", "zone_warning_01", "dart_stick_01", "respawn_01",
                   "damage_01", "death_01", "success_01", "error_01"]
-    for name in common:
-        _load_sound(name)
+    for sfx_name in common:
+        _load_sound(sfx_name)
 
-func _load_sound(name: String) -> AudioStreamWAV:
-    if _sounds.has(name):
-        return _sounds[name]
-    var path = SFX_PATH + name + ".wav"
+func _load_sound(sfx_name: String) -> AudioStreamWAV:
+    if _sounds.has(sfx_name):
+        return _sounds[sfx_name]
+    var path = SFX_PATH + sfx_name + ".wav"
     if not ResourceLoader.exists(path):
-        push_warning("[AudioManager] Sound not found: %s" % name)
+        push_warning("[AudioManager] Sound not found: %s" % sfx_name)
         return null
     var stream = load(path)
     if stream:
-        _sounds[name] = stream
+        _sounds[sfx_name] = stream
     return stream
 
-func _load_music(name: String) -> AudioStreamWAV:
-    if _music_tracks.has(name):
-        return _music_tracks[name]
-    var path = MUSIC_PATH + name + ".wav"
+func _load_music(track_name: String) -> AudioStreamWAV:
+    if _music_tracks.has(track_name):
+        return _music_tracks[track_name]
+    var path = MUSIC_PATH + track_name + ".wav"
     if not ResourceLoader.exists(path):
-        push_warning("[AudioManager] Music not found: %s" % name)
+        push_warning("[AudioManager] Music not found: %s" % track_name)
         return null
     var stream = load(path)
     if stream:
-        _music_tracks[name] = stream
+        _music_tracks[track_name] = stream
     return stream
 
 # === PUBLIC API ===
 
 ## Phát sound theo tên (nếu không tìm thấy, thử load)
-func play_sound(name: String, volume_db: float = 0.0, pitch: float = 1.0):
+func play_sound(sfx_name: String, volume_db: float = 0.0, pitch: float = 1.0):
     if not _sound_enabled:
         return
-    var stream = _sounds.get(name)
+    var stream = _sounds.get(sfx_name)
     if not stream:
-        stream = _load_sound(name)
+        stream = _load_sound(sfx_name)
         if not stream:
             return
     _play_stream(stream, volume_db, pitch)
-    emit_signal("sound_played", name)
+    emit_signal("sound_played", sfx_name)
 
 ## Phát random variation của category (vd: play_variation("throw"))
 func play_variation(category: String, volume_db: float = 0.0, pitch: float = 1.0):
@@ -164,8 +164,8 @@ func play_variation(category: String, volume_db: float = 0.0, pitch: float = 1.0
         push_warning("[AudioManager] Category not found: %s" % category)
         return
     var list = VARIATIONS[category]
-    var name = list[randi() % list.size()]
-    play_sound(name, volume_db, pitch)
+    var sfx_name = list[randi() % list.size()]
+    play_sound(sfx_name, volume_db, pitch)
 
 ## Phát nhạc nền (fade in)
 func play_music(track_name: String, fade_time: float = 0.5):
@@ -218,6 +218,10 @@ func set_music_enabled(enabled: bool):
     _music_enabled = enabled
     if not enabled:
         stop_music(0.3)
+
+## Trả về true nếu nhạc nền đang phát (API công khai, thay vì truy cập _music_player từ ngoài).
+func is_music_playing() -> bool:
+    return _music_player != null and _music_player.playing
 
 func _update_volumes():
     # Convert 0..1 linear to dB

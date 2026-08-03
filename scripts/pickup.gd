@@ -55,13 +55,15 @@ func _apply_pickup(player: CharacterBody2D):
                 PickupType.DART_REFILL: player.refill_darts(dart_refill_amount, dart_refill_duration)
 
 func _apply_pickup_ai(ai: CharacterBody2D):
+        # Fix v1.4: trước đây dùng GameManager.player_max_hp làm ceiling cho
+        # máu của AI → AI có thể vượt quá max HP riêng. Đã sửa thành ai.current_max_hp.
         match pickup_type:
                 PickupType.HEALTH:
-                        ai.current_hp = min(ai.current_hp + health_amount, GameManager.player_max_hp)
+                        ai.current_hp = min(ai.current_hp + health_amount, ai.current_max_hp)
                         ai._update_hp_bar()
                 PickupType.DART_REFILL:
                         # AI cũng được hồi máu nhẹ khi nhặt dart refill
-                        ai.current_hp = min(ai.current_hp + 15.0, GameManager.player_max_hp)
+                        ai.current_hp = min(ai.current_hp + 15.0, ai.current_max_hp)
                         ai._update_hp_bar()
 
 func _consume():
