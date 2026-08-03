@@ -30,24 +30,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Godot
+      - name: Setup Godot & Export Templates
         run: |
-          GODOT_URL="https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64.zip"
-          echo "Downloading Godot ${{ env.GODOT_VERSION }} from $GODOT_URL"
-          wget -q "$GODOT_URL" -O godot.zip
+          GV="${{ env.GODOT_VERSION }}"
+          # Download Godot editor
+          EDITOR_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_linux.x86_64.zip"
+          echo "Downloading Godot $GV editor..."
+          wget -q "$EDITOR_URL" -O godot.zip
           unzip -q godot.zip
-          chmod +x Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64
-          sudo mv Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64 /usr/local/bin/godot
+          chmod +x Godot_v${GV}-stable_linux.x86_64
+          sudo mv Godot_v${GV}-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
-      - name: Import Godot Project
+          # Download export templates
+          TPL_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_export_templates.tpz"
+          echo "Downloading export templates..."
+          wget -q "$TPL_URL" -O godot_templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${GV}.stable
+          unzip -q godot_templates.tpz -d /tmp/godot_templates
+          mv /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/${GV}.stable/
+          echo "Export templates installed:"
+          ls ~/.local/share/godot/export_templates/${GV}.stable/
+
+      - name: Import & Export Android
         run: |
           godot --headless --import-project project.godot --quit-after 100 2>&1 || true
-
-      - name: Export Android
-        run: |
           mkdir -p build/android
-          godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 || true
+          godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1
+          ls -la build/android/ || true
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
@@ -55,6 +65,7 @@ jobs:
           name: android-build
           path: build/android/*.apk
           retention-days: 7
+          if-no-files-found: warn
 
   # ============================================
   # JOB 2: Build Windows Desktop (Parallel)
@@ -66,24 +77,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Godot
+      - name: Setup Godot & Export Templates
         run: |
-          GODOT_URL="https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64.zip"
-          echo "Downloading Godot ${{ env.GODOT_VERSION }} from $GODOT_URL"
-          wget -q "$GODOT_URL" -O godot.zip
+          GV="${{ env.GODOT_VERSION }}"
+          EDITOR_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_linux.x86_64.zip"
+          echo "Downloading Godot $GV editor..."
+          wget -q "$EDITOR_URL" -O godot.zip
           unzip -q godot.zip
-          chmod +x Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64
-          sudo mv Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64 /usr/local/bin/godot
+          chmod +x Godot_v${GV}-stable_linux.x86_64
+          sudo mv Godot_v${GV}-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
-      - name: Import Godot Project
+          TPL_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_export_templates.tpz"
+          echo "Downloading export templates..."
+          wget -q "$TPL_URL" -O godot_templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${GV}.stable
+          unzip -q godot_templates.tpz -d /tmp/godot_templates
+          mv /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/${GV}.stable/
+          echo "Export templates installed."
+
+      - name: Import & Export Windows
         run: |
           godot --headless --import-project project.godot --quit-after 100 2>&1 || true
-
-      - name: Export Windows
-        run: |
           mkdir -p build/windows
-          godot --headless --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1 || true
+          godot --headless --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1
+          ls -la build/windows/ || true
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -93,6 +111,7 @@ jobs:
             build/windows/*.exe
             build/windows/*.pck
           retention-days: 7
+          if-no-files-found: warn
 
   # ============================================
   # JOB 3: Build Linux (Parallel)
@@ -104,24 +123,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Godot
+      - name: Setup Godot & Export Templates
         run: |
-          GODOT_URL="https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64.zip"
-          echo "Downloading Godot ${{ env.GODOT_VERSION }} from $GODOT_URL"
-          wget -q "$GODOT_URL" -O godot.zip
+          GV="${{ env.GODOT_VERSION }}"
+          EDITOR_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_linux.x86_64.zip"
+          echo "Downloading Godot $GV editor..."
+          wget -q "$EDITOR_URL" -O godot.zip
           unzip -q godot.zip
-          chmod +x Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64
-          sudo mv Godot_v${{ env.GODOT_VERSION }}-stable_linux.x86_64 /usr/local/bin/godot
+          chmod +x Godot_v${GV}-stable_linux.x86_64
+          sudo mv Godot_v${GV}-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
-      - name: Import Godot Project
+          TPL_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_export_templates.tpz"
+          echo "Downloading export templates..."
+          wget -q "$TPL_URL" -O godot_templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${GV}.stable
+          unzip -q godot_templates.tpz -d /tmp/godot_templates
+          mv /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/${GV}.stable/
+          echo "Export templates installed."
+
+      - name: Import & Export Linux
         run: |
           godot --headless --import-project project.godot --quit-after 100 2>&1 || true
-
-      - name: Export Linux
-        run: |
           mkdir -p build/linux
-          godot --headless --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1 || true
+          godot --headless --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1
+          ls -la build/linux/ || true
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
@@ -131,6 +157,7 @@ jobs:
             build/linux/*.x86_64
             build/linux/*.pck
           retention-days: 7
+          if-no-files-found: warn
 
   # ============================================
   # JOB 4: Build & Push Relay Server Docker Image
@@ -179,6 +206,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: '*-build'
+          merge-multiple: false
 
       - name: Organize Release Files
         run: |
@@ -191,7 +220,8 @@ jobs:
           # Linux
           cp artifacts/linux-build/*.x86_64 release/ 2>/dev/null || true
           cp artifacts/linux-build/*.pck release/phitieudichchuyen-linux.pck 2>/dev/null || true
-          ls -la release/
+          echo "=== Release files ==="
+          ls -la release/ || echo "No release files found!"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
