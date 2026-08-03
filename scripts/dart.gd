@@ -28,7 +28,11 @@ signal dart_consumed(dart: Node2D)
 
 func _ready():
         collision_layer = 2
-        collision_mask = 4 | 8 | 16
+        # v0.9 FIX: Added player layer (1) to collision_mask.
+        # Before: mask = 4|8|16 (Wall+AI+Obstacle) → darts couldn't detect
+        # the player → AI darts passed through player without dealing damage.
+        # Now: mask = 1|4|8|16 = 29 (Player+Wall+AI+Obstacle).
+        collision_mask = 1 | 4 | 8 | 16
         # body_entered đã được connect trong .tscn, không connect lại
         lifetime_timer.timeout.connect(_on_lifetime_expired)
 

@@ -19,8 +19,8 @@ func _ready():
     for btn in [play_button, settings_button, quit_button]:
         btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-    new_feature_label.text = "[color=cyan][b]v0.8:[/b][/color] 150+ sound effects + nhạc nền + fix nút mobile + tối ưu\n[color=yellow]v0.7:[/color] Full-screen landscape + nút bắn phi tiêu mới (hold-red line-rotate-release)\n[color=green]v0.6:[/color] Sprite nhân vật mới, Fix AI dart, Mobile throw, Camera shake, Esc menu"
-    version_label.text = "v0.8 - Sound + Mobile Fix"
+    new_feature_label.text = "[color=cyan][b]v0.9:[/b][/color] Fix joystick + multi-touch + nút to hơn + fix AI dart xuyên player\n[color=yellow]v0.8:[/color] 150+ sound effects + nhạc nền + fix nút mobile + tối ưu\n[color=green]v0.7:[/color] Full-screen landscape + nút bắn phi tiêu mới (hold-red line-rotate-release)"
+    version_label.text = "v0.9 - Multi-touch Fix"
 
     # Phát nhạc menu
     AudioManager.play_music("menu")

@@ -43,7 +43,8 @@ func _ready():
         controls_label.text += "PC: WASD = Di chuyển | Chuột phải = Ngắm & Ném\n"
         controls_label.text += "PC: Space = Dịch chuyển | Esc = Menu\n"
         controls_label.text += "[color=cyan]Mobile:[/color] Joystick = Di chuyển | Nút = Bắn/Dịch chuyển\n"
-        controls_label.text += "[color=cyan]Mobile:[/color] Giữ nút bắn = Kẻ đỏ ngắm, kéo xoay hướng, thả = bắn"
+        controls_label.text += "[color=cyan]Mobile v0.9:[/color] Giữ nút bắn = ngắm đỏ, kéo xoay, thả = bắn\n"
+        controls_label.text += "[color=green]Mobile v0.9:[/color] Multi-touch: giữ joystick + bắn + dịch chuyển cùng lúc"
 
         game_over_panel.visible = false
         zone_warning.visible = false
@@ -214,10 +215,6 @@ func _on_dart_thrown(dart: Node2D):
 func _on_teleport_performed(player: CharacterBody2D, to_position: Vector2):
         # Hiển thị hint khi dịch chuyển giữa chừng
         # (sẽ có hiệu ứng riêng)
-        pass
-
-func _input(event: InputEvent):
-        # Restart action không còn dùng (player tự respawn)
         pass
 
 func _add_kill_feed(text: String, color: Color = Color.WHITE):

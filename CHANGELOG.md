@@ -2,6 +2,43 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [0.9] - 2026-08-03
+
+### Fixed
+- **[CRITICAL] Fix joystick không di chuyển nhân vật**: `main.gd` dùng `$VirtualJoystick` và `$MobileControls` (tìm con trực tiếp), nhưng các node này là con của `UILayer` (CanvasLayer) → trả về `null` → joystick không bao giờ được connect với player, mobile control signals không bao giờ được wire up. Giờ sửa thành `$UILayer/VirtualJoystick` và `$UILayer/MobileControls`
+- **[CRITICAL] Fix multi-touch: joystick dừng khi nhấn nút khác**: `virtual_joystick.gd` có mouse fallback đặt `is_pressed = false` khi BẤT KỲ mouse release nào xảy ra. Trên mobile, `emulate_mouse_from_touch=true` khiến mọi touch đều sinh mouse event → khi user nhấn nút throw/teleport, mouse release của nút đó reset joystick. Giờ tách biệt hoàn toàn touch mode và mouse mode: trên touch device chỉ xử lý `InputEventScreenTouch`/`InputEventScreenDrag`, bỏ qua mouse events
+- **[CRITICAL] Fix AI dart xuyên player không gây damage**: `dart.gd` set `collision_mask = 4 | 8 | 16` (Wall+AI+Obstacle) thiếu Player layer (1) → `_on_body_entered` không fire khi dart chạm player → AI bắn trúng player mà không gây sát thương. Giờ sửa thành `1 | 4 | 8 | 16 = 29`
+- **[CRITICAL] Fix teleport button không phản ứng**: Do bug #1 (mobile_controls là null), signal `teleport_pressed` không bao giờ được connect → nút teleport không có effect. Ngoài ra, `mobile_controls.gd` chỉ track `aim_touch_index` cho nút throw, không track riêng cho teleport → giờ thêm `teleport_touch_index` riêng để hỗ trợ multi-touch (giữ joystick + nhấn teleport cùng lúc)
+- **[HIGH] Fix hit area overlap giữa throw và teleport button**: Throw button hit area (`grow(30)`) overlap với teleport button hit area (`grow(20)`) → touch vào teleport có thể bị throw capture. Giờ redesign layout: throw 180×180 ở góc dưới-phải, teleport 140×140 bên trái throw với gap 60px, không overlap
+- **[HIGH] Fix duplicate teleport fire**: `teleport_btn.mouse_filter=STOP` + handling trong `_input` → teleport fire 2 lần (1 từ _input, 1 từ GUI `pressed` signal do `emulate_mouse_from_touch`). Giờ set `teleport_btn.mouse_filter=IGNORE`, chỉ handle qua `_input`
+- **[HIGH] Fix duplicate screen shake khi teleport**: `_on_teleport_performed` gọi `apply_screen_shake(4.0, 0.2)` trong khi `GameManager.screen_shake_requested` signal cũng đã trigger `apply_screen_shake` → rung màn hình 2 lần. Giờ bỏ duplicate call
+- **[MEDIUM] Fix button quá nhỏ**: Throw/Teleport button chỉ 100×100px (quá nhỏ cho ngón cái). Giờ throw 180×180, teleport 140×140
+- **[MEDIUM] Fix joystick quá nhỏ**: Joystick 160×160px. Giờ 200×200 với stick (knob) 100×100
+- **[LOW] Fix `player.aim_touch_index = 0` ambiguous với touch index 0**: Đổi thành sentinel `AIM_MODE_MOBILE_SENTINEL = -2` để distinguish mobile mode vs actual touch index 0
+- **[LOW] Fix `player._die()` không reset dart_bonus và aim state**: Player chết rồi respawn vẫn giữ dart bonus và aim line có thể stuck. Giờ reset cả hai
+- **[LOW] Remove empty `_input` function trong `hud.gd`**: Dead code
+
+### Added
+- **Visual feedback khi nhấn nút mobile**: Throw button đổi màu cam khi hold, teleport button đổi màu xanh khi press. Dùng `Tween` cho smooth transition
+- **Touch device cache**: `_is_touch_device()` giờ cache kết quả để tránh check lặp lại mỗi input event
+- **HUD controls hint cập nhật cho v0.9**: Mô tả multi-touch capability mới
+- **Menu version label cập nhật v0.9**
+
+### Changed
+- `scripts/main.gd`: `@onready var joystick = $UILayer/VirtualJoystick`, `@onready var mobile_controls = $UILayer/MobileControls`; bỏ duplicate `apply_screen_shake` trong `_on_teleport_performed`
+- `scripts/virtual_joystick.gd`: Rewrite hoàn toàn - tách touch/mouse tracking, cache `_is_touch_device()`, thêm `is_mouse_pressed` field riêng
+- `scripts/mobile_controls.gd`: Rewrite hoàn toàn - tách touch/mouse tracking, thêm `teleport_touch_index` cho multi-touch, thêm `_handle_touch_event`/`_handle_drag_event`/`_handle_mouse_event` helpers, thêm visual feedback
+- `scripts/dart.gd`: `collision_mask = 1 | 4 | 8 | 16` (thêm Player layer)
+- `scripts/player.gd`: Thêm `AIM_MODE_MOBILE_SENTINEL` const, reset aim state + dart_bonus trong `_die()`
+- `scripts/hud.gd`: Cập nhật controls hint text cho v0.9, remove empty `_input`
+- `scripts/menu.gd`: `version_label = "v0.9 - Multi-touch Fix"`, `new_feature_label` cập nhật
+- `scenes/virtual_joystick.tscn`: Joystick 200×200 (từ 160×160), stick 100×100 (từ 80×80), margin 30px (từ 20px)
+- `scenes/mobile_controls.tscn`: Throw button 180×180 (từ 100×100), teleport 140×140 (từ 100×100), gap 60px giữa 2 nút (từ 10px)
+- `scenes/menu.tscn`: NewFeatureLabel + VersionLabel text v0.9
+- `project.godot`: `config/version="0.9"`
+- `export_presets.cfg`: `version/code=9`, `version/name="0.9"`, `file_version="0.9.0.0"`, `product_version="0.9.0.0"`
+- `README.md`: Cập nhật badge v0.9, thêm section "Lỗi đã fix trong v0.9", cập nhật layout description
+
 ## [0.8] - 2026-08-03
 
 ### Fixed

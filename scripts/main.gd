@@ -6,8 +6,13 @@ extends Node2D
 @onready var ai_container: Node2D = $AIPlayers
 @onready var camera: Camera2D = $Camera2D
 @onready var hud: CanvasLayer = $HUD
-@onready var joystick: Control = $VirtualJoystick
-@onready var mobile_controls: Control = $MobileControls
+# CRITICAL FIX v0.9: VirtualJoystick & MobileControls are children of UILayer
+# (CanvasLayer), not direct children of Main. Old paths $VirtualJoystick /
+# $MobileControls returned null, so joystick never connected to player and
+# mobile button signals never wired up → joystick didn't move character,
+# throw/teleport buttons did nothing.
+@onready var joystick: Control = $UILayer/VirtualJoystick
+@onready var mobile_controls: Control = $UILayer/MobileControls
 
 var ai_scene: PackedScene = preload("res://scenes/ai_player.tscn")
 var shake_intensity: float = 0.0
@@ -109,7 +114,10 @@ func _on_player_respawned(p: CharacterBody2D):
         AudioManager.play_success()
 
 func _on_teleport_performed(p: CharacterBody2D, to_position: Vector2):
-        apply_screen_shake(4.0, 0.2)
+        # v0.9: Removed duplicate apply_screen_shake - GameManager.screen_shake_requested
+        # signal already triggers apply_screen_shake via player._teleport_to_dart()
+        # → was causing double screen shake on every teleport.
+        pass
 
 func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
         if killer == player:

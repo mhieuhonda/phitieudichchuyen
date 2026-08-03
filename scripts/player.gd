@@ -35,7 +35,9 @@ var joystick_ref: Control = null  # Reference to VirtualJoystick
 var last_killer_name: String = KILLER_NONE
 var dart_bonus: int = 0  # Bonus max darts from DART_REFILL pickup
 var dart_bonus_timer: float = 0.0
-var aim_touch_index: int = -1  # -1 = desktop mode, >=0 = mobile mode
+var aim_touch_index: int = -1  # -1 = desktop mode, >=0 = mobile mode (actual touch index)
+# Sentinel value to mark "mobile mode but no specific touch index tracked"
+const AIM_MODE_MOBILE_SENTINEL: int = -2
 
 var dart_scene: PackedScene = preload("res://scenes/dart.tscn")
 
@@ -145,7 +147,7 @@ func start_aim_mobile():
         if _count_active_darts() >= _get_max_darts():
                 return
         is_aiming = true
-        aim_touch_index = 0  # Đánh dấu đang ở mobile mode
+        aim_touch_index = AIM_MODE_MOBILE_SENTINEL  # Mobile mode marker
         aim_direction = Vector2.RIGHT  # Mặc định ban đầu
         aim_power = GameManager.min_throw_power
         aim_line.visible = true
@@ -317,6 +319,12 @@ func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
 func _die():
         is_alive = false
         is_respawning = true
+        # v0.9: Reset aim state để tránh stuck aim line sau khi chết
+        is_aiming = false
+        aim_touch_index = -1
+        # v0.9: Reset dart bonus để công bằng sau respawn
+        dart_bonus = 0
+        dart_bonus_timer = 0.0
         death_particles.emitting = true
         sprite.visible = false
         collision_shape.set_deferred("disabled", true)
