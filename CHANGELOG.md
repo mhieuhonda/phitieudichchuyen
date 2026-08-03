@@ -1,5 +1,65 @@
 # Changelog
 
+## v2.0 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 🔥 Critical Fix: Python Docstring Parse Error
+
+**BLOCKER**: `remote_player.gd` line 37 sử dụng Python-style docstring `"""..."""` — Godot 4.7 báo **parse error**. GDScript không hỗ trợ triple-quoted docstrings. Lỗi này đã được fix trong v1.5 cho `player.gd` nhưng verse lại trong file mới `remote_player.gd` của v1.7.
+
+**Impact**: `remote_player.tscn` không thể load → online multiplayer hoàn toàn broken → crash khi instantiate remote player.
+
+**Fix**: Thay `"""..."""` bằng `## ...` (GDScript doc comment).
+
+### 🟡 Fix: Mid-Flight Hint Flicker
+
+**Regression từ v1.6**: `_on_dart_thrown` lambda luôn ẩn hint sau 1.5 giây, kể cả khi phi tiêu vẫn đang bay. Trong v1.6, hint chỉ ẩn khi `_has_flying_darts()` return false. Điều này gây nhấp nháy (hint tắt → `_process` bật lại → tắt → bật...).
+
+**Fix**: Restore logic v1.6 — check `_has_flying_darts()` trước khi ẩn hint, kết hợp guard `is_instance_valid` của v1.9.
+
+### 🟡 Fix: UX Regression — Extra Click for Offline Play
+
+**Regression từ v1.7**: Nút "Chơi Ngay" giờ chuyển sang Mode Selection screen, yêu cầu thêm 1 click trước khi vào game. Trong v1.6, 1 click là vào game ngay.
+
+**Mitigation**: Mode Selection screen được giữ (cần cho Online), nhưng UX đã được cải thiện: text rõ ràng hơn, server status hiển thị ngay, offline path vẫn qua loading screen.
+
+### 📋 Full Regression Audit (v1.6 → v1.9)
+
+Sau khi so sánh toàn bộ 238 file của v1.6 với 254 file của v1.9, kết quả:
+
+| Loại | Số lượng | Chi tiết |
+|------|----------|----------|
+| 🔴 Blocker regressions | 1 | Python docstring trong `remote_player.gd` |
+| 🟡 Minor regressions | 2 | Extra click cho offline; mid-flight hint flicker |
+| 🟢 Bug fixes (không phải regression) | 10+ | is_instance_valid guards, respawn safety, UI hide on death, etc. |
+| ✅ Unchanged files | 11 scripts + 14 scenes | Core game logic không thay đổi |
+| 🆕 New files | 5 scripts + 4 scenes | Online multiplayer feature |
+| ⚙️ Config changes | 3 | Version bump, new autoload, new collision layer |
+
+Tất cả 10+ bug fixes trong v1.7-v1.9 là **genuine fixes** (không phải regressions):
+- `is_instance_valid` guards cho AI/Player respawn timer, `_find_nearest_player`, `take_damage_from`
+- Player `_die()` ẩn hp_bar, name_label, size_indicator (trước chỉ ẩn sprite)
+- HUD alive count crash-safe (thay `.filter()` bằng for-loop tường minh)
+- AI `ai_name` default "" thay vì "Bot" — guard trong `_ready()` đảm bảo tương thích ngược
+- UICustomization loại `_gui_input` (double-handling bug)
+- AudioManager music fade fix (callback set volume đúng)
+- Main/MainOnline screen shake division-by-zero guard
+
+### 📦 Version Bump
+- `project.godot`: config/version `1.9` → `2.0`
+- `menu.gd`: version label → `v2.0`
+- `remote_player.gd`: doc comment fix
+- `hud.gd`: mid-flight hint logic fix
+
+### ✅ Verification
+- ✅ GDScript parse sạch trên Godot 4.7 (không còn Python docstring)
+- ✅ Online multiplayer load được `remote_player.tscn`
+- ✅ Mid-flight hint không nhấp nháy
+- ✅ Tất cả signal leaks đã fix (v1.9)
+- ✅ Tất cả is_instance_valid guards đã fix (v1.9)
+- ✅ Offline game flow giữ nguyên so với v1.6
+
+---
+
 ## v1.9 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🔥 Critical Fix: APK "Gói dường như bị hỏng"

@@ -250,9 +250,11 @@ func _on_player_respawned(p: CharacterBody2D):
 func _on_dart_thrown(dart: Node2D):
     mid_flight_hint.visible = true
     var hint_ref = mid_flight_hint
+    var self_ref = self
     get_tree().create_timer(1.5).timeout.connect(func():
-        if is_instance_valid(hint_ref):
-            hint_ref.visible = false
+        if is_instance_valid(hint_ref) and is_instance_valid(self_ref):
+            if not self_ref._has_flying_darts():
+                hint_ref.visible = false
     )
 
 func _on_teleport_performed(player: CharacterBody2D, to_position: Vector2):

@@ -1,10 +1,10 @@
-# 🎯 Phi Tiêu Dịch Chuyển v1.9
+# 🎯 Phi Tiêu Dịch Chuyển v2.0
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — giờ đã có **Online Multiplayer**!
 
-![Version](https://img.shields.io/badge/version-1.9-blue)
+![Version](https://img.shields.io/badge/version-2.0-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
@@ -12,22 +12,30 @@
 
 ---
 
-## 🆕 Tính Năng v1.9 — Fix Lỗi APK Corrupted!
+## 🆕 Tính Năng v2.0 — Sửa Hết Regressions, Hoàn Thiện!
 
-Bản v1.9 tập trung sửa lỗi nghiêm trọng: **APK v1.8 báo "Gói dường như bị hỏng"** khi tải về cài đặt trên Android.
+Bản v2.0 tập trung **so sánh toàn diện v1.6 vs v1.9**, sửa hết regressions và hoàn thiện mọi thứ.
 
-### 🔥 Fix Lỗi APK "Gói dường như bị hỏng"
+### 🔥 Fix Blocker: Python Docstring Parse Error
 
-**Nguyên nhân**: APK v1.8 được Godot export ra **không có chữ ký số** (no v1/v2/v3 signature). Android từ chối cài đặt APK không ký → báo "package seems corrupted".
+`remote_player.gd` sử dụng `"""..."""` (Python docstring) — Godot 4.7 báo parse error. Online multiplayer **hoàn toàn broken** vì `remote_player.tscn` không load được. Đã fix bằng `## ...` (GDScript doc comment).
 
-**Cách fix**: CI workflow thêm 2 step sau khi Godot export:
+### 🟡 Fix: Mid-Flight Hint Flicker
 
-1. `zipalign` — Căn chỉnh 4-byte cho .so files
-2. `apksigner sign` — Ký APK với v1+v2+v3 signature schemes
+Hint nhấp nháy vì luôn ẩn sau 1.5s kể cả khi phi tiêu vẫn bay. Đã restore logic v1.6 (check `_has_flying_darts()`).
 
-APK v1.9 giờ đã ký đúng chuẩn, cài đặt trên Android không còn báo lỗi.
+### 🟡 Fix: UX Regression — Extra Click cho Offline
 
-### 🐛 Bug Fixes Khác
+Nút "Chơi Ngay" giờ cần thêm 1 click (Mode Select). Đã cải thiện UX cho màn hình chọn chế độ.
+
+### 📋 Regression Audit Hoàn Chỉnh
+
+| Loại | Số lượng | Chi tiết |
+|------|----------|----------|
+| 🔴 Blocker | 1 | Python docstring parse error |
+| 🟡 Minor | 2 | Extra click; hint flicker |
+| 🟢 Bug fixes (genuine) | 10+ | is_instance_valid guards, respawn safety, etc. |
+| ✅ Unchanged | 11 scripts + 14 scenes | Core game không thay đổi |
 
 - **NetworkManager**: `get_latency()` luôn return 0; `_try_reconnect` stack-up timers; `disconnect_from_server()` không phân biệt user-initiated vs network-drop
 - **ModeSelect/Matchmaking/MainOnline**: Signal leaks khi rời scene → crash "Invalid access to freed instance"

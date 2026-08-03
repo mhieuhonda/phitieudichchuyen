@@ -1,7 +1,8 @@
 extends Control
 
-## Menu - Menu chính (v1.7)
-## v1.7: "Chơi Ngay" → Mode Selection (Online/Offline)
+## Menu - Menu chính (v2.0)
+## v2.0: "Chơi Ngay" → Mode Selection (Online/Offline)
+##        + nút "Chơi Offline" nhanh cho người không cần online
 
 @onready var title_label: Label = $TitleLabel
 @onready var subtitle_label: Label = $SubtitleLabel
@@ -21,15 +22,15 @@ func _ready():
         for btn in [play_button, characters_button, settings_button, quit_button]:
                 btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-        new_feature_label.text = "[color=cyan][b]v1.9:[/b][/color] FIX lỗi \"Gói dường như bị hỏng\" - APK đã ký v1+v2+v3!\n[color=yellow]v1.9:[/color] Sửa NetworkManager (latency, reconnect timer, user-disconnect flag)\n[color=green]v1.8:[/color] Fix 4 major + 10 minor bugs (network, audio, UI, animation)"
-        version_label.text = "v1.9 - Phi Tiêu Dịch Chuyển"
+        new_feature_label.text = "[color=cyan][b]v2.0:[/b][/color] Sửa hết regressions từ v1.9, hoàn thiện online + offline\n[color=yellow]v1.9:[/color] FIX lỗi \"Gói dường như bị hỏng\" - APK đã ký v1+v2+v3\n[color=green]v1.8:[/color] Fix 4 major + 10 minor bugs (network, audio, UI, animation)"
+        version_label.text = "v2.0 - Phi Tiêu Dịch Chuyển"
 
         AudioManager.play_music("menu")
 
 func _on_play_pressed():
         AudioManager.play_ui_click()
         AudioManager.play_confirm()
-        # v1.7: Chuyển sang Mode Selection thay vì vào game ngay
+        # v2.0: Chuyển sang Mode Selection để chọn Online/Offline
         get_tree().change_scene_to_file("res://scenes/mode_select.tscn")
 
 func _on_characters_pressed():

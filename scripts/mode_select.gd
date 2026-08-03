@@ -1,7 +1,7 @@
 extends Control
 
-## ModeSelectScreen - Chọn chế độ chơi: Online hoặc Offline (v1.7)
-## v1.9 FIX: Cleanup ONE_SHOT signal handlers on scene exit to avoid
+## ModeSelectScreen - Chọn chế độ chơi: Online hoặc Offline (v2.0)
+## v2.0: Cleanup ONE_SHOT signal handlers on scene exit to avoid
 ## "Invalid access to property or method on freed instance" errors when
 ## the connection state changes after the user has already navigated away.
 
