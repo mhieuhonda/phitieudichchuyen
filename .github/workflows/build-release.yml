@@ -257,14 +257,29 @@ jobs:
       - name: Determine release tag
         id: rel
         run: |
+          # For push (tag) events: use the pushed tag name (e.g. "v1.8")
+          # For release events: use the release's tag_name (e.g. "v1.8")
+          # For workflow_dispatch: use the input, but ensure it starts with "v"
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+            TAG="${GITHUB_REF_NAME}"
           elif [ "${GITHUB_EVENT_NAME}" = "release" ]; then
-            echo "tag=${GITHUB_EVENT_RELEASE_TAG_NAME}" >> $GITHUB_OUTPUT
+            TAG="${{ github.event.release.tag_name }}"
           else
-            # workflow_dispatch — use input or generate one
-            echo "tag=${{ inputs.version || 'v1.8' }}" >> $GITHUB_OUTPUT
+            INPUT_VER="${{ inputs.version }}"
+            if [ -z "$INPUT_VER" ]; then
+              # Read from project.godot as fallback
+              PROJECT_VER=$(grep 'config/version' project.godot | sed 's/.*="\([^"]*\)".*/\1/')
+              TAG="v${PROJECT_VER}"
+            else
+              # Ensure it starts with "v"
+              case "$INPUT_VER" in
+                v*) TAG="$INPUT_VER" ;;
+                *) TAG="v${INPUT_VER}" ;;
+              esac
+            fi
           fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Will use release tag: ${TAG}"
 
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
