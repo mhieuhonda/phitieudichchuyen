@@ -80,20 +80,42 @@ jobs:
           ./cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platform-tools" "platforms;android-34" > /dev/null 2>&1
           echo "Build tools installed:"
           ls $ANDROID_HOME/build-tools/34.0.0/ | grep -E "apksigner|zipalign"
+          # Persist env for subsequent steps
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+
+      - name: Configure Godot editor settings (Android SDK path)
+        run: |
+          # Godot 4.7 requires Android SDK path in Editor Settings even when
+          # use_gradle_build=false and package/signed=false. We use Godot's
+          # ConfigFile-style format for editor_settings.cfg.
+          SETTINGS_DIR="$HOME/.config/godot"
+          mkdir -p "$SETTINGS_DIR"
+          cat > "$SETTINGS_DIR/editor_settings.cfg" <<EOF
+          [EditorSettings]
+
+          export/android/android_sdk_path="${ANDROID_HOME}"
+          export/android/debug_keystore=""
+          export/android/debug_keystore_user="androiddebugkey"
+          export/android/debug_keystore_pass="android"
+          export/android/release_keystore=""
+          export/android/release_keystore_user=""
+          export/android/release_keystore_pass=""
+          export/android/use_custom_build=false
+          export/android/timestamp_output_apk=false
+          export/android/force_system_user=false
+          export/android/shutdown_adb_on_exit=true
+          EOF
+          echo "Godot editor settings written to $SETTINGS_DIR/editor_settings.cfg:"
+          cat "$SETTINGS_DIR/editor_settings.cfg"
 
       - name: Import Project
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: |
           # --import is the Godot 4.x flag (NOT --import-project which was 3.x)
           # It imports all resources and quits automatically.
           godot --headless --import 2>&1 | tee import.log || (echo "Import failed, see log above" && exit 1)
 
       - name: Export Android APK (unsigned, from Godot)
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: |
           mkdir -p build/android
           echo "Godot version: $(godot --version)"
