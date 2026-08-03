@@ -11,6 +11,10 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: write
+  packages: write
+
 env:
   GODOT_VERSION: '4.7'
   PROJECT_NAME: 'phitieudichchuyen'
