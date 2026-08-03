@@ -336,8 +336,8 @@ func _update_zone_visual():
             var y = GameManager.zone_center.y + sin(angle) * GameManager.zone_radius
             zone_circle.add_point(Vector2(x, y))
         # Màu đỏ/cam sống động
-        zone_circle.default_color = Color(1.0, 0.35, 0.35, 0.85)
-        zone_circle.width = 4.0
+        zone_circle.default_color = Color(0.3, 0.8, 0.5, 0.7)
+        zone_circle.width = 3.0
     # Zone fill - subtle inner glow
     if zone_fill:
         var segments = 64

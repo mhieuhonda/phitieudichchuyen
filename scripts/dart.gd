@@ -20,6 +20,7 @@ var owner_player_id: int = 0
 var stuck_position: Vector2 = Vector2.ZERO
 var flight_distance: float = 0.0
 var max_flight_distance: float = 1500.0
+var spawn_immunity_timer: float = 0.08  # Không va chạm 0.08s đầu để tránh stuck ngay khi spawn
 
 signal dart_stuck(dart: Node2D)
 signal dart_expired(dart: Node2D)
@@ -28,11 +29,10 @@ signal dart_consumed(dart: Node2D)
 
 func _ready():
         collision_layer = 2
-        # v0.9 FIX: Added player layer (1) to collision_mask.
-        # Before: mask = 4|8|16 (Wall+AI+Obstacle) → darts couldn't detect
-        # the player → AI darts passed through player without dealing damage.
-        # Now: mask = 1|4|8|16 = 29 (Player+Wall+AI+Obstacle).
+        # Dart có thể phát hiện: Player(1), Wall(4), AI(8), Obstacle(16)
         collision_mask = 1 | 4 | 8 | 16
+        # Tắt monitoring tạm thời để tránh body_entered khi spawn
+        monitoring = false
         # body_entered đã được connect trong .tscn, không connect lại
         lifetime_timer.timeout.connect(_on_lifetime_expired)
 
@@ -63,6 +63,11 @@ func set_direction(dir: Vector2, pwr: float):
         speed = GameManager.dart_speed * power
 
 func _physics_process(delta):
+        # Spawn immunity: bật monitoring sau khi đã bay xa khỏi player
+        if not monitoring:
+                spawn_immunity_timer -= delta
+                if spawn_immunity_timer <= 0:
+                        monitoring = true
         if current_state == State.FLYING:
                 var move_amount = direction * speed * delta
                 position += move_amount

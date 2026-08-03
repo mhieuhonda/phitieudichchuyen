@@ -33,8 +33,8 @@ signal skill_used(player_id: int, skill_id: String)
 @export var mid_flight_teleport_enabled: bool = true
 
 @export_group("Người Chơi")
-@export var walk_speed: float = 80.0
-@export var teleport_kill_radius: float = 40.0
+@export var walk_speed: float = 120.0
+@export var teleport_kill_radius: float = 50.0
 @export var base_player_max_hp: float = 100.0
 @export var hp_per_size_unit: float = 4.0  # Mỗi đơn vị size tăng thêm 4 HP max
 @export var heal_percent_on_kill: float = 0.10  # Hồi 10% max HP khi ăn đối thủ

@@ -68,7 +68,9 @@ func _ready():
     aim_line.visible = false
     teleport_ready_indicator.visible = false
     collision_layer = 1
-    collision_mask = 4 | 16
+    # Player có thể phát hiện: Wall(4), AI(8), Obstacle(16)
+    # Thêm AI layer để player va chạm với AI khi di chuyển
+    collision_mask = 4 | 8 | 16
 
     var tex = load("res://assets/sprites/player_blue.png")
     if tex:
@@ -708,11 +710,32 @@ func _update_teleport_indicator():
             break
     teleport_ready_indicator.visible = has_teleportable and is_alive
 
+const BASE_SPRITE_SCALE := 0.3
+
 func _update_visual_size():
-    var new_scale = GameManager.player_size / GameManager.initial_player_radius
+    var size_ratio = GameManager.player_size / GameManager.initial_player_radius
+    var new_scale = BASE_SPRITE_SCALE * size_ratio
     sprite.scale = Vector2(new_scale, new_scale)
     if collision_shape.shape is CircleShape2D:
         collision_shape.shape.radius = GameManager.player_size
+    # Scale HpBar, NameLabel, SizeIndicator, TeleportReadyIndicator, SkillCooldownLabel
+    # để giữ kích thước UI không đổi khi player to lên
+    var inv = 1.0 / size_ratio if size_ratio > 0.01 else 1.0
+    if hp_bar:
+        hp_bar.scale = Vector2(inv, inv)
+        hp_bar.position.y = -35.0 * size_ratio
+    if name_label:
+        name_label.scale = Vector2(inv, inv)
+        name_label.position.y = -55.0 * size_ratio
+    if size_indicator:
+        size_indicator.scale = Vector2(inv, inv)
+        size_indicator.position.y = 25.0 * size_ratio
+    if teleport_ready_indicator:
+        teleport_ready_indicator.scale = Vector2(0.3 * inv, 0.1 * inv)
+        teleport_ready_indicator.position.y = -27.0 * size_ratio
+    if skill_cooldown_label:
+        skill_cooldown_label.scale = Vector2(inv, inv)
+        skill_cooldown_label.position.y = -75.0 * size_ratio
     # Update HP bar max value
     _update_hp_bar()
 

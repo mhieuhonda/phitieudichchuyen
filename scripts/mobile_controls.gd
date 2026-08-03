@@ -169,6 +169,8 @@ func _handle_touch_event(event: InputEventScreenTouch):
         if _teleport_rect.has_point(event.position) and teleport_touch_index == -1:
             teleport_touch_index = event.index
             _on_teleport_down()
+            # TELEPORT NGAY KHI PRESS - không đợi release
+            _on_teleport_pressed()
             get_viewport().set_input_as_handled()
         elif _throw_rect.has_point(event.position) and aim_touch_index == -1 and not is_aiming:
             aim_touch_index = event.index
@@ -182,7 +184,7 @@ func _handle_touch_event(event: InputEventScreenTouch):
         if event.index == teleport_touch_index:
             teleport_touch_index = -1
             _on_teleport_up()
-            _on_teleport_pressed()
+            # Không teleport lại khi release - đã teleport khi press rồi
             get_viewport().set_input_as_handled()
         elif event.index == aim_touch_index:
             aim_touch_pos = event.position
@@ -225,6 +227,8 @@ func _handle_mouse_event(event: InputEvent):
             elif _teleport_rect.has_point(event.position) and not is_mouse_on_teleport:
                 is_mouse_on_teleport = true
                 _on_teleport_down()
+                # TELEPORT NGAY KHI CLICK - không đợi release
+                _on_teleport_pressed()
                 get_viewport().set_input_as_handled()
             elif _throw_rect.has_point(event.position) and not is_mouse_aiming and not is_aiming:
                 is_mouse_aiming = true
@@ -238,7 +242,7 @@ func _handle_mouse_event(event: InputEvent):
             if is_mouse_on_teleport:
                 is_mouse_on_teleport = false
                 _on_teleport_up()
-                _on_teleport_pressed()
+                # Không teleport lại khi release - đã teleport khi click rồi
                 get_viewport().set_input_as_handled()
             elif is_mouse_aiming:
                 mouse_aim_pos = event.position

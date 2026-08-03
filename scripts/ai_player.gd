@@ -85,7 +85,8 @@ func _ready():
     _update_visual_size()
     _choose_new_state()
     collision_layer = 8
-    collision_mask = 4 | 16
+    # AI có thể phát hiện: Wall(4), Player(1), Obstacle(16)
+    collision_mask = 1 | 4 | 16
 
 func _physics_process(delta):
     if not is_alive:
@@ -441,10 +442,21 @@ func _respawn():
     _update_hp_bar(); _update_visual_size(); _choose_new_state()
     AudioManager.play_spawn()
 
+const BASE_SPRITE_SCALE := 0.3
+
 func _update_visual_size():
-    var new_scale = current_size / GameManager.initial_player_radius
+    var size_ratio = current_size / GameManager.initial_player_radius
+    var new_scale = BASE_SPRITE_SCALE * size_ratio
     sprite.scale = Vector2(new_scale, new_scale)
     if collision_shape.shape is CircleShape2D: collision_shape.shape.radius = current_size
+    # Scale UI elements ngược để không bị to theo player
+    var inv = 1.0 / size_ratio if size_ratio > 0.01 else 1.0
+    if hp_bar:
+        hp_bar.scale = Vector2(inv, inv)
+        hp_bar.position.y = -35.0 * size_ratio
+    if name_label:
+        name_label.scale = Vector2(inv, inv)
+        name_label.position.y = -55.0 * size_ratio
 
 func _update_hp_bar():
     if hp_bar:
