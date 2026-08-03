@@ -105,11 +105,11 @@ func _on_body_entered(body: Node2D):
                 _stick_to_position(global_position)
                 return
         if body.is_in_group("ai_players") and body.owner_player_id != owner_player_id:
-                emit_signal("dart_hit_player", self, body)
+                dart_hit_player.emit(self, body)
                 _stick_to_position(global_position)
                 return
         if body.is_in_group("players") and body.player_id != owner_player_id:
-                emit_signal("dart_hit_player", self, body)
+                dart_hit_player.emit(self, body)
                 _stick_to_position(global_position)
                 return
 
@@ -124,7 +124,7 @@ func _stick_to_position(pos: Vector2):
         lifetime_timer.start(GameManager.dart_lifetime)
         _start_blink_timer()
         AudioManager.play_dart_stick()
-        emit_signal("dart_stuck", self)
+        dart_stuck.emit(self)
 
 func _start_blink_timer():
         await get_tree().create_timer(max(GameManager.dart_lifetime - 1.5, 0.1)).timeout
@@ -153,13 +153,13 @@ func _fade_out_and_remove():
         var tween = create_tween()
         tween.tween_property(self, "modulate:a", 0.0, 0.3)
         tween.tween_callback(queue_free)
-        emit_signal("dart_expired", self)
+        dart_expired.emit(self)
 
 func consume():
         if current_state == State.CONSUMED:
                 return
         current_state = State.CONSUMED
-        emit_signal("dart_consumed", self)
+        dart_consumed.emit(self)
         var tween = create_tween()
         tween.tween_property(self, "modulate:a", 0.0, 0.15)
         tween.tween_callback(queue_free)

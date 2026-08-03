@@ -56,20 +56,20 @@ func _ready():
     throw_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
     teleport_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-    # Skill buttons giữ STOP để click通常 works
+    # Skill buttons giữ STOP để click bình thường works
     if skill_dash_btn:
         skill_dash_btn.pressed.connect(func():
-            emit_signal("skill_dash_pressed")
+            skill_dash_pressed.emit()
             AudioManager.play_ui_click()
         )
     if skill_shield_btn:
         skill_shield_btn.pressed.connect(func():
-            emit_signal("skill_shield_pressed")
+            skill_shield_pressed.emit()
             AudioManager.play_ui_click()
         )
     if skill_multishot_btn:
         skill_multishot_btn.pressed.connect(func():
-            emit_signal("skill_multishot_pressed")
+            skill_multishot_pressed.emit()
             AudioManager.play_ui_click()
         )
 
@@ -175,7 +175,7 @@ func _is_touch_device() -> bool:
 
 func _on_teleport_pressed():
     AudioManager.play_ui_click()
-    emit_signal("teleport_pressed")
+    teleport_pressed.emit()
 
 func _on_teleport_down():
     if teleport_btn and is_instance_valid(teleport_btn):
@@ -201,19 +201,19 @@ func _handle_touch_event(event: InputEventScreenTouch):
         # Skill buttons first (priority for left-side taps)
         if _dash_rect.has_point(event.position) and dash_touch_index == -1:
             dash_touch_index = event.index
-            emit_signal("skill_dash_pressed")
+            skill_dash_pressed.emit()
             AudioManager.play_ui_click()
             get_viewport().set_input_as_handled()
             return
         if _shield_rect.has_point(event.position) and shield_touch_index == -1:
             shield_touch_index = event.index
-            emit_signal("skill_shield_pressed")
+            skill_shield_pressed.emit()
             AudioManager.play_ui_click()
             get_viewport().set_input_as_handled()
             return
         if _multishot_rect.has_point(event.position) and multishot_touch_index == -1:
             multishot_touch_index = event.index
-            emit_signal("skill_multishot_pressed")
+            skill_multishot_pressed.emit()
             AudioManager.play_ui_click()
             get_viewport().set_input_as_handled()
             return
@@ -262,17 +262,17 @@ func _handle_mouse_event(event: InputEvent):
         if event.pressed:
             if _dash_rect.has_point(event.position) and not is_mouse_on_dash:
                 is_mouse_on_dash = true
-                emit_signal("skill_dash_pressed")
+                skill_dash_pressed.emit()
                 AudioManager.play_ui_click()
                 get_viewport().set_input_as_handled()
             elif _shield_rect.has_point(event.position) and not is_mouse_on_shield:
                 is_mouse_on_shield = true
-                emit_signal("skill_shield_pressed")
+                skill_shield_pressed.emit()
                 AudioManager.play_ui_click()
                 get_viewport().set_input_as_handled()
             elif _multishot_rect.has_point(event.position) and not is_mouse_on_multishot:
                 is_mouse_on_multishot = true
-                emit_signal("skill_multishot_pressed")
+                skill_multishot_pressed.emit()
                 AudioManager.play_ui_click()
                 get_viewport().set_input_as_handled()
             elif _teleport_rect.has_point(event.position) and not is_mouse_on_teleport:
@@ -325,12 +325,12 @@ func _get_aim_pos() -> Vector2:
 func _start_aim():
     is_aiming = true
     AudioManager.play_aim_start()
-    emit_signal("throw_started")
+    throw_started.emit()
 
 func _update_aim():
     var dir = _calculate_direction()
     var power = _calculate_power()
-    emit_signal("throw_aim_updated", dir, power)
+    throw_aim_updated.emit(dir, power)
 
 func _end_aim():
     if not is_aiming:
@@ -340,7 +340,7 @@ func _end_aim():
     var power = _calculate_power()
     aim_touch_index = -1
     is_mouse_aiming = false
-    emit_signal("throw_ended", dir, power)
+    throw_ended.emit(dir, power)
 
 func _calculate_direction() -> Vector2:
     var btn_center = throw_btn.global_position + throw_btn.size / 2.0

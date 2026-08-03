@@ -107,7 +107,8 @@ func _ready():
     _preload_common_sounds()
     # Update volume
     _update_volumes()
-    print("[AudioManager] Loaded %d sound variations, %d music tracks" % [_sounds.size(), _music_tracks.size()])
+    if OS.is_debug_build():
+        print("[AudioManager] Loaded %d sound variations, %d music tracks" % [_sounds.size(), _music_tracks.size()])
 
 func _preload_common_sounds():
     # Preload các sound hay dùng
@@ -154,7 +155,7 @@ func play_sound(sfx_name: String, volume_db: float = 0.0, pitch: float = 1.0):
         if not stream:
             return
     _play_stream(stream, volume_db, pitch)
-    emit_signal("sound_played", sfx_name)
+    sound_played.emit(sfx_name)
 
 ## Phát random variation của category (vd: play_variation("throw"))
 func play_variation(category: String, volume_db: float = 0.0, pitch: float = 1.0):
@@ -196,7 +197,7 @@ func play_music(track_name: String, fade_time: float = 0.5):
         _music_player.volume_db = _music_volume_db
         _music_player.play()
     _current_music = track_name
-    emit_signal("music_changed", track_name)
+    music_changed.emit(track_name)
 
 func stop_music(fade_time: float = 0.5):
     if not _music_player.playing:
@@ -239,6 +240,20 @@ func _play_stream(stream: AudioStream, volume_db: float, pitch: float):
     p.volume_db = _sound_volume_db + volume_db
     p.pitch_scale = pitch
     p.play()
+
+func _exit_tree():
+    # Godot 4.7: clean up pool + music player + fade tween on quit to avoid
+    # `ObjectDB instances were leaked at exit` / `resources still in use at exit`.
+    if _music_fade_tween and is_instance_valid(_music_fade_tween):
+        _music_fade_tween.kill()
+        _music_fade_tween = null
+    if _music_player:
+        _music_player.stop()
+        _music_player.stream = null
+    for p in _pool:
+        if p:
+            p.stop()
+            p.stream = null
 
 ## Helper methods cho gameplay events
 func play_throw():

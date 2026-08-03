@@ -182,7 +182,7 @@ func _update_skills(delta):
         for skill in [GameManager.Skill.DASH, GameManager.Skill.SHIELD, GameManager.Skill.MULTISHOT]:
                 if skill_cooldowns[skill] > 0:
                         skill_cooldowns[skill] = max(0.0, skill_cooldowns[skill] - delta)
-                        emit_signal("skill_cooldown_updated", skill, skill_cooldowns[skill])
+                        skill_cooldown_updated.emit(skill, skill_cooldowns[skill])
 
         if shield_active:
                 shield_timer -= delta
@@ -265,8 +265,8 @@ func _do_dash() -> bool:
         
         _spawn_dash_effect(dir)
         AudioManager.play_whoosh()
-        emit_signal("skill_activated", GameManager.Skill.DASH)
-        GameManager.emit_signal("skill_used", player_id, "dash")
+        skill_activated.emit(GameManager.Skill.DASH)
+        GameManager.skill_used.emit(player_id, "dash")
         return true
 
 func _do_shield() -> bool:
@@ -281,8 +281,8 @@ func _do_shield() -> bool:
                 shield_sprite.visible = true
         AudioManager.play_powerup()
         _spawn_shield_effect()
-        emit_signal("skill_activated", GameManager.Skill.SHIELD)
-        GameManager.emit_signal("skill_used", player_id, "shield")
+        skill_activated.emit(GameManager.Skill.SHIELD)
+        GameManager.skill_used.emit(player_id, "shield")
         return true
 
 func _deactivate_shield():
@@ -295,8 +295,8 @@ func _do_multishot() -> bool:
         skill_cooldowns[GameManager.Skill.MULTISHOT] = GameManager.skill_multishot_cooldown
         AudioManager.play_powerup()
         _spawn_buff_effect(Color(1.0, 0.6, 0.2))
-        emit_signal("skill_activated", GameManager.Skill.MULTISHOT)
-        GameManager.emit_signal("skill_used", player_id, "multishot")
+        skill_activated.emit(GameManager.Skill.MULTISHOT)
+        GameManager.skill_used.emit(player_id, "multishot")
         return true
 
 func is_shield_active() -> bool:
@@ -407,7 +407,7 @@ func _spawn_single_dart(direction: Vector2, power: float):
         dart.dart_consumed.connect(_on_dart_consumed)
         dart.dart_hit_player.connect(_on_dart_hit_player)
         all_darts.append(dart)
-        emit_signal("dart_thrown", dart)
+        dart_thrown.emit(dart)
         AudioManager.play_throw()
         _spawn_smoke_puff(global_position)
 
@@ -455,7 +455,7 @@ func _teleport_to_dart():
         all_darts.erase(target_dart)
         _check_teleport_kill(target_pos)
         last_teleport_time = Time.get_ticks_msec() / 1000.0
-        emit_signal("teleport_performed", self, target_pos)
+        teleport_performed.emit(self, target_pos)
 
 func _select_best_dart(darts: Array) -> Node2D:
         if GameManager.mid_flight_teleport_enabled:
@@ -545,7 +545,7 @@ func _die():
         all_darts.clear()
         AudioManager.play_death()
         GameManager.set_player_alive(false)
-        emit_signal("player_died", self)
+        player_died.emit(self)
         get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
 
 func get_killer_name() -> String:
@@ -571,7 +571,7 @@ func _respawn():
         _update_size_indicator()
         _spawn_teleport_effect(global_position, true, false)
         AudioManager.play_respawn()
-        emit_signal("player_respawned", self)
+        player_respawned.emit(self)
 
 func _spawn_teleport_effect(pos: Vector2, is_appear: bool, is_mid_flight: bool):
         if SettingsManager.get_particle_multiplier() <= 0:

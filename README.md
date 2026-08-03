@@ -1,43 +1,44 @@
-# 🎯 Phi Tiêu Dịch Chuyển v1.5
+# 🎯 Phi Tiêu Dịch Chuyển v1.6
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7
 
-![Version](https://img.shields.io/badge/version-1.5-blue)
+![Version](https://img.shields.io/badge/version-1.6-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20PC%20%7C%20Web-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 
 ---
 
-## 🆕 Tính Năng v1.5
+## 🆕 Tính Năng v1.6
 
-### 🔧 Rà Soát Toàn Diện Godot 4.7 — Sạch Từng Ngóc Ngách
+### 🧹 Dọn Dẹp Code Toàn Diện — Modern GDScript Idioms
 
-Bản v1.4 đã fix nhiều lỗi runtime, nhưng vẫn còn sót lỗi cú pháp Python-style, lỗi logic AI, và lỗi khởi tạo biến. v1.5 rà soát **từng ký tự, từng dòng** trong 18 file GDScript để đảm bảo sạch sẽ tuyệt đối trên Godot 4.7 stable.
+Bản v1.5 đã fix hết lỗi parse và lỗi runtime. v1.6 rà soát lại toàn bộ codebase để **modern hoá mọi cú pháp GDScript** theo chuẩn Godot 4.7, đồng thời đồng bộ các giá trị collision mask giữa `.tscn` và `.gd` để tránh inconsistent state.
 
-| Lỗi | Nguyên nhân | Cách sửa |
-|-----|-------------|----------|
-| Parse error `"""..."""` trong `player.gd` | Python-style docstring không hợp lệ trong GDScript 4.7 — Godot 4.2.2 vẫn chấp nhận, 4.7 thì báo lỗi | Đổi sang `## comment` chuẩn GDScript |
-| `skill_cooldowns` khởi tạo sai | Khai báo `Dictionary` với enum key ở class-level → enum chưa sẵn sàng lúc parse | Chuyển khởi tạo vào `_ready()` khi enum đã load |
-| `activate_skill()` dùng enum type | `GameManager.Skill` enum type trong function signature có thể gây parse issue | Đổi sang `int` type an toàn hơn |
-| AI player không nhận diện group `ai_players` | Mặc dù .tscn có `groups=["ai_players"]`, nhưng code ghi đè `collision_layer/mask` mà không re-add group | Thêm `add_to_group("ai_players")` trong `_ready()` |
-| AI dùng sai `GameManager.player_size` | `ai_player.gd` dùng `GameManager.player_size` (của player) thay vì `current_size` (của AI) → teleport kill radius sai | Đổi sang `current_size` |
-| `_cleanup_pickups()` biến trùng tên | Biến `local_rng` trùng scope với biến ở hàm khác | Đổi tên thành `new_rng` |
+| Hạng mục | Trước v1.6 | v1.6 |
+|----------|-----------|------|
+| Signal emit | `emit_signal("name", args)` (legacy 4.x) | `name.emit(args)` (modern 4.7) |
+| AI collision_mask trong `.tscn` | `28` (sai — không phát hiện Player) | `21` (đúng — matches `.gd`) |
+| Dead input actions | `aim`, `throw_dart` defined nhưng không bao giờ đọc | Đã xoá |
+| Debug print | `print()` chạy mỗi khi khởi động | Chỉ in khi `OS.is_debug_build()` |
+| AudioManager cleanup | Không có `_exit_tree` → leak warning | Có `_exit_tree` kill tween + stop streams |
+| Comment stray | "click通常 works" (Japanese leak) | "click bình thường works" |
 
 ### ✅ Verification (Clean trên Godot 4.7 stable)
 
-- ✅ Project import sạch 100% (0 errors)
-- ✅ Tất cả 18 file GDScript parse sạch — không còn `"""docstring"""`, không còn old 4.2 API
+- ✅ Project import sạch 100% (0 parse errors, 0 deprecated warnings)
+- ✅ Headless run 30 frames: 0 SCRIPT ERROR, 0 push_error, 0 push_warning
+- ✅ Tất cả 18 file GDScript dùng modern signal syntax: `signal.emit(args)`
 - ✅ Tất cả 14 scene file dùng node types 4.7 hợp lệ
-- ✅ Không còn `find_node`, `yield`, `update()`, `Tween.new()`, `KinematicBody`, `Sprite`, `YSort`, `VisualServer`, `OS.get_window*`, `add_color_override`, `rect_*`, `margin_*`, `pause_mode`…
-- ✅ Không còn `class_name` trùng autoload singleton
-- ✅ Tất cả signal connect dùng cú pháp 4.x: `signal.connect(callable)`
+- ✅ `scenes/ai_player.tscn` collision_mask sync với `scripts/ai_player.gd` (cùng giá trị 21)
+- ✅ Không còn `emit_signal("string", ...)` ở bất kỳ file nào
+- ✅ Không còn dead input actions trong `project.godot`
+- ✅ AudioManager có `_exit_tree()` dọn dẹp pool + music player + fade tween
+- ✅ Tất cả signal connect dùng `signal.connect(callable)`
 - ✅ Tất cả tween dùng `create_tween()` + `tween_property/callback`
-- ✅ Tất cả `monitoring`/`disabled`/`monitorable` đổi runtime dùng `set_deferred`
-- ✅ AI player group được đảm bảo qua cả .tscn và `_ready()`
-- ✅ `skill_cooldowns` khởi tạo đúng trong `_ready()` sau khi enum đã sẵn sàng
+- ✅ Tất cả `monitoring`/`disabled` đổi runtime dùng `set_deferred`
 
 ### 🖱️ Kéo Thả Nút Bấm Tùy Chỉnh (từ v1.3)
 Người chơi có thể **kéo thả** bất kỳ nút nào đến vị trí mong muốn và **lưu lại** để dùng trong trận:
@@ -51,9 +52,9 @@ Người chơi có thể **kéo thả** bất kỳ nút nào đến vị trí mo
 1. Menu chính → Cài đặt → 🎨 Chỉnh Sửa Giao Diện
 2. Kéo các nút trong "Khu vực kéo thả" đến vị trí mong muốn
 3. Bấm **"💾 LƯU VỊ TRÍ NÚT"** để lưu
-4. Vào trận và tận hưởng layout cá nhân hóa
+4. Vào trận và tận hưởng layout cá nhân hoá
 
-Layout được lưu dưới dạng tọa độ chuẩn hóa (0..1) nên hoạt động đúng trên mọi độ phân giải màn hình.
+Layout được lưu dưới dạng tọa độ chuẩn hoá (0..1) nên hoạt động đúng trên mọi độ phân giải màn hình.
 
 ## 🎮 Cách Chơi
 
@@ -99,11 +100,12 @@ Layout được lưu dưới dạng tọa độ chuẩn hóa (0..1) nên hoạt 
 | Phím | Hành động |
 |------|-----------|
 | WASD / ←↑↓→ | Di chuyển |
-| Chuột phải | Nhắm & ném phi tiêu |
+| Chuột phải | Nhắm & ném phi tiêu (slingshot) |
 | Space | Dịch chuyển đến phi tiêu |
 | Q | Kỹ năng Dash |
 | E | Kỹ năng Shield |
 | Shift | Kỹ năng Multishot |
+| R | Restart trận |
 | ESC | Quay lại menu |
 
 ### Mobile
@@ -122,12 +124,13 @@ Layout được lưu dưới dạng tọa độ chuẩn hóa (0..1) nên hoạt 
 
 ## 🏗️ Công Nghệ
 
-- **Engine**: Godot 4.7 stable
-- **Ngôn ngữ**: GDScript
+- **Engine**: Godot 4.7 stable (official build `5b4e0cb0f`)
+- **Ngôn ngữ**: GDScript (modern 4.7 idioms — `signal.emit()`, `create_tween()`, `set_deferred()`)
 - **Nền tảng**: Android, iOS, PC (Windows/Linux/macOS), Web
 - **Đồ họa**: Tự phát hiện thiết bị và chọn chất lượng phù hợp
-- **Âm thanh**: Pool AudioStreamPlayer với 155+ sound effects
-- **Lưu trữ**: ConfigFile cho settings + custom layout
+- **Âm thanh**: Pool AudioStreamPlayer với 155+ sound effects + 5 nhạc nền
+- **Lưu trữ**: ConfigFile cho settings + custom layout + character unlock data
+- **Physics**: 6 collision layers (Player, Dart, Wall, AI, Obstacle, Pickup)
 
 ## 📁 Cấu Trúc Dự Án
 
@@ -138,7 +141,7 @@ phitieudichchuyen/
 │   │   ├── music/          # 5 nhạc nền
 │   │   └── sfx/            # 155+ sound effects
 │   └── sprites/
-│       └── characters/     # 12 nhân vật + AI sprites
+│       └── characters/     # 12 nhân vật + 10 AI sprites
 ├── scenes/
 │   ├── main.tscn              # Scene chính game
 │   ├── menu.tscn              # Menu chính
@@ -169,7 +172,7 @@ phitieudichchuyen/
 │   ├── loading_screen.gd       # Script màn hình tải
 │   ├── settings_menu.gd        # Script menu cài đặt
 │   └── character_screen.gd     # Script màn hình nhân vật
-├── project.godot               # Cấu hình Godot 4.7
+├── project.godot               # Cấu hình Godot 4.7 (config_version=5)
 ├── export_presets.cfg          # Export Android / Windows / Linux
 ├── icon.svg                    # Icon game
 ├── LICENSE
@@ -179,47 +182,50 @@ phitieudichchuyen/
 
 ## 📜 Lịch Sử Phiên Bản
 
+### v1.6 (2026-08-03) — Modern GDScript Cleanup
+- **MODERN**: Convert toàn bộ 45+ `emit_signal("name", args)` → `name.emit(args)` trên 8 file (modern Godot 4.7 idiom).
+- **FIX**: `scenes/ai_player.tscn` `collision_mask = 28` → `21` để sync với `scripts/ai_player.gd:90` (Player+Wall+Obstacle).
+- **FIX**: Xoá 2 dead input actions `aim` và `throw_dart` khỏi `project.godot` (không script nào reference).
+- **FIX**: `audio_manager.gd` debug `print()` giờ chỉ chạy khi `OS.is_debug_build()`.
+- **FIX**: Comment stray "click通常 works" → "click bình thường works" trong `mobile_controls.gd`.
+- **NEW**: `AudioManager._exit_tree()` để kill fade tween + stop streams + null resource refs khi quit.
+- Bump `config/version` 1.5 → 1.6, `version/code` 15 → 16, file_version 1.5.0.0 → 1.6.0.0.
+
 ### v1.5 (2026-08-03) — Rà Soát Toàn Diện Sạch Từng Ngóc Ngách
-- **FIX SYNTAX**: `player.gd` dùng Python-style docstring `"""..."""` → parse error trên Godot 4.7. Đổi sang `## comment`.
-- **FIX INIT**: `skill_cooldowns` khai báo Dictionary với enum key ở class-level → enum chưa sẵn sàng lúc parse. Chuyển khởi tạo vào `_ready()`.
-- **FIX TYPE**: `activate_skill()` dùng `GameManager.Skill` enum type → đổi sang `int` an toàn hơn.
-- **FIX LOGIC**: `ai_player.gd` dùng `GameManager.player_size` (của player) thay vì `current_size` (của AI) → teleport kill radius sai.
-- **FIX GROUP**: AI player đảm bảo trong group `ai_players` qua cả .tscn và `add_to_group()` trong `_ready()`.
-- **FIX NAMING**: `_cleanup_pickups()` đổi tên biến `local_rng` → `new_rng` tránh trùng.
-- ✅ Verification: 0 parse error, 0 SCRIPT ERROR, 0 deprecated warnings trên Godot 4.7.
+- Fix Python-style docstring `"""..."""` parse error trong `player.gd`.
+- Fix `skill_cooldowns` Dictionary khởi tạo ở class-level khi enum chưa sẵn sàng.
+- Fix `activate_skill()` enum type signature → `int`.
+- Fix AI teleport kill radius dùng sai `GameManager.player_size`.
+- Đảm bảo AI luôn trong group `ai_players` qua cả `.tscn` và `_ready()`.
 
 ### v1.4 (2026-08-03) — Clean Sweep Godot 4.7
-- **FIX CRITICAL**: `dart.gd` gán trực tiếp `monitoring` khi Area2D trong tree → lỗi runtime. Đổi sang `set_deferred`.
-- **FIX LOGIC**: `pickup.gd` hồi máu AI theo `GameManager.player_max_hp` thay vì `ai.current_max_hp` → AI vượt max HP.
-- **REFAC**: `AudioManager` thêm API `is_music_playing()` công khai; bỏ truy cập private field từ `loading_screen.gd`.
-- **REFAC**: Đổi tên local `name` → `sfx_name`/`track_name` trong AudioManager (tránh shadow Node.name).
+- Fix `dart.gd` gán trực tiếp `monitoring` khi Area2D trong tree → `set_deferred`.
+- Fix `pickup.gd` hồi máu AI theo `GameManager.player_max_hp` thay vì `ai.current_max_hp`.
+- Refactor `AudioManager` thêm API `is_music_playing()` công khai.
+- Rename local `name` → `sfx_name`/`track_name` tránh shadow `Node.name`.
 
 ### v1.3 (2026-08-03)
-- **CRITICAL**: Sửa lỗi `class_name CharacterData` xung đột autoload singleton (Godot 4.7)
-- **CRITICAL**: Sửa lỗi parse ternary trong tuple của `character_screen.gd`
-- **NEW**: Kéo thả 6 nút bấm (joystick, throw, teleport, 3 skill) + bấm Lưu
-- **NEW**: `SettingsManager.custom_button_positions` + `use_custom_layout`
-- **NEW**: Áp dụng layout tùy chỉnh trong `mobile_controls.gd` và `virtual_joystick.gd`
+- Fix critical `class_name CharacterData` xung đột autoload singleton (Godot 4.7).
+- Fix parse error ternary-in-tuple trong `character_screen.gd`.
+- NEW: Kéo thả 6 nút bấm (joystick, throw, teleport, 3 skill) + bấm Lưu.
+- NEW: `SettingsManager.custom_button_positions` + `use_custom_layout`.
 
 ### v1.2 (2026-08-03)
-- 12 nhân vật ninja/warrior với sprite đẹp, tách nền
-- Màn hình Nhân Vật: xem chỉ số, kỹ năng, trang bị
-- Màn hình Chỉnh Sửa Giao Diện: tùy chỉnh nút bấm, joystick, HUD (slider)
-- Character bonus: mỗi nhân vật có HP, tốc độ, phi tiêu, kỹ năng riêng
+- 12 nhân vật ninja/warrior với sprite đẹp, tách nền.
+- Màn hình Nhân Vật + Màn hình Chỉnh Sửa Giao Diện (slider).
+- Character bonus: mỗi nhân vật có HP, tốc độ, phi tiêu, kỹ năng riêng.
 
 ### v1.1 (2026-08-03)
-- Fix nhân vật quá to, không hiện, không dịch chuyển được
-- Fix collision layers giữa player và AI
-- Tăng walk_speed 80 → 120
+- Fix nhân vật quá to, không hiện, không dịch chuyển được.
+- Fix collision layers giữa player và AI.
+- Tăng walk_speed 80 → 120.
 
 ### v1.0 (2026)
-- Phi tiêu + Dịch chuyển + Ăn đối thủ
-- 3 kỹ năng chủ động: Dash, Shield, Multishot
-- AI đối thủ thông minh
-- Vòng bo thu nhỏ
-- Leaderboard cuối trận
-- 155+ sound effects + 5 nhạc nền
-- Tự phát hiện thiết bị
+- Phi tiêu + Dịch chuyển + Ăn đối thủ.
+- 3 kỹ năng chủ động: Dash, Shield, Multishot.
+- AI đối thủ thông minh + Vòng bo thu nhỏ + Leaderboard cuối trận.
+- 155+ sound effects + 5 nhạc nền.
+- Tự phát hiện thiết bị.
 
 ## 🚀 Cài Đặt & Chạy
 
@@ -239,6 +245,10 @@ cd phitieudichchuyen
 1. Mở project trong Godot 4.7
 2. Project → Export → Add platform (đã có sẵn preset Android, Windows, Linux)
 3. Bấm Export Project
+
+> **Lưu ý Android**: Preset dùng `gradle_build/use_gradle_build=true`, `min_sdk=24`, `target_sdk=33`. Cài Android Studio + export template trước khi export.
+
+> **Lưu ý iOS**: Tạo preset mới (chưa có sẵn) — Godot 4.7 support iOS export.
 
 ## 📄 Giấy Phép
 

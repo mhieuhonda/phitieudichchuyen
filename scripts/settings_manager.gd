@@ -270,17 +270,17 @@ func enable_custom_layout():
 func set_graphics_quality(level: int):
         graphics_quality = clamp(level, GraphicsQuality.VERY_LOW, GraphicsQuality.HIGH)
         was_auto_detected = false
-        emit_signal("graphics_quality_changed", graphics_quality)
+        graphics_quality_changed.emit(graphics_quality)
         save_settings()
 
 func set_sound_volume(volume: float):
         sound_volume = clamp(volume, 0.0, 1.0)
-        emit_signal("sound_volume_changed", sound_volume)
+        sound_volume_changed.emit(sound_volume)
         save_settings()
 
 func set_music_volume(volume: float):
         music_volume = clamp(volume, 0.0, 1.0)
-        emit_signal("music_volume_changed", music_volume)
+        music_volume_changed.emit(music_volume)
         save_settings()
 
 func set_sound_enabled(enabled: bool):

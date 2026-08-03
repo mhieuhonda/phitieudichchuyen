@@ -203,7 +203,7 @@ func select_character(id: int):
         if id >= 0 and id < CHARACTERS.size():
                 selected_character_id = id
                 _save_unlock_data()
-                emit_signal("character_changed", id)
+                character_changed.emit(id)
 
 func is_unlocked(id: int) -> bool:
         return id in unlocked_characters

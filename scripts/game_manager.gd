@@ -111,7 +111,7 @@ func _process(delta):
     if game_active and not game_ended:
         game_time += delta
         time_remaining = max(0.0, match_duration - game_time)
-        emit_signal("match_time_changed", time_remaining)
+        match_time_changed.emit(time_remaining)
 
         # Cảnh báo 30s cuối
         if not match_warning_played and time_remaining <= match_end_warning_time and time_remaining > 0:
@@ -156,10 +156,10 @@ func reset_game():
         "id": 0, "name": "Player", "score": 0, "kills": 0,
         "is_player": true, "alive": true
     })
-    emit_signal("player_score_changed", player_score)
-    emit_signal("player_size_changed", player_size)
-    emit_signal("player_hp_changed", player_hp, player_max_hp)
-    emit_signal("match_time_changed", time_remaining)
+    player_score_changed.emit(player_score)
+    player_size_changed.emit(player_size)
+    player_hp_changed.emit(player_hp, player_max_hp)
+    match_time_changed.emit(time_remaining)
 
 ## Tính max HP dựa trên kích thước
 func compute_max_hp_for_size(size: float) -> float:
@@ -176,14 +176,14 @@ func update_player_max_hp_for_size(new_size: float):
         player_hp = min(player_hp + diff, player_max_hp)
     else:
         player_hp = min(player_hp, player_max_hp)
-    emit_signal("player_hp_changed", player_hp, player_max_hp)
+    player_hp_changed.emit(player_hp, player_max_hp)
 
 func add_score(points: int):
     var multiplier = 1.0 + (combo_count * 0.5)
     var actual_points = int(points * multiplier)
     player_score += actual_points
     _update_leaderboard_score(0, player_score)
-    emit_signal("player_score_changed", player_score)
+    player_score_changed.emit(player_score)
     return actual_points
 
 func add_size(amount: float):
@@ -191,7 +191,7 @@ func add_size(amount: float):
     player_size = min(player_size + amount, max_player_size)
     if player_size != old_size:
         update_player_max_hp_for_size(player_size)
-        emit_signal("player_size_changed", player_size)
+        player_size_changed.emit(player_size)
 
 func register_kill_by_player():
     total_kills += 1
@@ -200,7 +200,7 @@ func register_kill_by_player():
     combo_timer = combo_window
     _update_leaderboard_kills(0, player_kills)
     if combo_count >= 2:
-        emit_signal("combo_achieved", combo_count)
+        combo_achieved.emit(combo_count)
 
 # Legacy alias (cũ)
 func register_kill():
@@ -210,14 +210,14 @@ func take_damage(amount: float) -> bool:
     player_hp -= amount
     if player_hp <= 0:
         player_hp = 0
-        emit_signal("player_hp_changed", player_hp, player_max_hp)
+        player_hp_changed.emit(player_hp, player_max_hp)
         return true
-    emit_signal("player_hp_changed", player_hp, player_max_hp)
+    player_hp_changed.emit(player_hp, player_max_hp)
     return false
 
 func heal(amount: float):
     player_hp = min(player_hp + amount, player_max_hp)
-    emit_signal("player_hp_changed", player_hp, player_max_hp)
+    player_hp_changed.emit(player_hp, player_max_hp)
 
 ## Hồi máu theo % max HP (khi ăn đối thủ)
 func heal_percent(percent: float):
@@ -229,7 +229,7 @@ func shrink_zone():
         var actual_amount = zone_shrink_amount * pow(zone_shrink_acceleration, current_shrink_count - 1)
         zone_radius -= actual_amount
         zone_radius = max(zone_radius, zone_min_radius)
-        emit_signal("zone_shrank", zone_radius)
+        zone_shrank.emit(zone_radius)
 
 func is_in_zone(pos: Vector2) -> bool:
     return pos.distance_to(zone_center) <= zone_radius
@@ -239,7 +239,7 @@ func get_zone_damage(delta: float) -> float:
 
 func request_screen_shake(intensity: float = 5.0, duration: float = 0.3):
     if SettingsManager.screen_shake_enabled:
-        emit_signal("screen_shake_requested", intensity, duration)
+        screen_shake_requested.emit(intensity, duration)
 
 func get_game_time_str() -> String:
     var t = int(game_time)
@@ -317,7 +317,7 @@ func end_match():
     var winner_name = "Hòa!" if sorted.is_empty() else sorted[0]["name"]
     if not sorted.is_empty() and sorted[0]["score"] == 0:
         winner_name = "Không có người thắng!"
-    emit_signal("game_over", winner_name, sorted)
+    game_over.emit(winner_name, sorted)
     AudioManager.play_music("victory" if (sorted.size() > 0 and sorted[0]["is_player"]) else "defeat")
 
 func is_match_over() -> bool:

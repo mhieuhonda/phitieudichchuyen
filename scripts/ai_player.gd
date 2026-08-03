@@ -367,7 +367,7 @@ func kill(killer: Node2D):
     sprite.visible = false; hp_bar.visible = false; name_label.visible = false
     collision_shape.set_deferred("disabled", true)
     AudioManager.play_death()
-    emit_signal("ai_died", self, killer)
+    ai_died.emit(self, killer)
     get_tree().create_timer(GameManager.respawn_time).timeout.connect(_respawn)
 
 func take_damage_from(amount: float, attacker: Node2D):

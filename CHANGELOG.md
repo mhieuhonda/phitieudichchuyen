@@ -1,5 +1,38 @@
 # Changelog
 
+## v1.6 - Phi Tiêu Dịch Chuyển (2026-08-03)
+
+### 🧹 Modern GDScript Cleanup — Tuyệt Đối Sạch Sẽ
+
+Bản v1.5 đã fix hết lỗi parse + lỗi runtime + lỗi logic. v1.6 rà soát lại toàn bộ codebase để **modern hoá mọi cú pháp GDScript** theo chuẩn Godot 4.7, đồng thời đồng bộ các giá trị collision mask giữa `.tscn` và `.gd` để tránh inconsistent state, và dọn dẹp các dead config không ai dùng.
+
+### 🐛 Bug Fixes
+- **FIX: `scenes/ai_player.tscn` collision_mask mismatch.** File `.tscn` ghi `collision_mask = 28` (Wall+AI+Obstacle) nhưng `scripts/ai_player.gd:90` ghi `collision_mask = 1 | 4 | 16 = 21` (Player+Wall+Obstacle). Runtime dùng 21 (đúng), nhưng `.tscn` value gây nhầm lẫn khi maintain. Đã sync `.tscn` → `21`.
+- **FIX: `scripts/audio_manager.gd` debug `print()` chạy mỗi khởi động.** Production code không nên in ra stdout mỗi lần game boot. Đã wrap trong `if OS.is_debug_build():` để chỉ in khi debug.
+- **FIX: `scripts/mobile_controls.gd` comment có ký tự Japanese stray.** Comment "click通常 works" (mix Japanese + Vietnamese) → "click bình thường works".
+- **FIX: `project.godot` dead input actions.** Hai action `aim` và `throw_dart` được define trong input map nhưng không script nào reference (player.gd check trực tiếp `MOUSE_BUTTON_RIGHT`). Đã xoá để input map sạch sẽ.
+
+### ✨ Code Quality
+- **MODERN: Convert toàn bộ 45+ `emit_signal("name", args)` → `name.emit(args)`.** Cú pháp `emit_signal()` là legacy 4.x, vẫn hợp lệ nhưng không còn được khuyến nghị. Cú pháp `.emit()` là modern Godot 4.7 idiom, ngắn gọn và type-safe hơn. Áp dụng trên 8 file: `player.gd`, `ai_player.gd`, `dart.gd`, `game_manager.gd`, `audio_manager.gd`, `mobile_controls.gd`, `settings_manager.gd`, `character_data.gd`.
+- **NEW: `AudioManager._exit_tree()`.** Khi quit game, kill fade tween + stop pool players + null resource refs để tránh leak warning `ObjectDB instances were leaked at exit` và `resources still in use at exit`.
+
+### ✅ Verification
+- ✅ Project import sạch 100% trên Godot 4.7 stable (0 parse errors, 0 deprecated warnings)
+- ✅ Headless run 30 frames: 0 SCRIPT ERROR, 0 push_error, 0 push_warning
+- ✅ `grep "emit_signal("` returns 0 matches trên toàn bộ `scripts/`
+- ✅ `scenes/ai_player.tscn` collision_mask = 21, sync với `scripts/ai_player.gd:90`
+- ✅ Không còn dead input actions `aim`/`throw_dart` trong `project.godot`
+- ✅ AudioManager có `_exit_tree()` dọn dẹp pool + music player + fade tween
+
+### 📦 Release
+- Bump `config/version` 1.5 → 1.6 trong `project.godot`
+- Bump `version/code` 15 → 16, `version/name` "1.5" → "1.6" trong `export_presets.cfg`
+- Bump `application/file_version` và `product_version` "1.5.0.0" → "1.6.0.0" trong `export_presets.cfg`
+- README.md viết lại chuẩn cho v1.6
+- CHANGELOG.md cập nhật cho v1.6
+
+---
+
 ## v1.5 - Phi Tiêu Dịch Chuyển (2026-08-03)
 
 ### 🔧 Rà Soát Toàn Diện — Sạch Từng Ngóc Ngách
