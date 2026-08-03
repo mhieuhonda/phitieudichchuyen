@@ -40,14 +40,24 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            tools
-            platform-tools
-            build-tools;33.0.2
-            platforms;android-33
-            cmdline-tools;latest
+        run: |
+          # The ubuntu-latest runner has Android SDK preinstalled at /usr/local/lib/android/sdk.
+          # We just need to install the specific packages Godot 4.7 Android export requires.
+          export ANDROID_HOME="/usr/local/lib/android/sdk"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          
+          # Install required SDK packages via sdkmanager (auto-accept licenses with `yes`)
+          echo "Installing Android SDK packages..."
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "build-tools;33.0.2" "platforms;android-33" "cmdline-tools;latest"
+          
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "JAVA_HOME=${JAVA_HOME}" >> $GITHUB_ENV
+          
+          echo "=== Installed SDK packages ==="
+          sdkmanager --list_installed 2>/dev/null || sdkmanager --list 2>&1 | grep -E "^\s+(platform-tools|build-tools|platforms)" | head -10
 
       - name: Setup Godot & Export Templates
         run: |
@@ -72,22 +82,19 @@ jobs:
           ls ~/.local/share/godot/export_templates/${GV}.stable/
 
       - name: Import Project
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-          JAVA_HOME: ${{ env.JAVA_HOME }}
         run: |
           # --import is the Godot 4.x flag (NOT --import-project which was 3.x)
           # It imports all resources and quits automatically.
           godot --headless --import 2>&1 | tee import.log || (echo "Import failed, see log above" && exit 1)
 
       - name: Export Android APK
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-          JAVA_HOME: ${{ env.JAVA_HOME }}
         run: |
           mkdir -p build/android
+          echo "=== Env ==="
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "Godot version: $(godot --version)"
           # Use --export-release (Godot 4.x) — NOT --export-pack or --export
           godot --headless --export-release "Android" build/android/phitieudichchuyen.apk 2>&1 | tee export.log
           echo "=== Build output ==="
