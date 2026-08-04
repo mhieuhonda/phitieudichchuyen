@@ -1,5 +1,163 @@
 # Changelog
 
+## v2.4 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 🔥 FIX SERVER ONLINE + CHẾ ĐỘ VƯỢT ẢI + ĐA NGÔN NGỮ
+
+**Ngữ cảnh**: Phiên bản v2.3 hardcode server URL là `ws://163.44.96.79:25671/ws` — port 25671 đã bị chặn trên VPS (chỉ còn 80/443 qua Traefik reverse proxy). Người chơi vào online báo "Server không khả dụng" dù server vẫn chạy bình thường. Đồng thời bổ sung 2 feature lớn: chế độ Vượt Ải (500 level) + đa ngôn ngữ VI/EN.
+
+#### 🛠 FIX SERVER "KHÔNG KHẢ DỤNG"
+
+**Root cause**:
+- Port `25671` trên VPS đã bị firewall chặn (timeout khi kết nối)
+- Traefik chỉ expose port 80/443 cho HTTPS
+- Server CoLouis cũ (louis.vangioitutien.com) là game "Cờ Louis" khác, không phải relay server
+
+**Fix**:
+- ✅ Refactor `relay-server/server.js` v1.8: gộp HTTP + WebSocket vào 1 port duy nhất (PORT env, default 3000) — tương thích Traefik reverse proxy qua path `/ws`
+- ✅ Cập nhật Dockerfile: `EXPOSE 3000`, healthcheck trên `/health`
+- ✅ Tạo GitHub Actions workflow `.github/workflows/build-relay.yml`: tự build image multi-arch (amd64 + arm64) push lên `ghcr.io/mhieuhonda/phitieu-relay:latest`
+- ✅ Deploy lên Coolify (VPS 163.44.96.79) qua subdomain `phitieu.buppou.com` (wildcard DNS `*.buppou.com → 163.44.96.79`)
+- ✅ Cập nhật `NetworkManager.DEFAULT_SERVER_URL` → `wss://phitieu.buppou.com/ws` (secure WebSocket qua Traefik TLS)
+
+**Files thay đổi**:
+- `relay-server/server.js`: refactor v1.7 → v1.8 (single port 3000)
+- `relay-server/Dockerfile`: EXPOSE 3000, healthcheck mới
+- `relay-server/package.json`: bump 1.7.0 → 1.8.0
+- `docker-compose.yml`: single port mapping
+- `.github/workflows/build-relay.yml`: workflow build & push GHCR
+- `scripts/network_manager.gd`: const `DEFAULT_SERVER_URL := "wss://phitieu.buppou.com/ws"`
+
+#### 🌐 ĐA NGÔN NGỮ (VI / EN)
+
+- ✅ Tạo `scripts/i18n.gd` autoload — quản lý 2 ngôn ngữ Tiếng Việt (vi) + English (en)
+- ✅ Thêm field `language` trong `SettingsManager`, lưu vào `settings.cfg` section `[i18n]`
+- ✅ Thêm UI selector ngôn ngữ trong Settings: 2 nút 🇻🇳 Tiếng Việt / 🇬🇧 English
+- ✅ Apply I18N cho menu chính, mode select, settings, endless mode — đổi ngôn ngữ即 thì refresh UI
+- ✅ Signal `I18N.language_changed` để UI auto-update khi user đổi ngôn ngữ
+- ✅ Hỗ trợ format args: `I18N.t("endless.level", [5])` → "Ải 5/500" hoặc "LEVEL 5/500"
+
+**Files thêm/sửa**:
+- `scripts/i18n.gd` (NEW) — 100+ translation keys
+- `scripts/settings_manager.gd`: thêm `language` field + load/save
+- `project.godot`: register I18N autoload
+- `scenes/settings.tscn`: thêm LanguageSection + LanguageButtons (LangVi, LangEn)
+- `scripts/settings_menu.gd`: rewrite với I18N + language buttons
+- `scripts/menu.gd`: dùng I18N
+- `scripts/mode_select.gd`: dùng I18N
+
+#### 🧟 CHẾ ĐỘ VƯỢT ẢI (500 LEVEL + 15 SKILLS)
+
+**Game design**:
+- Player bị nhốt trên đường thẳng đứng, chỉ đi tiến lên (joystick điều khiển y)
+- Zombie spawn từ trên xuống, player phải giết hết để qua ải
+- 500 level với độ khó tăng dần:
+  - Zombie count: `floor(3 + level * 0.5)`
+  - Zombie HP: `30 + level * 2`
+  - Zombie speed: `50 + level * 1`
+- 3 loại zombie: WALKER (xanh, mặc định), RUNNER (đỏ, level 10+, speed x1.8), BRUTE (tím, level 25+, HP x2.5)
+- 15 skills unlock theo level:
+  1. QUICK_SHOT (lv1) — Bắn nhanh -50% cooldown 5s
+  2. HEAL (lv1) — +30 HP
+  3. SHIELD (lv3) — Miễn damage 3s
+  4. MULTISHOT (lv5) — 3 phi tiêu
+  5. FREEZE (lv8) — Đóng băng zombie 2s
+  6. BOMB (lv12) — Bomb AOE
+  7. SPEED_BOOST (lv15) — Tốc độ +50% 5s
+  8. PIERCE (lv20) — Phi tiêu xuyên 3 zombie
+  9. LIFE_STEAL (lv25) — Hồi 5 HP mỗi kill
+  10. SLOW_TIME (lv30) — Chậm thời gian 3s
+  11. HOMING (lv40) — Phi tiêu tự tìm
+  12. EXPLOSION (lv50) — Kill nổ chain
+  13. BERSERK (lv75) — Damage x2 5s
+  14. NUKE (lv100) — Kill all zombie
+  15. INVINCIBLE (lv150) — Bất tử 5s
+
+**UI layout (KHÔNG chồng lấn)**:
+```
+┌──────────────────────────────────┐
+│ ẢI 5/500  HP: 80/100  Kills: 3/5 │ <- Top HUD
+├──────────────────────────────────┤
+│         [ZOMBIE] [ZOMBIE]        │
+│              [PLAYER]            │ <- Game area
+│  [JOYSTICK]              [SK1]   │
+│  (trái)                  [SK2]   │ <- Skills hub (phải, 3x5 grid)
+│                          [SK3]   │
+└──────────────────────────────────┘
+```
+
+**Files thêm (NEW)**:
+- `scripts/endless_mode.gd` — main controller 500 level
+- `scripts/endless_player.gd` — player đơn giản (vertical-only movement)
+- `scripts/zombie.gd` — 3 loại zombie
+- `scripts/endless_dart.gd` — dart với pierce/homing/explosion
+- `scripts/skills_hub.gd` — 15 skills UI (3×5 grid, cooldown, lock overlay)
+- `scenes/endless_mode.tscn` — root scene
+- `scenes/endless_player.tscn`
+- `scenes/zombie.tscn`
+- `scenes/endless_dart.tscn`
+- `scenes/mode_select.tscn`: thêm nút 🧟 VƯỢT ẢI
+- `scripts/mode_select.gd`: thêm `_on_endless_pressed()`
+
+#### 🔊 SOUND KINH DỊ CHO CHẾ ĐỘ ZOMBIE
+
+- ✅ Sinh 10 sound effect kinh dị bằng Python (numpy synthesis):
+  - `zombie_growl_01/02/03.wav` — tiếng gầm trầm (3 biến thể)
+  - `zombie_scream_01/02.wav` — tiếng la hét (2 biến thể)
+  - `zombie_bite_01.wav` — tiếng cắn (khi player mất HP)
+  - `horror_ambient_01.wav` — drone nền 8s (loopable)
+  - `horror_drone_01.wav` — drone dài 2.5s (boss/level 100+)
+  - `heartbeat_slow_01.wav` — tim đập chậm (HP < 30%)
+  - `jump_scare_01.wav` — stinger chuyển ải
+- ✅ Lưu tại `assets/audio/sfx/horror/`
+- ✅ Mở rộng `AudioManager`:
+  - Thêm 5 category mới trong `VARIATIONS`: zombie_growl, zombie_scream, zombie_bite, horror_drone, jump_scare
+  - Thêm `HORROR_SFX_PATH = "res://assets/audio/sfx/horror/"`
+  - `_load_sound()` auto fallback sang horror subfolder nếu không tìm ở main folder
+  - 6 helper methods: `play_zombie_growl()`, `play_zombie_scream()`, `play_zombie_bite()`, `play_horror_drone()`, `play_jump_scare()`, `play_heartbeat_slow()`
+- ✅ Tích hợp horror sounds vào `endless_mode.gd`:
+  - Spawn walker → 50% chance play_zombie_growl
+  - Spawn runner → play_zombie_scream
+  - Spawn brute → play_zombie_growl + play_horror_drone
+  - Player mất HP → play_zombie_bite
+  - HP < 30% → play_heartbeat_slow (random 30% mỗi frame)
+  - Player chết → play_zombie_scream + play_horror_drone
+  - Qua ải → play_jump_scare (stinger)
+
+**Files thêm/sửa**:
+- `assets/audio/sfx/horror/*.wav` (10 files mới)
+- `scripts/audio_manager.gd`: thêm horror categories + helpers
+- `scripts/endless_mode.gd`: gọi horror sounds ở các event quan trọng
+
+#### 🔒 ẨN MÃ BÍ MẬT KHỎI UI
+
+**Ngữ cảnh**: Các mã `hieulouis99` (mở khóa nhân vật Hieu Louis - Classic) và `hieulouisking` (mở khóa Admin Guide) là mã bí mật chỉ admin biết — không được hiển thị cho người chơi thấy. Logic GIFT_CODES vẫn giữ nội bộ để mã vẫn hoạt động khi nhập.
+
+**Đã ẩn**:
+- ❌ `scenes/menu.tscn`: xóa "(mã: hieulouisking)" khỏi new feature label
+- ❌ `scenes/settings.tscn`: xóa "Mã 'hieulouis99' mở khóa Hieu Louis - Classic" khỏi GiftCodeDesc
+- ❌ `scripts/character_screen.gd`: đổi "MỞ KHÓA BẰNG MÃ: hieulouis99" → "MỞ KHÓA BẰNG MÃ BÍ MẬT"
+- ❌ `scripts/guide.gd`: ẩn cả 2 mã trong player guide + admin guide + locked text
+- ❌ `scripts/character_data.gd`: ẩn mã trong lore của Hieu Louis character
+
+**Giữ nội bộ** (logic vẫn hoạt động):
+- ✅ `CharacterData.GIFT_CODES` dictionary vẫn chứa 2 mã — khi user nhập đúng mã, vẫn unlock nhân vật/feature
+
+#### 📦 DEPLOYMENT
+
+- **Relay server image**: `ghcr.io/mhieuhonda/phitieu-relay:latest` (auto-build qua GitHub Actions)
+- **Coolify app**: `phitieu-relay` (UUID `xjcfexjsem6wnnc8q6bomupg`) — FQDN `https://phitieu.buppou.com`
+- **Game URL**: `wss://phitieu.buppou.com/ws`
+
+#### 🎯 UPGRADE PATH
+
+1. Build game mới (Android/Windows/Linux) — GitHub Actions tự build khi push tag `v2.4`
+2. Server đã sẵn sàng — container healthy, returns `{"status":"ok","version":"1.8.0"}`
+3. User mở game → CHƠI NGAY → CHƠI ONLINE → tự connect `wss://phitieu.buppou.com/ws`
+4. Hoặc CHƠI NGAY → VƯỢT ẢI → 500 level zombie horror
+
+---
+
 ## v2.3 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 🔥 BREAKING: Xóa Hoàn Toàn Phần Cấu Hình Server Trong Game

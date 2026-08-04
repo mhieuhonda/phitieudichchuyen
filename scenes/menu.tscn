@@ -73,10 +73,10 @@ offset_right = 320.0
 offset_bottom = 280.0
 grow_horizontal = 2
 bbcode_enabled = true
-text = "[color=#00ff88][b]v2.2:[/b][/color] Hướng Dẫn chơi mới + Admin Guide (mã: hieulouisking)
-[color=#ffaa00][b]Server URL config[/b][/color]: đổi relay server trong Settings
-[color=#ff4444][b]Bug fixes[/b][/color]: dart/teleport vs remote players, HUD status overlap
-[color=#44aaff][b]Kill Streaks[/b][/color]: Double/Triple/Quadra/Penta Kill!"
+text = "[color=#00ff88][b]v2.4:[/b][/color] Fix server online + Chế độ Vượt Ải (500 level)
+[color=#ffaa00][b]Ngôn ngữ[/b][/color]: Tiếng Việt / English trong Settings
+[color=#ff4444][b]Zombie horror[/b][/color]: Sound kinh dị cho chế độ Vượt Ải
+[color=#44aaff][b]15 Skills[/b][/color]: Hub kỹ năng gọn gàng + joystick tròn"
 
 [node name="PlayButton" type="Button" parent="."]
 layout_mode = 1

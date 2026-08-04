@@ -84,7 +84,7 @@ func _show_character(id: int):
                 lock_icon.visible = true
                 # v2.1: Hiển thị gợi ý mã quà tặng cho Classic
                 if char_data.has("file") and char_data["file"] == "char_hieu_louis_classic":
-                        lock_icon.text = "🔒 MỞ KHÓA BẰNG MÃ: hieulouis99\n(Nhập trong Settings → Nhập Mã Quà Tặng)"
+                        lock_icon.text = "🔒 MỞ KHÓA BẰNG MÃ BÍ MẬT\n(Nhập trong Settings → Nhập Mã Quà Tặng)"
                 else:
                         lock_icon.text = "🔒 CHƯA MỞ KHÓA"
 

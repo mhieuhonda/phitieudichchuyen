@@ -1,0 +1,220 @@
+[gd_scene load_steps=5 format=3 uid="uid://endless_mode_001"]
+
+[ext_resource type="Script" path="res://scripts/endless_mode.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://eplayer001" path="res://scenes/endless_player.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://joystick001" path="res://scenes/virtual_joystick.tscn" id="3"]
+[ext_resource type="Script" path="res://scripts/skills_hub.gd" id="4"]
+
+[node name="EndlessMode" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.04, 0.04, 0.08, 1.0)
+
+[node name="FogLayer" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.08, 0.04, 0.1, 0.4)
+
+[node name="Vignette" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0, 0, 0, 0.0)
+
+[node name="EndlessPlayer" parent="." instance=ExtResource("2")]
+position = Vector2(640, 600)
+
+[node name="ZombieContainer" type="Node2D" parent="."]
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="HUDContainer" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopBar" type="HBoxContainer" parent="HUDLayer/HUDContainer"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 12.0
+offset_top = 8.0
+offset_right = -12.0
+offset_bottom = 48.0
+grow_horizontal = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="LevelLabel" type="Label" parent="HUDLayer/HUDContainer/TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(1.0, 0.35, 0.35, 1.0)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.85)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
+text = "ẢI 1/500"
+
+[node name="HpLabel" type="Label" parent="HUDLayer/HUDContainer/TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.4, 1.0, 0.5, 1.0)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.85)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
+text = "HP: 100/100"
+
+[node name="KillsLabel" type="Label" parent="HUDLayer/HUDContainer/TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(1.0, 0.85, 0.3, 1.0)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.85)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
+text = "Tiêu diệt: 0/3"
+
+[node name="MessageLabel" type="Label" parent="HUDLayer/HUDContainer"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = 240.0
+offset_right = 300.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 44
+theme_override_colors/font_color = Color(1.0, 0.85, 0.3, 1.0)
+theme_override_colors/font_shadow_color = Color(0.6, 0.1, 0.0, 0.9)
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/shadow_outline_size = 4
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GameOverPanel" type="Panel" parent="HUDLayer/HUDContainer"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -160.0
+offset_right = 260.0
+offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/HUDContainer/GameOverPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="GameOverLabel" type="Label" parent="HUDLayer/HUDContainer/GameOverPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+theme_override_colors/font_color = Color(1.0, 0.3, 0.3, 1.0)
+text = "💀 GAME OVER"
+horizontal_alignment = 1
+
+[node name="NextLevelButton" type="Button" parent="HUDLayer/HUDContainer/GameOverPanel/VBox"]
+visible = false
+layout_mode = 2
+custom_minimum_size = Vector2(0, 56)
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.3, 1.0, 0.5, 1.0)
+text = "→ Sang ải 2"
+
+[node name="RetryButton" type="Button" parent="HUDLayer/HUDContainer/GameOverPanel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 56)
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1.0, 0.85, 0.2, 1.0)
+text = "🔄 CHƠI LẠI"
+
+[node name="MenuButton" type="Button" parent="HUDLayer/HUDContainer/GameOverPanel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 50)
+theme_override_font_sizes/font_size = 18
+text = "← MENU"
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="VirtualJoystick" parent="UILayer" instance=ExtResource("3")]
+
+[node name="SkillsHub" type="Control" parent="UILayer"]
+layout_mode = 3
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -250.0
+offset_top = 180.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4")
+
+[node name="Panel" type="PanelContainer" parent="UILayer/SkillsHub"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="UILayer/SkillsHub/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="UILayer/SkillsHub/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 0
+
+[node name="TitleLabel" type="Label" parent="UILayer/SkillsHub/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.85, 0.7, 1.0, 1.0)
+text = "KỸ NĂNG"
+horizontal_alignment = 1
+
+[node name="Grid" type="GridContainer" parent="UILayer/SkillsHub/Panel/Margin/VBox"]
+layout_mode = 2
+columns = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6

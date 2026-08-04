@@ -199,7 +199,7 @@ const CHARACTERS = [
                 "dart_bonus": 100,        # Vô hạn đạn (100 darts max)
                 "skill_bonus": "classic", # Skill đặc biệt: Crown
                 "skill_desc": "Crown Skill: Ghim 5 đối thủ +50% điểm. Spawn glitch 3s bất tử. Vô hạn đạn, không cooldown bắn.",
-                "lore": "Hacker huyền thoại từ deep web. Khi spawn, code glitch tỏa ra 3 giây bất tử. Crown skill ghim 5 đối thủ cùng lúc, +50% điểm. Số darts vô hạn, không bị giới hạn tần suất bắn. Máu cực nhiều, thanh HP dài hơn hẳn. Khi giết 50 mạng, nhận tiểu liên vô hạn 20s. Chỉ mở khóa qua mã 'hieulouis99'.",
+                "lore": "Hacker huyền thoại từ deep web. Khi spawn, code glitch tỏa ra 3 giây bất tử. Crown skill ghim 5 đối thủ cùng lúc, +50% điểm. Số darts vô hạn, không bị giới hạn tần suất bắn. Máu cực nhiều, thanh HP dài hơn hẳn. Khi giết 50 mạng, nhận tiểu liên vô hạn 20s. Chỉ mở khóa qua mã quà tặng bí mật.",
                 "color": Color(0.0, 1.0, 0.5),  # Hacker green
         },
 ]

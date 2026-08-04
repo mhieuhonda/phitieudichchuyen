@@ -142,7 +142,7 @@ Bạn bị thả vào arena 2D top-down cùng nhiều đối thủ (người ch�
 - Spawn bất tử 3 giây đầu (glitch effect)
 - Crown Skill độc quyền
 - SMG Reward: giết 50 mạng → tiểu liên vô hạn 20s
-- Mở khóa bằng mã [b]hieulouis99[/b] (nhập trong Settings → Nhập Mã Quà Tặng)
+- Mở khóa bằng [b]mã quà tặng bí mật[/b] (chỉ admin mới biết, nhập trong Settings → Nhập Mã Quà Tặng)
 
 ────────────────────────────
 
@@ -391,8 +391,10 @@ Workflow trong [b].github/workflows/build-release.yml[/b] tự build 3 nền t�
 
 [color=#ffaa00][b]10. MÃ QUÀ TẶNG HIỆN CÓ[/b][/color]
 
-• [b]hieulouis99[/b] - Mở khóa nhân vật "Hieu Louis - Classic"
-• [b]hieulouisking[/b] - Mở khóa trang "Hướng Dẫn Cho Admin" (trang này)
+• [b]MÃ BÍ MẬT 1[/b] - Mở khóa nhân vật "Hieu Louis - Classic"
+• [b]MÃ BÍ MẬT 2[/b] - Mở khóa trang "Hướng Dẫn Cho Admin" (trang này)
+
+(Lưu ý: Mã bí mật chỉ admin mới biết, không được tiết lộ ra ngoài)
 
 Để thêm mã mới: edit [b]GIFT_CODES[/b] trong [b]scripts/character_data.gd[/b]
 
@@ -406,7 +408,7 @@ func _admin_locked_text() -> String:
 
 Phần này chỉ dành cho admin server.
 
-Để mở khóa, nhập mã quà tặng "hieulouisking"
+Để mở khóa, nhập mã quà tặng bí mật (chỉ admin mới biết)
 trong Settings → Nhập Mã Quà Tặng.
 
 Lưu ý: Mã này không mở khóa nhân vật,

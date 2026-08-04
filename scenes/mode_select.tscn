@@ -59,6 +59,13 @@ custom_minimum_size = Vector2(0, 64)
 theme_override_font_sizes/font_size = 24
 text = "🎮 CHƠI OFFLINE"
 
+[node name="EndlessButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 64)
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(1.0, 0.3, 0.3, 1.0)
+text = "🧟 VƯỢT ẢI (500 LEVEL)"
+
 [node name="ServerStatusLabel" type="Label" parent="CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13

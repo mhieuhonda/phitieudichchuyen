@@ -78,6 +78,12 @@ const VARIATIONS = {
     "confirm": ["confirm_01", "confirm_02"],
     "cancel": ["cancel_01", "cancel_02"],
     "achievement": ["achievement_01", "achievement_02"],
+    # v2.4: HORROR SOUNDS for Vượt Ải (zombie mode)
+    "zombie_growl": ["zombie_growl_01", "zombie_growl_02", "zombie_growl_03"],
+    "zombie_scream": ["zombie_scream_01", "zombie_scream_02"],
+    "zombie_bite": ["zombie_bite_01"],
+    "horror_drone": ["horror_drone_01"],
+    "jump_scare": ["jump_scare_01"],
 }
 
 const MUSIC_TRACKS = {
@@ -89,6 +95,7 @@ const MUSIC_TRACKS = {
 }
 
 const SFX_PATH = "res://assets/audio/sfx/"
+const HORROR_SFX_PATH = "res://assets/audio/sfx/horror/"
 const MUSIC_PATH = "res://assets/audio/music/"
 
 func _ready():
@@ -122,10 +129,14 @@ func _preload_common_sounds():
 func _load_sound(sfx_name: String) -> AudioStreamWAV:
     if _sounds.has(sfx_name):
         return _sounds[sfx_name]
+    # Try main SFX folder first
     var path = SFX_PATH + sfx_name + ".wav"
     if not ResourceLoader.exists(path):
-        push_warning("[AudioManager] Sound not found: %s" % sfx_name)
-        return null
+        # v2.4: Try horror subfolder for zombie/horror sounds
+        path = HORROR_SFX_PATH + sfx_name + ".wav"
+        if not ResourceLoader.exists(path):
+            push_warning("[AudioManager] Sound not found: %s" % sfx_name)
+            return null
     var stream = load(path)
     if stream:
         _sounds[sfx_name] = stream
@@ -329,3 +340,23 @@ func play_aim_start():
 
 func play_spawn():
     play_variation("spawn", 0.0, 1.0)
+
+# v2.4: HORROR SOUND HELPERS cho Vượt Ải (zombie mode)
+# Mỗi sound được pitch-shift nhẹ để tránh repetition
+func play_zombie_growl():
+    play_variation("zombie_growl", 0.0, randf_range(0.85, 1.15))
+
+func play_zombie_scream():
+    play_variation("zombie_scream", 1.0, randf_range(0.9, 1.1))
+
+func play_zombie_bite():
+    play_variation("zombie_bite", 0.0, randf_range(0.9, 1.1))
+
+func play_horror_drone():
+    play_variation("horror_drone", 0.0, 1.0)
+
+func play_jump_scare():
+    play_variation("jump_scare", 2.0, 1.0)
+
+func play_heartbeat_slow():
+    play_sound("heartbeat_slow_01", 0.0, 1.0)

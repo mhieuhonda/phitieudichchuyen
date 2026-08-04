@@ -46,6 +46,14 @@ var hud_layout: int = 0
 # Value: Dictionary { "x": float, "y": float } - tọa độ chuẩn hóa 0..1 theo viewport
 var custom_button_positions: Dictionary = {}
 var use_custom_layout: bool = false
+
+# === v2.4: LANGUAGE ===
+# "vi" (Tiếng Việt) hoặc "en" (English)
+var language: String = "vi"
+
+# === v2.4: ENDLESS MODE PROGRESS ===
+# Lưu ải cao nhất đã đạt được trong chế độ Vượt Ải
+var endless_max_level: int = 0
 # Tên các nút có thể kéo thả (dùng trong ui_customization.gd)
 const DRAGGABLE_BUTTONS: Array = [
         "joystick", "throw", "teleport",
@@ -229,6 +237,9 @@ func save_settings():
         config.set_value("stats", "total_matches", total_matches)
         config.set_value("stats", "total_wins", total_wins)
         config.set_value("stats", "total_kills", total_kills)
+        # v2.4: Language + endless progress
+        config.set_value("i18n", "language", language)
+        config.set_value("endless", "max_level", endless_max_level)
         config.save(config_path)
 
 func _load_settings():
@@ -260,6 +271,9 @@ func _load_settings():
                 total_matches = config.get_value("stats", "total_matches", 0)
                 total_wins = config.get_value("stats", "total_wins", 0)
                 total_kills = config.get_value("stats", "total_kills", 0)
+                # v2.4: Language + endless progress
+                language = config.get_value("i18n", "language", "vi")
+                endless_max_level = config.get_value("endless", "max_level", 0)
 
 ## Lấy vị trí chuẩn hóa (0..1) của một nút; trả về Vector2 mặc định nếu chưa lưu
 func get_button_position(button_name: String, default_pos: Vector2) -> Vector2:
