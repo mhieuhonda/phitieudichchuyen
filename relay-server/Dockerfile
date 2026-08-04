@@ -1,6 +1,6 @@
 FROM node:20-alpine
 # v2.6: Rebuild clean — force Docker cache invalidation
-ARG BUILD_DATE=2026-08-04
+ARG BUILD_DATE=2026-08-04-v2
 LABEL build_date=$BUILD_DATE
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
@@ -9,8 +9,9 @@ RUN npm install --production
 COPY . .
 RUN mkdir -p /app/data
 EXPOSE 3000
-# No HEALTHCHECK here — let Coolify manage health check (start_period=60s, interval=10s)
-# Coolify's HTTP health check on /health:3000 is more reliable than Docker's native HEALTHCHECK
-# because Coolify properly handles start_period and won't kill the container prematurely
+# Explicitly disable Docker HEALTHCHECK — Coolify manages health check via HTTP
+# HEALTHCHECK NONE prevents Docker from running any health check on this container
+# Coolify's own health check (start_period=60s, interval=10s) is more reliable
+HEALTHCHECK NONE
 ENV PORT=3000
 CMD ["node", "server.js"]
