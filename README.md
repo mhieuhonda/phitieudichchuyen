@@ -1,14 +1,77 @@
-# 🎯 Phi Tiêu Dịch Chuyển v2.0
+# 🎯 Phi Tiêu Dịch Chuyển v2.1
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — giờ đã có **Online Multiplayer**!
 
-![Version](https://img.shields.io/badge/version-2.0-blue)
+![Version](https://img.shields.io/badge/version-2.1-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 ![Multiplayer](https://img.shields.io/badge/multiplayer-Online%20%2B%20Offline-orange)
+
+---
+
+## 🆕 Tính Năng v2.1 — Hieu Louis - Classic + Online Fix + UI Redesign
+
+### 🔥 FIX CRITICAL: Online Mode Hoạt Động!
+
+- **Lỗi gốc**: `matchmaking_screen.gd` KHÔNG BAO GIỜ gọi `NetworkManager.join_matchmaking()` → user stuck "Đang tìm trận..." mãi mãi dù server online. Đã fix: tự động join queue khi login success, retry 5 lần nếu fail.
+- **Fix chồng lấn nút**: TeleportButton chồng lên SkillMultishotButton (overlap 110x60px). Đã reposition layout gọn hơn, không chồng lấn.
+- **Fix priority check**: Multishot được check trước Teleport → vùng overlap trigger sai nút. Đã đổi: Teleport check TRƯỚC skill buttons.
+
+### 👑 Nhân Vật Mới: Hieu Louis - Classic
+
+Nhân vật đặc biệt "hacker huyền thoại" với bộ kỹ năng cực ngầu:
+
+- **Spawn Glitch 3s Bất Tử**: Khi vào trận, nhân vật bị glitch + tỏa ra các dòng code hacker (`0xCC`, `ROOT`, `BREACH`, `0xBEEF`...) trong 3 giây. Trong 3 giây đó là **bất tử**.
+- **Vô Hạn Đạn**: Không giới hạn số phi tiêu trên trường (max 999 darts).
+- **Không Cooldown Bắn**: Không bị giới hạn tần suất bắn liên tục.
+- **Máu Cực Nhiều**: HP bonus +500, thanh HP dài hơn nhân vật thường.
+- **Tốc Độ Cao**: +50 speed bonus.
+- **Teleport Cooldown Cực Thấp**: 0.05s thay vì 0.15s.
+- **Crown Skill (♛)**: Nút kỹ năng hình tròn có vương miện.
+  - Ghim 5 đối thủ gần nhất bằng phi tiêu
+  - +50% điểm trong thời gian ghim (8s)
+  - Cooldown 50 giây
+- **SMG Reward**: Khi giết đủ 50 mạng, nhận tiểu liên bắn rất nhanh, vô hạn đạn, tồn tại 20 giây.
+- **Vòng Tròn Đỏ Highlight**: Khi nút xoay (joystick/aim) chĩa đúng vào đối thủ nào, đối thủ đó sẽ hiện vòng tròn đỏ xung quanh để dễ bắn trúng hơn.
+
+**Cách mở khóa**: Vào Settings → Nhập Mã Quà Tặng → nhập `hieulouis99` → Đổi Mã.
+
+### 🎨 Redesign UI
+
+- **Menu chính**: Title 56px với glow shadow, gradient background, badges nổi bật.
+- **Settings**: Scroll container, section headers (🎨 Đồ Họa / 🔊 Âm Thanh / 🎁 Nhập Mã Quà Tặng / 🎛 Giao Diện), layout 2 cột cho toggles.
+- **Mode Select**: Button text lớn 24px, accents màu xanh dương.
+- **Mobile Controls**: Layout gọn, không chồng lấn. Teleport button tách biệt khỏi skill buttons.
+- **HUD**: Hiển thị trạng thái Crown/SMG/Spawn Invul realtime.
+
+### 🐛 Bug Fixes Khác
+
+- **Mobile controls**: Touch priority teleport > skill buttons (fix overlap)
+- **Network signals**: MatchmakingScreen cleanup `login_success` + `connection_error` handlers
+- **Auto-retry join matchmaking**: Nếu chưa vào queue sau 2s, tự retry (max 5 lần)
+- **Crown button visibility**: Chỉ hiện khi đang chơi Hieu Louis - Classic
+- **Target highlight**: Vòng tròn đỏ pulsing quanh đối thủ trong đường ngắm
+- **Character screen**: Hiển thị "Phi tiêu: VÔ HẠN" cho Classic, gợi ý mã quà tặng cho nhân vật chưa mở khóa
+
+### 📦 Version Bump
+- `project.godot`: config/version `2.0` → `2.1`
+- `export_presets.cfg`: version/code `20` → `21`, version/name `"2.0"` → `"2.1"`
+- `export_presets.cfg`: application/file_version + product_version `"2.0.0.0"` → `"2.1.0.0"`
+- `menu.gd`: version label `v2.0` → `v2.1`
+- New input action: `skill_crown` (phím C)
+
+### ✅ Verification
+- ✅ Matchmaking tự join queue khi vào màn hình
+- ✅ Teleport button không bị overlap với multishot
+- ✅ Hieu Louis - Classic spawn glitch effect hoạt động
+- ✅ Crown skill ghim 5 đối thủ + +50% điểm
+- ✅ SMG reward sau 50 kills
+- ✅ Target highlight vòng tròn đỏ
+- ✅ Gift code "hieulouis99" mở khóa nhân vật
+- ✅ UI redesign đẹp, chuyên nghiệp hơn
 
 ---
 

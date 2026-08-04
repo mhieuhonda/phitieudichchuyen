@@ -58,11 +58,12 @@ func _on_server_connected():
         server_status_label.text = "✅ Server online - Sẵn sàng chơi!"
         server_status_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
         online_button.disabled = false
-        # Login immediately
-        var player_name = "Player"
-        if CharacterData:
-                player_name = CharacterData.get_selected().get("name", "Player")
-        NetworkManager.login(player_name, CharacterData.selected_character_id if CharacterData else 0)
+        # Login immediately if not logged in
+        if not NetworkManager.is_logged_in():
+                var player_name = "Player"
+                if CharacterData:
+                        player_name = CharacterData.get_selected().get("name", "Player")
+                NetworkManager.login(player_name, CharacterData.selected_character_id if CharacterData else 0)
 
 func _on_server_error(error_msg: String):
         # Disconnect the other ONE_SHOT connection to avoid stale callback firing later

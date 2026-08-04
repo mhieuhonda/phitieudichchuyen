@@ -411,15 +411,34 @@ jobs:
           body: |
             ## 🎯 Phi Tiêu Dịch Chuyển ${{ steps.rel.outputs.tag }}
 
-            ### 🆕 Tính năng v1.9
+            ### 🆕 Tính năng v2.1
 
-            - **FIX lỗi "Gói dường như bị hỏng"**: APK đã được ký đúng chuẩn (v1+v2+v3 signature) bằng apksigner, giờ đây cài đặt trên Android không còn báo lỗi corrupted.
-            - **NetworkManager v1.9**: Sửa `get_latency()` luôn trả về 0; sửa timer reconnect bị stack-up; thêm cờ `_user_disconnect` để tách biệt user-initiated disconnect vs network drop.
-            - **ModeSelect/Multiplayer scenes**: Cleanup ONE_SHOT signal handlers khi rời scene, tránh crash "Invalid access to freed instance" khi server phản hồi chậm.
-            - **AI/Player respawn timers**: Guard `is_instance_valid` trước khi gọi `_respawn()`, tránh crash nếu node bị freed giữa chừng.
-            - **AI `_find_nearest_player` / `AIState.HUNTING` / `FLEEING`**: Thêm `is_instance_valid(target_player)` để tránh null-ref.
-            - **HUD alive_count**: Filter an toàn với `is_instance_valid` check.
-            - **Screen shake**: Guard chia 0 khi `shake_duration == 0`.
+            #### 🔥 FIX CRITICAL: Online Mode Hoạt Động!
+            - **Lỗi gốc**: `matchmaking_screen.gd` KHÔNG BAO GIỜ gọi `NetworkManager.join_matchmaking()` → user stuck "Đang tìm trận..." mãi mãi dù server online.
+            - **Fix**: Tự động join queue khi login success, retry 5 lần nếu fail.
+
+            #### 👑 Nhân Vật Mới: Hieu Louis - Classic
+            - **Spawn Glitch 3s Bất Tử**: Khi vào trận, nhân vật bị glitch + tỏa ra các dòng code hacker trong 3 giây. Trong 3 giây đó là bất tử.
+            - **Vô Hạn Đạn**: Không giới hạn số phi tiêu trên trường.
+            - **Không Cooldown Bắn**: Không bị giới hạn tần suất bắn liên tục.
+            - **Máu Cực Nhiều**: HP bonus +500, thanh HP dài hơn.
+            - **Crown Skill (♛)**: Nút kỹ năng hình tròn có vương miện. Ghim 5 đối thủ gần nhất, +50% điểm (8s), CD 50s.
+            - **SMG Reward**: Khi giết đủ 50 mạng, nhận tiểu liên bắn rất nhanh, vô hạn đạn (20s).
+            - **Vòng Tròn Đỏ Highlight**: Khi aim đúng vào đối thủ, hiện vòng tròn đỏ xung quanh để dễ bắn trúng.
+            - **Cách mở khóa**: Settings → Nhập Mã Quà Tặng → `hieulouis99`
+
+            #### 🎨 Redesign UI
+            - Menu, Settings, Mode Select, Mobile Controls, HUD đều được làm đẹp hơn.
+            - Settings có section mới "🎁 Nhập Mã Quà Tặng".
+            - Mobile controls layout gọn, không chồng lấn.
+
+            #### 🐛 Bug Fixes
+            - Fix chồng lấn TeleportButton vs SkillMultishotButton (overlap 110x60px)
+            - Fix priority check: Teleport check TRƯỚC skill buttons
+            - Auto-retry join matchmaking (5 lần, cách 2s)
+            - Cleanup `login_success` + `connection_error` signal handlers trong `_exit_tree`
+            - Crown button auto-hide khi không phải Classic mode
+            - Target highlight pulsing vòng tròn đỏ quanh đối thủ
 
             ### 📦 Downloads
             - **Android**: `.apk` file (đã ký với debug keystore, có thể cài trực tiếp)
@@ -427,14 +446,8 @@ jobs:
             - **Linux**: `.x86_64` + `.pck` files
             - **Relay Server**: `ghcr.io/mhieuhonda/phitieu-relay:latest`
 
-            ### 🐛 Lỗi đã sửa (chi tiết v1.9)
-            - APK unsigned → Android báo "gói dường như bị hỏng" khi tải về. Đã thêm step zipalign + apksigner sign (v1+v2+v3) trong CI.
-            - NetworkManager `get_latency()` luôn return 0 (comment nói "Updated on pong" nhưng không có field lưu trữ). Đã thêm `_last_latency_ms`.
-            - NetworkManager `_try_reconnect()` nếu được gọi nhiều lần (vd. nhiều STATE_CLOSED events), tạo nhiều timer → multiple connection attempts đan xen. Đã thêm `_cancel_reconnect_timer()`.
-            - NetworkManager `disconnect_from_server()` không set cờ tách user-disconnect vs network-drop → emit `disconnected_from_server` signal + retry không đúng. Đã thêm `_user_disconnect` flag.
-            - ModeSelect/Multiplayer/MainOnline: signal connections đến autoload NetworkManager không disconnect khi scene freed → callbacks fire on freed instance. Đã thêm `_exit_tree()` cleanup.
-            - AIPlayer `_find_nearest_player` không check `is_instance_valid(p)` trước khi `p.is_alive` → crash nếu player vừa bị freed.
-            - AIPlayer `target_player` trong HUNTING/FLEEING states có thể bị freed giữa chừng.
-            - HUD `_process` filter `ai_players` không check `is_instance_valid` → crash nếu AI vừa bị queue_free.
-            - Player/AI `_die()` dùng `create_timer().timeout.connect(_respawn)` không guard → callback fire trên freed node.
-            - Main/MainOnline `_process` chia `shake_timer / shake_duration` → NaN nếu duration=0.
+            ### 🎮 Hướng dẫn
+            1. **Chơi Online**: Menu → Chơi Ngay → 🌐 Chơi Online → Đợi matchmaking → Bắt đầu!
+            2. **Mở khóa Hieu Louis**: Menu → ⚙ Cài Đặt → 🎁 Nhập Mã Quà Tặng → `hieulouis99` → Đổi Mã
+            3. **Crown Skill**: Khi chơi Hieu Louis, nút ♛ xuất hiện. Ấn để ghim 5 đối thủ + +50% điểm.
+            4. **SMG Reward**: Giết 50 mạng → tự động nhận tiểu liên vô hạn 20s.

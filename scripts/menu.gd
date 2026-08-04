@@ -22,8 +22,8 @@ func _ready():
         for btn in [play_button, characters_button, settings_button, quit_button]:
                 btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-        new_feature_label.text = "[color=cyan][b]v2.0:[/b][/color] Sửa hết regressions từ v1.9, hoàn thiện online + offline\n[color=yellow]v1.9:[/color] FIX lỗi \"Gói dường như bị hỏng\" - APK đã ký v1+v2+v3\n[color=green]v1.8:[/color] Fix 4 major + 10 minor bugs (network, audio, UI, animation)"
-        version_label.text = "v2.0 - Phi Tiêu Dịch Chuyển"
+        new_feature_label.text = "[color=#00ff88][b]v2.1:[/b][/color] Nhân vật mới Hieu Louis - Classic (mã: hieulouis99)\n[color=#ffaa00][b]Crown Skill[/b][/color]: ghim 5 đối thủ, +50% điểm\n[color=#ff4444][b]SMG Reward[/b][/color]: 50 kills → tiểu liên vô hạn 20s\n[color=#44aaff][b]Online fix[/b][/color]: sửa lỗi không vào được queue matchmaking"
+        version_label.text = "v2.1 - Phi Tiêu Dịch Chuyển"
 
         AudioManager.play_music("menu")
 

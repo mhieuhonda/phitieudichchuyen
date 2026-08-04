@@ -1,25 +1,30 @@
 extends Control
 
-## SettingsMenu - Menu cài đặt (v1.2)
+## SettingsMenu - Menu cài đặt (v2.1)
 ## Đồ họa, âm thanh, joystick, device info, UI customization
+## v2.1: Thêm "Nhập Mã Quà Tặng" - mở khóa nhân vật đặc biệt qua mã
+## v2.1: Redesign UI với section headers, scroll, đẹp hơn
 
 @onready var back_button: Button = $BackButton
-@onready var quality_label: Label = $QualityLabel
-@onready var quality_very_low: Button = $QualityButtons/QualityVeryLow
-@onready var quality_low: Button = $QualityButtons/QualityLow
-@onready var quality_medium: Button = $QualityButtons/QualityMedium
-@onready var quality_high: Button = $QualityButtons/QualityHigh
-@onready var fps_toggle: CheckButton = $FpsToggle
-@onready var shake_toggle: CheckButton = $ShakeToggle
-@onready var joystick_toggle: CheckButton = $JoystickToggle
-@onready var sound_toggle: CheckButton = $SoundToggle
-@onready var music_toggle: CheckButton = $MusicToggle
-@onready var sound_slider: HSlider = $SoundSlider
-@onready var music_slider: HSlider = $MusicSlider
-@onready var sound_label: Label = $SoundLabel
-@onready var music_label: Label = $MusicLabel
-@onready var device_info_label: Label = $DeviceInfoLabel
-@onready var ui_customize_button: Button = $UICustomizeButton
+@onready var quality_label: Label = $ScrollContainer/VBox/QualityLabel
+@onready var quality_very_low: Button = $ScrollContainer/VBox/QualityButtons/QualityVeryLow
+@onready var quality_low: Button = $ScrollContainer/VBox/QualityButtons/QualityLow
+@onready var quality_medium: Button = $ScrollContainer/VBox/QualityButtons/QualityMedium
+@onready var quality_high: Button = $ScrollContainer/VBox/QualityButtons/QualityHigh
+@onready var fps_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow1/FpsToggle
+@onready var shake_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow1/ShakeToggle
+@onready var joystick_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow2/JoystickToggle
+@onready var sound_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow2/SoundToggle
+@onready var music_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow2/MusicToggle
+@onready var sound_slider: HSlider = $ScrollContainer/VBox/SoundSlider
+@onready var music_slider: HSlider = $ScrollContainer/VBox/MusicSlider
+@onready var sound_label: Label = $ScrollContainer/VBox/SoundLabel
+@onready var music_label: Label = $ScrollContainer/VBox/MusicLabel
+@onready var device_info_label: Label = $ScrollContainer/VBox/DeviceInfoLabel
+@onready var ui_customize_button: Button = $ScrollContainer/VBox/UICustomizeButton
+@onready var gift_code_input: LineEdit = $ScrollContainer/VBox/GiftCodeHBox/GiftCodeInput
+@onready var redeem_button: Button = $ScrollContainer/VBox/GiftCodeHBox/RedeemButton
+@onready var gift_code_result_label: Label = $ScrollContainer/VBox/GiftCodeResultLabel
 
 func _ready():
 	back_button.pressed.connect(_on_back_pressed)
@@ -34,18 +39,25 @@ func _ready():
 	music_toggle.toggled.connect(func(v): SettingsManager.set_music_enabled(v); AudioManager.set_music_enabled(v); if v: AudioManager.play_music("menu"); AudioManager.play_ui_click())
 	sound_slider.value_changed.connect(func(v): SettingsManager.set_sound_volume(v); _update_sound_labels())
 	music_slider.value_changed.connect(func(v): SettingsManager.set_music_volume(v); _update_sound_labels())
-	
+
 	# v1.2: UI Customization button
 	if ui_customize_button:
 		ui_customize_button.pressed.connect(_on_ui_customize_pressed)
-	
+
+	# v2.1: Gift code redeem
+	if redeem_button:
+		redeem_button.pressed.connect(_on_redeem_pressed)
+	if gift_code_input:
+		gift_code_input.text_submitted.connect(func(_t): _on_redeem_pressed())
+
 	# UI hover sounds
-	for btn in [quality_very_low, quality_low, quality_medium, quality_high, back_button, ui_customize_button]:
+	for btn in [quality_very_low, quality_low, quality_medium, quality_high, back_button, ui_customize_button, redeem_button]:
 		if btn:
 			btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 	for tog in [fps_toggle, shake_toggle, joystick_toggle, sound_toggle, music_toggle]:
-		tog.mouse_entered.connect(func(): AudioManager.play_ui_hover())
-	
+		if tog:
+			tog.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+
 	_load_current_settings()
 
 func _load_current_settings():
@@ -86,6 +98,27 @@ func _update_device_info():
 func _on_ui_customize_pressed():
 	AudioManager.play_ui_click()
 	get_tree().change_scene_to_file("res://scenes/ui_customization.tscn")
+
+## v2.1: Xử lý nhập mã quà tặng
+func _on_redeem_pressed():
+	var code = gift_code_input.text.strip_edges()
+	if code == "":
+		gift_code_result_label.text = "⚠ Vui lòng nhập mã!"
+		gift_code_result_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+		AudioManager.play_error()
+		return
+	AudioManager.play_ui_click()
+	if CharacterData.redeem_gift_code(code):
+		var char_data = CharacterData.get_character(12)
+		gift_code_result_label.text = "✅ Mã hợp lệ! Đã mở khóa: %s" % char_data["name"]
+		gift_code_result_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+		AudioManager.play_success()
+		AudioManager.play_achievement()
+		gift_code_input.text = ""
+	else:
+		gift_code_result_label.text = "❌ Mã không hợp lệ!"
+		gift_code_result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+		AudioManager.play_error()
 
 func _on_back_pressed():
 	AudioManager.play_ui_click()

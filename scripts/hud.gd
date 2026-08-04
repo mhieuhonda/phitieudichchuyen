@@ -174,6 +174,29 @@ func _update_skill_ui():
         else:
             skill_multishot_label.text = "Multi\nSẴN SÀNG"
             skill_multishot_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2))
+    # v2.1: Hiển thị trạng thái Crown / SMG / Spawn Invul trong combo_label
+    if combo_label and not combo_label.visible:
+        var status_text = ""
+        var status_color = Color(1, 1, 1)
+        if "is_classic_mode" in player and player.is_classic_mode:
+            if "is_spawn_invulnerable" in player and player.is_spawn_invulnerable:
+                status_text = "🛡 INVUL: %.1fs" % player.spawn_invulnerable_timer
+                status_color = Color(0, 1, 0.5)
+            elif "smg_active" in player and player.smg_active:
+                status_text = "🔫 SMG: %.1fs" % player.smg_timer
+                status_color = Color(1.0, 0.4, 0.2)
+            elif "crown_active" in player and player.crown_active:
+                status_text = "♛ CROWN: %.1fs (+50%%)" % player.crown_active_timer
+                status_color = Color(1.0, 0.85, 0.2)
+            elif "crown_cooldown_timer" in player and player.crown_cooldown_timer > 0:
+                status_text = "Crown CD: %.0fs" % player.crown_cooldown_timer
+                status_color = Color(0.6, 0.6, 0.6)
+        if status_text != "":
+            combo_label.text = status_text
+            combo_label.visible = true
+            combo_label.add_theme_color_override("font_color", status_color)
+        else:
+            combo_label.visible = false
 
 func _on_skill_cooldown_updated(skill_id: int, remaining: float):
     pass

@@ -1,5 +1,123 @@
 # Changelog
 
+## v2.1 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 🔥 FIX CRITICAL: Online Mode Hoạt Động!
+
+**Lỗi gốc**: `matchmaking_screen.gd` KHÔNG BAO GIỜ gọi `NetworkManager.join_matchmaking()` → user stuck "Đang tìm trận..." mãi mãi dù server online. Đây là nguyên nhân chính khiến không thể chơi online.
+
+**Fix**:
+- Tự động gọi `join_matchmaking()` khi `login_success` signal fire
+- Retry 5 lần (cách 2s) nếu chưa vào queue
+- Nếu chưa login khi vào màn hình, tự connect + login
+- Cleanup `login_success` + `connection_error` signal handlers trong `_exit_tree`
+
+### 🔥 FIX: Chồng Lấn Nút Mobile Controls
+
+**Lỗi**: TeleportButton (x=870..1010) chồng lên SkillMultishotButton (x=850..980) → vùng overlap 110x60px. Thêm nữa, thứ tự check: multishot được check TRƯỚC teleport → nhấn teleport bị nhầm multishot (đây là "ấn vào nút xoay không nhận ngay").
+
+**Fix**:
+- Reposition layout: Teleport (x=-230..-120) tách khỏi skills (x=-640..-240)
+- Đổi priority: Teleport check TRƯỚC skill buttons trong `_handle_touch_event` và `_handle_mouse_event`
+- Giảm grow padding: throw (20px), teleport (12px), skills (8px)
+
+### 👑 NEW: Nhân Vật "Hieu Louis - Classic" (id=12)
+
+Nhân vật đặc biệt "hacker huyền thoại" với bộ kỹ năng cực ngầu:
+
+| Feature | Value |
+|---------|-------|
+| HP bonus | +500 (cực nhiều) |
+| Speed bonus | +50 |
+| Dart bonus | 100 (vô hạn trên thực tế) |
+| Spawn invulnerable | 3 giây bất tử + glitch effect |
+| Teleport cooldown | 0.05s (gần như không có) |
+| Crown skill CD | 50 giây |
+| Crown targets | 5 đối thủ gần nhất |
+| Crown score bonus | +50% trong 8s ghim |
+| SMG threshold | 50 kills |
+| SMG duration | 20 giây vô hạn đạn |
+| SMG fire rate | 0.08s (~12.5 shots/s) |
+
+**Spawn Glitch Effect**:
+- Sprite RGB split + position jitter mỗi 0.15s
+- Floating code lines: `0xCC`, `ROOT`, `BREACH`, `0xBEEF`, `0x90`, `HACK`, `BYPASS`...
+- Màu hacker green (#00FF80) cho particles
+- 3 giây bất tử (block 100% damage)
+
+**Crown Skill**:
+- Nút kỹ năng hình tròn có vương miện ♛
+- Khi ấn: tìm 5 đối thủ gần nhất (AI + remote players)
+- Spawn phi tiêu nhắm thẳng vào mỗi đối thủ
+- +50% score trong 8 giây
+- 50 giây cooldown
+- Chỉ hiện nút khi đang chơi Hieu Louis - Classic
+
+**SMG Reward**:
+- Khi player_kills >= 50, tự động activate SMG mode
+- Auto-fire phi tiêu mỗi 0.08s về hướng aim (hoặc đối thủ gần nhất)
+- Vô hạn đạn (không tăng all_darts)
+- 20 giây duration
+- Thông báo "TIỂU LIÊN VÔ HẠN!" khi activate
+
+**Vòng Tròn Đỏ Highlight**:
+- Khi aiming, tìm đối thủ trong đường ngắm (dot > 0.95, perp_dist < 60px)
+- Vẽ vòng tròn đỏ pulsing quanh đối thủ (script `target_highlight.gd`)
+- 4 chấm đỏ chỉ hướng (trên/dưới/trái/phải)
+- Glowing outer ring
+
+### 🎁 NEW: Nhập Mã Quà Tặng
+
+- Section mới trong Settings: "🎁 NHẬP MÃ QUÀ TẶNG"
+- LineEdit + Button "ĐỔI MÃ"
+- Mã `hieulouis99` → mở khóa Hieu Louis - Classic
+- Result label hiển thị success/error
+- Âm thanh success/error feedback
+
+### 🎨 Redesign UI
+
+| Screen | Changes |
+|--------|---------|
+| Menu | Title 56px + glow shadow, gradient bg, badges |
+| Settings | ScrollContainer + section headers (🎨 🔊 🎁 🎛) |
+| Mode Select | Button 24px, accents màu xanh |
+| Mobile Controls | Layout gọn, teleport tách khỏi skills |
+| HUD | Hiển thị Crown/SMG/Spawn Invul realtime |
+| Character Screen | "Vô hạn" cho Classic, gợi ý mã cho locked |
+
+### 🐛 Bug Fixes
+
+- **Network signals cleanup**: `login_success` + `connection_error` disconnected trong `_exit_tree`
+- **Auto-retry matchmaking**: 5 lần retry nếu chưa vào queue sau 2s
+- **Crown button visibility**: Auto-hide khi không phải Classic mode
+- **Character screen**: Hiển thị "Phi tiêu: VÔ HẠN" cho Classic
+- **Player `_die()`**: Reset Crown/SMG/SpawnInvul state
+- **Player `take_damage_from`**: Block damage khi spawn invulnerable
+- **Player `_check_teleport_kill`**: Tách logic reward ra `_register_kill_and_reward()` để dùng cho cả teleport + dart kill
+- **Crown score multiplier**: +50% score áp dụng cho cả teleport kill + dart kill
+- **SMG auto-fire**: Tự động bắn về hướng aim hoặc đối thủ gần nhất
+
+### 📦 Version Bump
+- `project.godot`: config/version `2.0` → `2.1`
+- `export_presets.cfg`: version/code `20` → `21`, version/name `"2.0"` → `"2.1"`
+- `export_presets.cfg`: file_version + product_version `"2.0.0.0"` → `"2.1.0.0"`
+- `menu.gd`: version label `v2.0` → `v2.1`
+- New input action: `skill_crown` (phím C)
+- New file: `scripts/target_highlight.gd`
+- New asset: `assets/sprites/characters/char_hieu_louis_classic.png`
+
+### ✅ Verification
+- ✅ Matchmaking tự join queue khi vào màn hình
+- ✅ Teleport button không bị overlap với multishot
+- ✅ Hieu Louis - Classic spawn glitch effect hoạt động
+- ✅ Crown skill ghim 5 đối thủ + +50% điểm
+- ✅ SMG reward sau 50 kills
+- ✅ Target highlight vòng tròn đỏ
+- ✅ Gift code "hieulouis99" mở khóa nhân vật
+- ✅ UI redesign đẹp, chuyên nghiệp hơn
+
+---
+
 ## v2.0 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 🔥 Critical Fix: Python Docstring Parse Error
