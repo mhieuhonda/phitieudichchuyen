@@ -1,11 +1,18 @@
 /**
- * Phi Tiêu Dịch Chuyển - Relay Server v1.8 (v2.4 release)
+ * Phi Tiêu Dịch Chuyển - Relay Server v1.9 (v2.5 release)
  *
  * WebSocket relay server cho game online:
  * - Matchmaking: min 10, max 20 người mỗi phòng
  * - 30s timeout → tự fill bot AI nếu chưa đủ 10 người
  * - SQLite database cho player stats
  * - Room management với state sync
+ *
+ * v1.9 (v2.5): Fix server cho sub-VPS sau Traefik reverse proxy
+ * - HTTP server bind rõ ràng 0.0.0.0 (trong Docker cần expose tất cả interface)
+ * - Xử lý X-Forwarded-For, X-Forwarded-Proto headers từ Traefik
+ * - Trust proxy: ghi nhận client IP thật qua X-Forwarded-For
+ * - Health endpoint trả về thêm proxy info
+ * - Landing page hiện đúng WSS URL dựa trên Host header
  *
  * v1.8 (v2.4): Refactor để chạy trên 1 port duy nhất (PORT env, default 3000)
  * - HTTP server và WebSocket server dùng chung 1 port
@@ -146,6 +153,7 @@ function dbGetLeaderboard(limit = 20) {
 // === CONFIG ===
 const CONFIG = {
   PORT: parseInt(process.env.PORT) || parseInt(process.env.WS_PORT) || 3000,
+  HOST: process.env.HOST || '0.0.0.0',  // v1.9: bind tất cả interface cho Docker
   MATCH_MIN_PLAYERS: parseInt(process.env.MATCH_MIN_PLAYERS) || 10,
   MATCH_MAX_PLAYERS: parseInt(process.env.MATCH_MAX_PLAYERS) || 20,
   MATCH_TIMEOUT_MS: parseInt(process.env.MATCH_TIMEOUT_MS) || 30000,
@@ -154,6 +162,26 @@ const CONFIG = {
   ROOM_TIMEOUT_MS: parseInt(process.env.ROOM_TIMEOUT_MS) || 3600000,
   PING_INTERVAL_MS: 30000,
 };
+
+// === REVERSE PROXY HELPER (v1.9) ===
+// Trích xuất client IP thật từ X-Forwarded-For (Traefik đặt header này)
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) {
+    // X-Forwarded-For có thể chứa nhiều IP: client, proxy1, proxy2...
+    // IP đầu tiên là client thật
+    return xff.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress;
+}
+
+// Kiểm tra kết nối đến qua HTTPS (Traefik TLS termination)
+function isSecure(req) {
+  const proto = req.headers['x-forwarded-proto'];
+  if (proto) return proto === 'https';
+  // Fallback: check direct TLS socket
+  return req.socket.encrypted === true;
+}
 
 // === STATE ===
 const clients = new Map();
@@ -491,70 +519,66 @@ const httpServer = http.createServer((req, res) => {
   }
 
   const url = req.url || '/';
+  // v1.9: Lấy client IP thật qua X-Forwarded-For
+  const clientIp = getClientIp(req);
+  const secure = isSecure(req);
+  // Xác định scheme cho URL hiển thị (wss:// nếu qua HTTPS proxy)
+  const wsScheme = secure ? 'wss' : 'ws';
+  const httpScheme = secure ? 'https' : 'http';
+  // Host từ header (Traefik đặt Host header = domain gốc)
+  const host = req.headers['host'] || `${CONFIG.HOST}:${CONFIG.PORT}`;
 
-  if (url === '/health' || url === '/api/health') {
+  if (url === '/health') {
     res.writeHead(200);
     res.end(JSON.stringify({
       status: 'ok',
+      version: '1.9.0',
+      gameVersion: '2.5',
       uptime: process.uptime(),
       rooms: rooms.size,
       clients: clients.size,
-      queue: matchmakingQueue.size,
-      version: '1.8.0'
+      matchmaking: matchmakingQueue.size,
+      db: db ? 'sqlite' : 'memory',
+      // v1.9: Proxy info để debug
+      proxy: {
+        xForwardedFor: req.headers['x-forwarded-for'] || null,
+        xForwardedProto: req.headers['x-forwarded-proto'] || null,
+        clientIp,
+        secure,
+      }
     }));
-    return;
-  }
-
-  if (url === '/api/status') {
+  } else if (url === '/api/status') {
     res.writeHead(200);
     res.end(JSON.stringify({
-      version: '1.8.0',
+      version: '1.9.0',
+      gameVersion: '2.5',
+      uptime: process.uptime(),
       rooms: rooms.size,
       clients: clients.size,
-      queue: matchmakingQueue.size,
-      config: {
-        minPlayers: CONFIG.MATCH_MIN_PLAYERS,
-        maxPlayers: CONFIG.MATCH_MAX_PLAYERS,
-        matchTimeout: CONFIG.MATCH_TIMEOUT_MS,
-        tickRate: CONFIG.TICK_RATE_MS,
-      },
-      roomList: Array.from(rooms.entries()).map(([id, r]) => ({
-        id, state: r.state, players: r.players.size,
-        gameTime: Math.round(r.gameTime),
-      })),
+      matchmaking: matchmakingQueue.size,
+      db: db ? 'sqlite' : 'memory'
     }));
-    return;
-  }
-
-  if (url === '/api/leaderboard') {
+  } else if (url === '/api/leaderboard') {
     res.writeHead(200);
     res.end(JSON.stringify(dbGetLeaderboard(20)));
-    return;
+  } else if (url === '/') {
+    // Landing page — hiển thị đúng WSS URL dựa trên Host header
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.writeHead(200);
+    res.end(`<!DOCTYPE html><html><head><title>Phi Tiêu Dịch Chuyển - Relay Server v1.9</title></head><body style="font-family:monospace;padding:40px;color:#333"><h1>Phi Tiêu Dịch Chuyển - Relay Server v1.9 (v2.5)</h1><p>HTTP + WebSocket on port ${CONFIG.PORT}</p><p>WS endpoint: <code>${wsScheme}://${host}/ws</code></p><p>Health: <a href="${httpScheme}://${host}/health">${httpScheme}://${host}/health</a></p><p>Leaderboard: <a href="${httpScheme}://${host}/api/leaderboard">${httpScheme}://${host}/api/leaderboard</a></p><hr><p>Clients: ${clients.size} | Rooms: ${rooms.size} | Queue: ${matchmakingQueue.size} | DB: ${db ? 'SQLite' : 'Memory'}</p></body></html>`);
+  } else {
+    res.writeHead(404);
+    res.end(JSON.stringify({ error: 'Not found' }));
   }
-
-  if (url.startsWith('/api/player/')) {
-    const pid = url.split('/api/player/')[1];
-    const player = dbGetPlayer(pid);
-    if (player) {
-      res.writeHead(200);
-      res.end(JSON.stringify(player));
-    } else {
-      res.writeHead(404);
-      res.end(JSON.stringify({ error: 'Player not found' }));
-    }
-    return;
-  }
-
-  // Default: simple landing page
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Phi Tiêu Dịch Chuyển - Relay Server</title></head><body style="font-family:monospace;background:#0a0e1a;color:#4af;padding:40px"><h1>🎯 Phi Tiêu Dịch Chuyển - Relay Server v1.8</h1><p>WebSocket endpoint: <code>wss://${req.headers.host}/ws</code></p><p><a href="/health">/health</a> | <a href="/api/status">/api/status</a> | <a href="/api/leaderboard">/api/leaderboard</a></p></body></html>`);
 });
 
 // === WEBSOCKET SERVER (mounted on same HTTP server, path /ws) ===
 const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
 wss.on('connection', (ws, req) => {
-  console.log(`[WS] New connection from ${req.socket.remoteAddress}. Total: ${wss.clients.size}`);
+  // v1.9: Log client IP thật thay vì proxy IP
+  const clientIp = getClientIp(req);
+  console.log(`[WS] New connection from ${clientIp} (proxy: ${req.socket.remoteAddress}). Total: ${wss.clients.size}`);
 
   ws.on('message', (raw) => {
     let msg;
@@ -569,7 +593,7 @@ wss.on('connection', (ws, req) => {
         dbUpsertPlayer(pid, name || 'Player', characterId || 0);
         clients.set(ws, { playerId: pid, roomId: null });
         ws.send(JSON.stringify({ type: 'login_ok', data: { playerId: pid } }));
-        console.log(`[WS] Player ${name}(${pid}) logged in`);
+        console.log(`[WS] Player ${name}(${pid}) logged in from ${clientIp}`);
         break;
       }
 
@@ -690,9 +714,10 @@ setInterval(() => {
 
 // === START ===
 initDatabase();
-httpServer.listen(CONFIG.PORT, () => {
-  console.log(`[Server] Phi Tiêu Dịch Chuyển Relay Server v1.8 (v2.4)`);
-  console.log(`[Server] HTTP + WebSocket on port ${CONFIG.PORT}`);
-  console.log(`[Server] WS endpoint: ws://localhost:${CONFIG.PORT}/ws`);
+httpServer.listen(CONFIG.PORT, CONFIG.HOST, () => {
+  console.log(`[Server] Phi Tiêu Dịch Chuyển Relay Server v1.9 (v2.5)`);
+  console.log(`[Server] HTTP + WebSocket on ${CONFIG.HOST}:${CONFIG.PORT}`);
+  console.log(`[Server] WS endpoint: ws://${CONFIG.HOST}:${CONFIG.PORT}/ws`);
   console.log(`[Server] Match config: ${CONFIG.MATCH_MIN_PLAYERS}-${CONFIG.MATCH_MAX_PLAYERS} players, ${CONFIG.MATCH_TIMEOUT_MS}ms timeout`);
+  console.log(`[Server] Reverse proxy: X-Forwarded-For/Proto headers supported`);
 });

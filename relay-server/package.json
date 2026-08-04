@@ -1,7 +1,7 @@
 {
   "name": "phitieu-relay-server",
-  "version": "1.8.0",
-  "description": "Relay Server cho Phi Tiêu Dịch Chuyển - WebSocket matchmaking & game relay (v2.4 single-port)",
+  "version": "1.9.0",
+  "description": "Relay Server cho Phi Tiêu Dịch Chuyển - WebSocket matchmaking & game relay (v2.5 reverse-proxy fix)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

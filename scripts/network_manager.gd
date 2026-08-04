@@ -29,14 +29,15 @@ signal zone_shrank(radius: float)
 signal pong_received(latency_ms: int)
 
 # === CONFIG ===
-# v2.4: Server URL hardcoded - relay server deploy qua Coolify trên VPS
-# Domain: phitieu.buppou.com (wildcard DNS *.buppou.com → VPS 163.44.96.79)
+# v2.5: Server URL hardcoded - relay server deploy qua Coolify trên sub-VPS
+# VPS nằm sau Traefik reverse proxy, chỉ truy cập được qua HTTPS/domain
+# Domain: phitieu.louis.vangioitutien.com (wildcard *.louis.vangioitutien.com)
 # Traefik terminates TLS, forwards WSS→WS đến container port 3000
-# Endpoint: wss://phitieu.buppou.com/ws (HTTP upgrade trên /ws path)
+# Endpoint: wss://phitieu.louis.vangioitutien.com/ws (HTTP upgrade trên /ws path)
 #
-# v2.3 cũ: ws://163.44.96.79:25671/ws — port 25671 đã bị chặn trên VPS,
-# chỉ còn 80/443 qua Traefik. Nên chuyển sang wss:// qua domain.
-const DEFAULT_SERVER_URL := "wss://phitieu.buppou.com/ws"
+# v2.4 cũ: wss://phitieu.buppou.com/ws — domain buppou.com không trỏ đúng VPS
+# v2.3 cũ: ws://163.44.96.79:25671/ws — port đã bị chặn, chỉ còn 80/443 qua Traefik
+const DEFAULT_SERVER_URL := "wss://phitieu.louis.vangioitutien.com/ws"
 var server_url: String = DEFAULT_SERVER_URL
 var auto_reconnect: bool = true
 var max_reconnect_attempts: int = 5

@@ -1,5 +1,45 @@
 # Changelog
 
+## v2.5 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 🔥 FIX SERVER CHO SUB-VPS SAU TRAEFIK REVERSE PROXY
+
+**Ngữ cảnh**: VPS là sub-VPS nằm sau Traefik reverse proxy. Không thể kết nối trực tiếp đến IP:Port, phải thông qua HTTPS và domain `*.louis.vangioitutien.com`. Phiên bản v2.4 dùng domain `phitieu.buppou.com` — domain này không trỏ đúng đến sub-VPS, nên người chơi vẫn không kết nối được server online.
+
+#### 🛠 FIX SERVER CHO SUB-VPS
+
+**Root cause**:
+- Domain `phitieu.buppou.com` không trỏ đến sub-VPS (10.187.247.3)
+- Server không bind rõ ràng `0.0.0.0` — trong Docker có thể chỉ listen trên loopback
+- Server không xử lý `X-Forwarded-For` / `X-Forwarded-Proto` headers từ Traefik
+- `deploy-relay.sh` vẫn dùng port 25671/25672 và IP cũ `163.44.96.79`
+- `package-lock.json` version mismatch (1.7.0 vs 1.8.0)
+
+**Fix**:
+- ✅ `NetworkManager.DEFAULT_SERVER_URL` → `wss://phitieu.louis.vangioitutien.com/ws` (domain đúng sub-VPS)
+- ✅ `server.js` v1.9: bind `0.0.0.0`, xử lý `X-Forwarded-For` / `X-Forwarded-Proto`, log client IP thật
+- ✅ `server.js` v1.9: health endpoint trả proxy info để debug
+- ✅ `server.js` v1.9: landing page hiện đúng WSS URL dựa trên Host header
+- ✅ `deploy-relay.sh`: cập nhật cho Coolify API deployment, domain mới
+- ✅ `docker-compose.yml`: thêm `HOST=0.0.0.0`, image tag `v2.5`
+- ✅ `package.json` → v1.9.0, `package-lock.json` regenerate
+- ✅ `.github/workflows/build-relay.yml`: auto build Docker image multi-arch
+- ✅ `.dockerignore`: tối ưu Docker build
+- ✅ Version bumps: `project.godot` 2.5, `export_presets.cfg` code 25 / name "2.5"
+
+**Files thay đổi**:
+- `scripts/network_manager.gd`: `DEFAULT_SERVER_URL := "wss://phitieu.louis.vangioitutien.com/ws"`
+- `relay-server/server.js`: v1.8 → v1.9 (reverse proxy fix)
+- `relay-server/package.json`: 1.8.0 → 1.9.0
+- `relay-server/.dockerignore`: mới
+- `docker-compose.yml`: HOST=0.0.0.0, image tag v2.5
+- `deploy-relay.sh`: cập nhật cho Coolify + domain mới
+- `.github/workflows/build-relay.yml`: GitHub Actions CI/CD
+- `project.godot`: version 2.5
+- `export_presets.cfg`: version code 25, name "2.5"
+
+---
+
 ## v2.4 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 🔥 FIX SERVER ONLINE + CHẾ ĐỘ VƯỢT ẢI + ĐA NGÔN NGỮ

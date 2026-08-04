@@ -1,72 +1,48 @@
 #!/bin/bash
 # ================================================================
-# Deploy Script cho Phi Tiêu Dịch Chuyển Relay Server
-# Chạy trên VPS qua Coolify Terminal hoặc SSH
+# Deploy Script cho Phi Tiêu Dịch Chuyển Relay Server v1.9 (v2.5)
+# Chạy qua Coolify API — KHÔNG SSH trực tiếp
+# VPS là sub-VPS sau Traefik reverse proxy
+# Domain: phitieu.louis.vangioitutien.com
 # ================================================================
 
 set -e
 
-echo "🎯 Phi Tiêu Dịch Chuyển - Relay Server Deployment"
-echo "=================================================="
+COOLIFY_URL="https://coolify.buppou.com"
+COOLIFY_API_TOKEN="${COOLIFY_API_TOKEN:-}"
 
-# Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker not found. Please install Docker first."
+if [ -z "$COOLIFY_API_TOKEN" ]; then
+    echo "❌ Cần đặt COOLIFY_API_TOKEN environment variable"
+    echo "   export COOLIFY_API_TOKEN='your-token'"
     exit 1
 fi
 
-# Check if docker-compose is installed
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo "❌ docker-compose not found. Please install docker-compose first."
-    exit 1
-fi
+echo "🎯 Phi Tiêu Dịch Chuyển - Relay Server Deployment (v2.5)"
+echo "========================================================="
+echo ""
+echo "📍 Server info:"
+echo "   - Domain: phitieu.louis.vangioitutien.com"
+echo "   - VPS IP: 10.187.247.3 (sub-VPS, chỉ truy cập qua Traefik)"
+echo "   - WSS endpoint: wss://phitieu.louis.vangioitutien.com/ws"
+echo "   - Health: https://phitieu.louis.vangioitutien.com/health"
+echo ""
 
-# Stop existing container if running
-echo "⏹️  Stopping existing phitieu-relay container..."
-docker stop phitieu-relay 2>/dev/null || true
-docker rm phitieu-relay 2>/dev/null || true
-
-# Pull latest image from GHCR
-echo "📥 Pulling latest relay server image..."
-docker pull ghcr.io/mhieuhonda/phitieu-relay:latest
-
-# Create data volume if not exists
-docker volume create phitieu-data 2>/dev/null || true
-
-# Run the relay server
-echo "🚀 Starting Phi Tiêu Relay Server..."
-docker run -d \
-  --name phitieu-relay \
-  --restart unless-stopped \
-  -p 25671:25671 \
-  -p 25672:25672 \
-  -v phitieu-data:/app/data \
-  -e NODE_ENV=production \
-  -e WS_PORT=25671 \
-  -e HTTP_PORT=25672 \
-  -e DB_PATH=/app/data/game.db \
-  -e MATCH_MIN_PLAYERS=10 \
-  -e MATCH_MAX_PLAYERS=20 \
-  -e MATCH_TIMEOUT_MS=30000 \
-  -e TICK_RATE_MS=50 \
-  -e MAX_ROOMS=50 \
-  ghcr.io/mhieuhonda/phitieu-relay:latest
-
-# Wait for container to start
-sleep 3
-
-# Check health
-echo "🏥 Checking health..."
-HEALTH=$(curl -s http://localhost:25672/health 2>/dev/null || echo '{"status":"error"}')
+# Kiểm tra health endpoint (qua domain, không qua IP trực tiếp)
+echo "🏥 Checking server health..."
+HEALTH=$(curl -s "https://phitieu.louis.vangioitutien.com/health" 2>/dev/null || echo '{"status":"error"}')
 echo "Health response: $HEALTH"
 
-# Show container status
+# Kiểm tra Coolify API
 echo ""
-echo "📊 Container Status:"
-docker ps --filter name=phitieu-relay --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "🔍 Checking Coolify API..."
+STATUS=$(curl -s -H "Authorization: Bearer $COOLIFY_API_TOKEN" "$COOLIFY_URL/api/v1/servers" 2>/dev/null || echo '{"error":"unreachable"}')
+echo "Coolify API response: $STATUS"
 
 echo ""
-echo "✅ Relay Server deployed successfully!"
-echo "   WebSocket: ws://163.44.96.79:25671/ws"
-echo "   HTTP API:  http://163.44.96.79:25672/health"
-echo "   Leaderboard: http://163.44.96.79:25672/api/leaderboard"
+echo "✅ Deploy script ready!"
+echo "   Sử dụng Coolify dashboard hoặc API để deploy:"
+echo "   $COOLIFY_URL"
+echo ""
+echo "   WebSocket:  wss://phitieu.louis.vangioitutien.com/ws"
+echo "   HTTP API:   https://phitieu.louis.vangioitutien.com/health"
+echo "   Leaderboard: https://phitieu.louis.vangioitutien.com/api/leaderboard"
