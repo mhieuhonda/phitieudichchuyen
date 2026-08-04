@@ -1,5 +1,41 @@
 # Changelog
 
+## v2.6 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 🔥 FIX COOLIFY DEPLOYMENT — SERVER BỊ KILL TRƯỚC KHI SẴN SÀNG
+
+**Ngữ cảnh**: Sau khi fix FQDN và health check (v2.5), vào game ghép vẫn báo "server từ chối kết nối". Nguyên nhân: Docker HEALTHCHECK trong Dockerfile thiếu `--start-period`, khiến Docker bắt đầu kiểm tra health ngay lập tức — Node.js chưa bind port 3000 → 3 lần fail → Docker mark unhealthy → Coolify kill container.
+
+#### 🛠 FIX CHÍNH
+
+**Root cause #1 — HEALTHCHECK thiếu --start-period (CRITICAL)**:
+- Dockerfile `HEALTHCHECK` không có `--start-period` → Docker check ngay từ giây 0
+- Node.js cần ~2-5s để init (npm install, SQLite, bind port) → healthcheck fail
+- Sau 3 lần fail (0s, 30s, 60s), Docker mark container unhealthy → Coolify restart/kill
+- **Fix**: Thêm `--start-period=60s`, giảm interval 10s, tăng retries 5
+
+**Root cause #2 — Git repo URL sai format cho Coolify**:
+- `git_repository: "mhieuhonda/phitieudichchuyen"` → Coolify hiểu là SSH path
+- Không có private_key_id → SSH clone fail
+- **Fix**: Đổi sang HTTPS đầy đủ: `https://github.com/mhieuhonda/phitieudichchuyen`
+
+**Root cause #3 — FQDN Coolify không khớp custom_labels**:
+- Coolify FQDN field = `louis.vangioitutien.com` nhưng game kết nối `phitieu.louis.vangioitutien.com`
+- Traefik route dựa trên custom_labels → đã update custom_labels route đúng domain
+- FQDN field không đổi được qua API → cần đổi trong Coolify UI
+
+**Root cause #4 — GHCR Docker push permission denied**:
+- Coolify build xong rồi push image lên GHCR → token thiếu `write:packages` scope
+- **Fix tạm**: Bỏ `docker_registry_image_name` → Coolify build local, không push
+
+**Files thay đổi**:
+- `relay-server/Dockerfile`: HEALTHCHECK thêm `--start-period=60s`, interval 10s, retries 5
+- `relay-server/server.js`: v1.9 → v2.0, thêm healthcheck info trong /health response
+- `relay-server/package.json`: v1.9.0 → v2.0.0
+- `docker-compose.yml`: image tag v2.6, healthcheck start_period 60s
+- `deploy-relay.sh`: version bump v2.6
+- `project.godot`: config/version 2.5 → 2.6
+
 ## v2.5 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 🔥 FIX SERVER CHO SUB-VPS SAU TRAEFIK REVERSE PROXY

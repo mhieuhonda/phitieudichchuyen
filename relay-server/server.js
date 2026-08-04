@@ -1,11 +1,17 @@
 /**
- * Phi Tiêu Dịch Chuyển - Relay Server v1.9 (v2.5 release)
+ * Phi Tiêu Dịch Chuyển - Relay Server v2.0 (v2.6 release)
  *
  * WebSocket relay server cho game online:
  * - Matchmaking: min 10, max 20 người mỗi phòng
  * - 30s timeout → tự fill bot AI nếu chưa đủ 10 người
  * - SQLite database cho player stats
  * - Room management với state sync
+ *
+ * v2.0 (v2.6): Fix Coolify deployment — server bị kill trước khi sẵn sàng
+ * - Dockerfile HEALTHCHECK thêm --start-period=60s cho Node.js startup
+ * - Coolify: git repo HTTPS đầy đủ, bỏ GHCR push (build local)
+ * - Coolify: custom_labels route phitieu.louis.vangioitutien.com đúng
+ * - Health endpoint: thêm startPeriod info để debug
  *
  * v1.9 (v2.5): Fix server cho sub-VPS sau Traefik reverse proxy
  * - HTTP server bind rõ ràng 0.0.0.0 (trong Docker cần expose tất cả interface)
@@ -532,13 +538,15 @@ const httpServer = http.createServer((req, res) => {
     res.writeHead(200);
     res.end(JSON.stringify({
       status: 'ok',
-      version: '1.9.0',
-      gameVersion: '2.5',
+      version: '2.0.0',
+      gameVersion: '2.6',
       uptime: process.uptime(),
       rooms: rooms.size,
       clients: clients.size,
       matchmaking: matchmakingQueue.size,
       db: db ? 'sqlite' : 'memory',
+      // v2.0: Healthcheck startPeriod info
+      healthcheck: { startPeriod: '60s', interval: '10s', timeout: '5s', retries: 5 },
       // v1.9: Proxy info để debug
       proxy: {
         xForwardedFor: req.headers['x-forwarded-for'] || null,
@@ -550,8 +558,8 @@ const httpServer = http.createServer((req, res) => {
   } else if (url === '/api/status') {
     res.writeHead(200);
     res.end(JSON.stringify({
-      version: '1.9.0',
-      gameVersion: '2.5',
+      version: '2.0.0',
+      gameVersion: '2.6',
       uptime: process.uptime(),
       rooms: rooms.size,
       clients: clients.size,
@@ -715,7 +723,7 @@ setInterval(() => {
 // === START ===
 initDatabase();
 httpServer.listen(CONFIG.PORT, CONFIG.HOST, () => {
-  console.log(`[Server] Phi Tiêu Dịch Chuyển Relay Server v1.9 (v2.5)`);
+  console.log(`[Server] Phi Tiêu Dịch Chuyển Relay Server v2.0 (v2.6)`);
   console.log(`[Server] HTTP + WebSocket on ${CONFIG.HOST}:${CONFIG.PORT}`);
   console.log(`[Server] WS endpoint: ws://${CONFIG.HOST}:${CONFIG.PORT}/ws`);
   console.log(`[Server] Match config: ${CONFIG.MATCH_MIN_PLAYERS}-${CONFIG.MATCH_MAX_PLAYERS} players, ${CONFIG.MATCH_TIMEOUT_MS}ms timeout`);

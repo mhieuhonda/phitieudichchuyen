@@ -1,6 +1,6 @@
 #!/bin/bash
 # ================================================================
-# Deploy Script cho Phi Tiêu Dịch Chuyển Relay Server v1.9 (v2.5)
+# Deploy Script cho Phi Tiêu Dịch Chuyển Relay Server v2.0 (v2.6)
 # Chạy qua Coolify API — KHÔNG SSH trực tiếp
 # VPS là sub-VPS sau Traefik reverse proxy
 # Domain: phitieu.louis.vangioitutien.com
@@ -17,7 +17,7 @@ if [ -z "$COOLIFY_API_TOKEN" ]; then
     exit 1
 fi
 
-echo "🎯 Phi Tiêu Dịch Chuyển - Relay Server Deployment (v2.5)"
+echo "🎯 Phi Tiêu Dịch Chuyển - Relay Server Deployment (v2.6)"
 echo "========================================================="
 echo ""
 echo "📍 Server info:"

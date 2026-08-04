@@ -1,12 +1,12 @@
-# Phi Tiêu Dịch Chuyển - Relay Server Deployment (v2.5)
+# Phi Tiêu Dịch Chuyển - Relay Server Deployment (v2.6)
 # Chạy trên sub-VPS qua Coolify (sau Traefik reverse proxy)
-# v1.9: Bind 0.0.0.0, X-Forwarded-* headers, domain phitieu.louis.vangioitutien.com
+# v2.0: Fix HEALTHCHECK start-period, bind 0.0.0.0, X-Forwarded-* headers
 
 version: '3.8'
 
 services:
   phitieu-relay:
-    image: ghcr.io/mhieuhonda/phitieu-relay:v2.5
+    image: ghcr.io/mhieuhonda/phitieu-relay:v2.6
     container_name: phitieu-relay
     restart: unless-stopped
     ports:
@@ -25,9 +25,10 @@ services:
       - MAX_ROOMS=50
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 3
+      start_period: 60s
+      retries: 5
 
 volumes:
   phitieu-data:
