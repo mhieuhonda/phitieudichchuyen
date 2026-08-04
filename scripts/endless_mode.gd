@@ -43,6 +43,13 @@ var is_game_over: bool = false
 var is_level_transitioning: bool = false
 var _spawn_timer: float = 0.0
 var _spawn_interval: float = 0.6  # giây giữa 2 zombie spawn
+var _quick_shot_timer: SceneTreeTimer = null  # v2.8: prevent race condition
+var _slow_timer: SceneTreeTimer = null  # v2.8: prevent race condition for slow_time
+var _combo_count: int = 0  # v2.8: combo kills tracking
+var _combo_timer: float = 0.0  # v2.8: combo window timer (2s)
+var _combo_label: Label = null  # v2.8: dynamic combo label
+var _perf_label: Label = null  # v2.8: performance stats overlay
+var _perf_timer: float = 0.0  # v2.8: perf update throttle
 
 func _ready():
         # Setup player
@@ -71,6 +78,22 @@ func _ready():
         if AudioManager:
                 AudioManager.play_music("game")
                 AudioManager.play_warning()  # horror atmosphere hint
+        # v2.8: Create combo label for kill combo counter
+        _combo_label = Label.new()
+        _combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        _combo_label.add_theme_font_size_override("font_size", 36)
+        _combo_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+        _combo_label.visible = false
+        _combo_label.z_index = 20
+        hud_layer.add_child(_combo_label)
+        _combo_label.position = Vector2(540, 250)
+        # v2.8: Performance stats overlay
+        _perf_label = Label.new()
+        _perf_label.add_theme_font_size_override("font_size", 12)
+        _perf_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6, 0.7))
+        _perf_label.visible = SettingsManager.show_fps if SettingsManager else false
+        hud_layer.add_child(_perf_label)
+        _perf_label.position = Vector2(10, 680)
 
 func _apply_premium_styling():
         # Style game over panel
@@ -141,6 +164,26 @@ func _process(delta: float):
                         _spawn_zombie()
                         zombies_spawned += 1
                         _spawn_timer = _spawn_interval
+        # v2.8: Combo timer countdown
+        if _combo_timer > 0:
+                _combo_timer -= delta
+                if _combo_timer <= 0:
+                        _combo_count = 0
+                        if _combo_label:
+                                _combo_label.visible = false
+        # v2.8: Combo label fade out
+        if _combo_label and _combo_label.visible and _combo_timer < 0.8:
+                _combo_label.modulate.a = _combo_timer / 0.8
+        # v2.8: Performance stats update (throttled to 4x/sec)
+        if _perf_label and _perf_label.visible:
+                _perf_timer -= delta
+                if _perf_timer <= 0:
+                        _perf_timer = 0.25
+                        var fps = Engine.get_frames_per_second()
+                        var zombie_count = get_tree().get_nodes_in_group("zombies").size()
+                        var dart_count = get_tree().get_nodes_in_group("darts").size()
+                        var obj_count = Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
+                        _perf_label.text = "FPS: %d | Zombies: %d | Darts: %d | Nodes: %d" % [fps, zombie_count, dart_count, obj_count]
 
 # === LEVEL MANAGEMENT ===
 
@@ -214,6 +257,22 @@ func _on_zombie_killed(zombie: Node2D):
                 return
         level_kills += 1
         total_kills += 1
+        # v2.8: Kill combo counter
+        _combo_count += 1
+        _combo_timer = 2.0  # Reset combo window
+        if _combo_label:
+                if _combo_count >= 2:
+                        _combo_label.text = "COMBO x%d!" % _combo_count
+                        _combo_label.visible = true
+                        _combo_label.modulate.a = 1.0
+                        _combo_label.add_theme_color_override("font_color",
+                                Color(1.0, 0.85, 0.2) if _combo_count < 5 else
+                                Color(1.0, 0.3, 0.2) if _combo_count < 10 else
+                                Color(1.0, 0.1, 0.8))
+                        _combo_label.add_theme_font_size_override("font_size",
+                                36 + min(_combo_count * 2, 20))
+                        if AudioManager:
+                                AudioManager.play_combo(_combo_count)
         # LIFE_STEAL: hồi HP khi kill
         if is_instance_valid(player) and player.life_steal_remaining > 0:
                 player.heal(5.0)
@@ -333,9 +392,16 @@ func _on_skill_activated(skill_id: int, skill_key: String):
         match skill_key:
                 "QUICK_SHOT":
                         player.activate_quick_shot()
-                        await get_tree().create_timer(5.0).timeout
-                        if is_instance_valid(player):
-                                player.throw_cooldown_mult = 1.0
+                        # v2.8 FIX: Cancel previous quick_shot coroutine to prevent race condition
+                        if _quick_shot_timer and is_instance_valid(_quick_shot_timer):
+                                _quick_shot_timer.time_left = 5.0  # Reset timer
+                        else:
+                                _quick_shot_timer = get_tree().create_timer(5.0)
+                                _quick_shot_timer.timeout.connect(func():
+                                        if is_instance_valid(player):
+                                                player.throw_cooldown_mult = 1.0
+                                        _quick_shot_timer = null
+                                )
                 "HEAL":
                         player.activate_heal()
                 "SHIELD":
@@ -373,13 +439,24 @@ func _freeze_all_zombies(duration: float):
                 AudioManager.play_spawn()  # sound hiệu ứng đóng băng
 
 func _slow_all_zombies(duration: float, mult: float):
-        for z in get_tree().get_nodes_in_group("zombies"):
-                if is_instance_valid(z) and z.has_method("set_slow"):
-                        z.set_slow(mult)
-        await get_tree().create_timer(duration).timeout
-        for z in get_tree().get_nodes_in_group("zombies"):
-                if is_instance_valid(z) and z.has_method("clear_slow"):
-                        z.clear_slow()
+        # v2.8 FIX: Cancel previous slow timer to prevent race condition
+        if _slow_timer and is_instance_valid(_slow_timer):
+                # A previous slow is active - clear_slow all first before applying new
+                for z in get_tree().get_nodes_in_group("zombies"):
+                        if is_instance_valid(z) and z.has_method("clear_slow"):
+                                z.clear_slow()
+                _slow_timer.time_left = duration  # Reset timer
+        else:
+                for z in get_tree().get_nodes_in_group("zombies"):
+                        if is_instance_valid(z) and z.has_method("set_slow"):
+                                z.set_slow(mult)
+                _slow_timer = get_tree().create_timer(duration)
+                _slow_timer.timeout.connect(func():
+                        for z in get_tree().get_nodes_in_group("zombies"):
+                                if is_instance_valid(z) and z.has_method("clear_slow"):
+                                        z.clear_slow()
+                        _slow_timer = null
+                )
 
 func _bomb_aoe(center: Vector2, radius: float, damage: float):
         # Hiệu ứng nổ

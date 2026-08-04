@@ -122,7 +122,8 @@ func _preload_common_sounds():
     var common = ["throw_whoosh_01", "teleport_zap_01", "hit_impact_01", "kill_explosion_01",
                   "pickup_health_01", "pickup_dart_01", "ui_click_01", "ui_click_02",
                   "combo_01", "zone_warning_01", "dart_stick_01", "respawn_01",
-                  "damage_01", "death_01", "success_01", "error_01"]
+                  "damage_01", "death_01", "success_01", "error_01",
+                  "heartbeat_slow_01"]  # v2.8: preload horror heartbeat
     for sfx_name in common:
         _load_sound(sfx_name)
 

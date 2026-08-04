@@ -197,7 +197,11 @@ func _on_remote_dart_throw(player_id: String, data: Dictionary):
         dart.owner_player_id = hash(player_id)
         dart.add_to_group("darts")
         # Don't connect kill signals for remote darts in online mode
-        $Map.add_child(dart)
+        var map_node = get_node_or_null("Map")
+        if map_node:
+                map_node.add_child(dart)
+        else:
+                get_parent().add_child(dart)
         AudioManager.play_throw()
 
 func _on_remote_teleport(player_id: String, data: Dictionary):

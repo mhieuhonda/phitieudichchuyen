@@ -322,7 +322,8 @@ func _check_teleport_kill(pos: Vector2):
                 _spawn_ai_teleport_effect(p.global_position, false)
                 continue
             # Kill player ngay lập tức
-            p.take_damage_from(9999.0, self)  # Lượng lớn để chắc chắn chết
+            if p.has_method("take_damage_from"):
+                p.take_damage_from(9999.0, self)  # Lượng lớn để chắc chắn chết
             if not p.is_alive:
                 ai_score += GameManager.score_per_kill
                 ai_kills += 1
@@ -391,6 +392,8 @@ func take_damage_from(amount: float, attacker: Node2D):
         return
     current_hp -= amount
     _update_hp_bar()
+    # v2.8: Spawn floating damage number
+    _spawn_damage_number(amount)
     var tween = create_tween()
     tween.tween_property(sprite, "modulate", Color(1.0, 0.3, 0.3), 0.05)
     tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0), 0.2)
@@ -403,6 +406,29 @@ func take_damage_from(amount: float, attacker: Node2D):
             # Hoặc nếu giết bằng dart, attacker sẽ handle trong _on_dart_hit_player
             pass
         kill(attacker)
+
+## v2.8: Spawn floating damage number
+func _spawn_damage_number(amount: float):
+    var label = Label.new()
+    label.add_theme_font_size_override("font_size", 16)
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    var is_crit = amount >= 50.0
+    if is_crit:
+        label.text = "CRIT! %d" % int(amount)
+        label.add_theme_font_size_override("font_size", 22)
+        label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2))
+    else:
+        label.text = "%d" % int(amount)
+        label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+    var angle = randf_range(-0.6, 0.6) - PI / 2.0
+    var vel = Vector2(cos(angle), sin(angle)) * randf_range(40, 80)
+    get_parent().add_child(label)
+    label.global_position = global_position + Vector2(randf_range(-10, 10), -20)
+    label.z_index = 10
+    var tween = create_tween()
+    tween.tween_property(label, "position", label.position + vel, 0.8)
+    tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8).set_delay(0.3)
+    tween.tween_callback(label.queue_free)
 
 func _grow_size(amount: float):
     var old_size = current_size

@@ -209,7 +209,7 @@ Bạn bị thả vào arena 2D top-down cùng nhiều đối thủ (người ch�
 • State sync 20 ticks/giây - vị trí, HP, dart, skill đều đồng bộ
 
 [color=#ff6666]Nếu server offline:[/color]
-Vào [b]Settings → Mạng (Server URL)[/b] để đổi địa chỉ Relay Server của bạn.
+Server URL đã hardcoded trong mã nguồn. Liên hệ admin để cập nhật server.
 
 ────────────────────────────
 
@@ -264,11 +264,13 @@ docker run -d -p 25671:25671 -p 25672:25672 \\
 
 [color=#ffaa00][b]2. CẤU HÌNH CLIENT[/b][/color]
 
-[color=#ff6666]v2.3:[/color] Server URL đã [b]hardcoded[/b] trong source code (`scripts/network_manager.gd`, const `DEFAULT_SERVER_URL`). Không còn UI để user tự đổi trong game.
+[color=#ff6666]v2.3+:[/color] Server URL đã [b]hardcoded[/b] trong source code (`scripts/network_manager.gd`, const `DEFAULT_SERVER_URL`). Không còn UI để user tự đổi trong game.
+
+URL hiện tại: [code]wss://phitieu.louis.vangioitutien.com/ws[/code]
 
 Để đổi server (chỉ dành cho dev):
 1. Mở [b]scripts/network_manager.gd[/b]
-2. Sửa dòng: [code]const DEFAULT_SERVER_URL := "ws://163.44.96.79:25671/ws"[/code]
+2. Sửa dòng: [code]const DEFAULT_SERVER_URL := "wss://phitieu.louis.vangioitutien.com/ws"[/code]
 3. Build lại game
 
 [color=#44aaff]Lưu ý về giao thức:[/color]
@@ -395,7 +397,7 @@ wscat -c ws://localhost:25671/ws
 
 [color=#ff6666]Client báo "Server offline":[/color]
 1. Kiểm tra server chạy: [code]curl http://your-server:25672/health[/code]
-2. Kiểm tra URL trong Settings → Mạng (Server URL)
+2. Server URL đã hardcoded trong mã nguồn (không còn UI để đổi)
 3. Nếu dùng HTTPS: phải dùng wss://, không phải ws://
 4. Kiểm tra firewall mở port 25671 và 25672
 

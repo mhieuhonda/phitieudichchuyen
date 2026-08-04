@@ -1,15 +1,33 @@
-# 🎯 Phi Tiêu Dịch Chuyển v2.7
+# 🎯 Phi Tiêu Dịch Chuyển v2.8
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — với **Online Multiplayer**, **14 Nhân Vật**, và **Premium UI**!
 
-![Version](https://img.shields.io/badge/version-2.7-blue)
+![Version](https://img.shields.io/badge/version-2.8-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 ![Multiplayer](https://img.shields.io/badge/multiplayer-Online%20%2B%20Offline-orange)
 ![Characters](https://img.shields.io/badge/characters-14-purple)
+
+---
+
+## 🆕 Tính Năng v2.8 — 15 Bug Fixes + 5 New Features
+
+### 🔧 15 Bug Fixes Triệt Để
+
+- 4 CRITICAL: crash guards cho unsafe method calls (zombie, ai_player, pickup, main_online)
+- 5 SIGNIFICANT: outdated guide, wrong IDs, deprecated keycode, missing hints
+- 6 MODERATE: race conditions, I18N bypass, audio preload, autoload ordering
+
+### ✨ 5 New Features
+
+1. **Floating Damage Numbers** — Hiển thị số damage nổi lên khi trúng target
+2. **Kill Combo Counter** — COMBO x2, x3... trực quan trong Vượt Ải
+3. **Auto-Aim Assist** — Hỗ trợ nhắm nhẹ trong Vượt Ải
+4. **Pause Menu** — Menu tạm dừng (ESC/P)
+5. **Performance Stats Overlay** — FPS, zombies, darts, nodes count
 
 ---
 
@@ -92,8 +110,8 @@ Toàn bộ 14 UI files được redesign với:
 
 | Mã | Mở khóa |
 |----|---------|
-| `hieulouis99` | Hieu Louis - Classic (id=13) |
-| `maton99` | **Ma Tôn** — Ma Vương Siêu Cấp (id=14) |
+| `hieulouis99` | Hieu Louis - Classic (id=12) |
+| `maton99` | **Ma Tôn** — Ma Vương Siêu Cấp (id=13) |
 | `hieulouisking` | Admin Guide trong Hướng Dẫn |
 
 ---
@@ -320,5 +338,5 @@ Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 ---
 
 <p align="center">
-  <b>Phi Tiêu Dịch Chuyển v2.7</b> — Ném phi tiêu, dịch chuyển, nuốt đối thủ!
+  <b>Phi Tiêu Dịch Chuyển v2.8</b> — Ném phi tiêu, dịch chuyển, nuốt đối thủ!
 </p>

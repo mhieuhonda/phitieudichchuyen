@@ -51,20 +51,32 @@ func _on_body_entered(body: Node2D):
 
 func _apply_pickup(player: CharacterBody2D):
         match pickup_type:
-                PickupType.HEALTH: player.heal(health_amount)
-                PickupType.DART_REFILL: player.refill_darts(dart_refill_amount, dart_refill_duration)
+                PickupType.HEALTH:
+                        if player.has_method("heal"):
+                                player.heal(health_amount)
+                PickupType.DART_REFILL:
+                        if player.has_method("refill_darts"):
+                                player.refill_darts(dart_refill_amount, dart_refill_duration)
 
 func _apply_pickup_ai(ai: CharacterBody2D):
         # Fix v1.4: trước đây dùng GameManager.player_max_hp làm ceiling cho
         # máu của AI → AI có thể vượt quá max HP riêng. Đã sửa thành ai.current_max_hp.
         match pickup_type:
                 PickupType.HEALTH:
-                        ai.current_hp = min(ai.current_hp + health_amount, ai.current_max_hp)
-                        ai._update_hp_bar()
+                        if ai.has_method("heal"):
+                                ai.heal(health_amount)
+                        elif "current_hp" in ai and "current_max_hp" in ai:
+                                ai.current_hp = min(ai.current_hp + health_amount, ai.current_max_hp)
+                                if ai.has_method("_update_hp_bar"):
+                                        ai._update_hp_bar()
                 PickupType.DART_REFILL:
-                        # AI cũng được hồi máu nhẹ khi nhặt dart refill
-                        ai.current_hp = min(ai.current_hp + 15.0, ai.current_max_hp)
-                        ai._update_hp_bar()
+                        if ai.has_method("refill_darts"):
+                                ai.refill_darts(dart_refill_amount, dart_refill_duration)
+                        elif "current_hp" in ai and "current_max_hp" in ai:
+                                # AI cũng được hồi máu nhẹ khi nhặt dart refill
+                                ai.current_hp = min(ai.current_hp + 15.0, ai.current_max_hp)
+                                if ai.has_method("_update_hp_bar"):
+                                        ai._update_hp_bar()
 
 func _consume():
         is_active = false; visible = false

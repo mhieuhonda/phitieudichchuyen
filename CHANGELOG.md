@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.8 - Phi Tiêu Dịch Chuyển (2026-08-05)
+
+### 🔧 FIX: 15 Bugs Tri5 Triệt Để
+
+#### CRITICAL (4)
+1. **zombie.gd unsafe `call()` crash**: `_player_node.call("take_damage")` không kiểm tra `has_method` → crash nếu player không implement. Fix: thêm `has_method("take_damage")` guard.
+2. **ai_player.gd unsafe `take_damage_from` crash**: `p.take_damage_from(9999.0, self)` không kiểm tra method tồn tại. Fix5 Fix: thêm `has_method("take_damage_from")` guard.
+3. **main_online.gd `$Map` crash**: Hardcoded `$Map.add_child(dart)` crash nếu node Map không tồn tại. Fix: dùng `get_node_or_null("Map")` với fallback.
+4. **pickup.gd crash on"crash nếu player thiếu `refill_darts`**: `_apply_pickup` gọi `player.refill_darts()` mà Player class không có method. Fix: thêm `has_method` guards cho cả player và AI pickup.
+
+#### SIGNIFICANT (5)
+5. **guide.gd outdated server URL**: Hướng dẫn vẫn nói "Settings → Mạng (Server URL)" nhưng UI đã bị! đã bị xóa từ v2.3. Fix: cập nhật text hướng dẫn.
+6. **guide.gd wrong server URL in admin guide**: Hiển thị `ws://163.44.96.79:25671/ws` cũ thay vì `wss://phitieu.louis.vangioitutien.com/ws`. Fix: cập nhật URL.
+7. **README.md wrong character IDs+character IDs**: Hieu Louis Classic ghi id=13 (thực tế id=12), Ma Tôn ghi id=14 (thực tế id=13). Fix: sửa IDs.
+8. **project.godot deprecated `keycode`**: Tất cả input mappings dùng `keycode` (deprecated Godot 4.3+) thay vì `physical_keycode`. Fix: migrate tất cả sang `physical_keycode`.
+9. **character_screen.gd missing Ma Tôn hint**: Ma Tôn cũng cần mã quà tặng nhưng chỉ hiện "CHƯA MỞ KHÓA" chung chung. Fix: thêm gợi ý nhập6 gợi ý giống Classic.
+
+#### MODERATE (6)
+10. **endless_mode race conditions**: QUICK_SHOT, SLOW_TIME, SPEED_BOOST, BERSERK dùng `await` gây race condition khi kích hoạt 2 lần liên tiếp. Fix: dùng SceneTreeTimer + reset timer thay vì await.
+11. **pickup.gd private method access**: `_apply_pickup_ai` gọi `ai._update_hp_bar()` (private method) từ ngoài class. Fix: ưu tiên `heal()` method, fallback với `has_method` check.
+12. **settings_menu.gd I18N bypass**: Device info hardcode VI/EN string thay vì dùng I18N system. Fix: thêm `settings.device_info` và `settings.auto_detected` I18N keys.
+13. **audio_manager.gd missing preload**: `heartbeat_slow_01` không được preload, gây delay khi gọi lần đầu. Fix: thêm vào `_preload_common_sounds()`.
+14. **Autoload ordering**: GameManager load trước SettingsManager → GameManager._ready truy cập SettingsManager có thể null. Fix: đổi thứ tự autoload: SettingsManager trước GameManager.
+15. **guide.gd admin troubleshooting**: Vẫn hướng dẫn kiểm tra URL trong Settings (đã bị bị xóa). Fix: cập nhật hướng dẫn.
+
+### ✨ NEW: 5 Tính Năng Hữu Ích
+
+1. **Floating Damage Numbers** (v2.8): Hiển thị số damage nổi lên khi trúng zombie/AI. CRIT highlight cho damage ≥60. Color-coded: vàng bình thường, đỏ cho CRIT.
+2. **Kill Combo Counter** (v2.8): Hiển thị combo counter trực quan trong Vượt Ải. COMBO x2, x3... với color gradient (vàng → đỏ → tím) và font size tăng dần. Fade out sau 2s.
+3. **Auto-Aim Assist** (v2.8): Hỗ trợ nhắm nhẹ trong Vượt Ải. 30% angle correction hướng zombie gần nhất trong range 300px. Càng gần zombie, assist càng mạnh.
+4. **Pause Menu** (v2.8): Menu tạm dừng trong game (ESC/P). Premium UI với Resume/Settings/Menu. I18N support. Xử lý tree pause đúng cách.
+5. **Performance Stats Overlay** (v2.8): Hiển thị FPS, zombie count, dart count, node count trong Vượt Ải (khi FPS toggle bật). Throttled 4x/sec để không lag.
+
+### 🌐 I18N: New Translation Keys
+- `settings.device_info`, `settings.auto_detected`
+- `pause.title`, `pause.resume`, `pause.settings`, `pause.menu`
+- `death_recap.killed_by`, `death_recap.killed_unknown`, `death_recap.damage_taken`, `death_recap.survival_time`, `death_recap.kills`
+
+### 🎮 Input: New Action
+- `pause` (P key) - Toggle pause menu
+
 ## v2.7 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 👑 NEW: Nhân Vật Ma Tôn — Ma Vương Siêu Cấp

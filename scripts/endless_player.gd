@@ -34,6 +34,8 @@ var pierce_remaining: float = 0.0  # PIERCE active
 var homing_remaining: float = 0.0  # HOMING active
 var life_steal_remaining: float = 0.0  # LIFE_STEAL active
 var explosion_remaining: float = 0.0  # EXPLOSION chain
+var _speed_boost_timer: SceneTreeTimer = null  # v2.8: prevent race
+var _berserk_timer: SceneTreeTimer = null  # v2.8: prevent race
 
 # === INTERNAL ===
 var _throw_timer: float = 0.0
@@ -102,6 +104,9 @@ func _throw_darts():
         if multishot_remaining > 0:
                 dart_count = 3
         var base_angle := -PI / 2.0  # Hướng lên trên
+        # v2.8: Auto-aim assist - slight angle correction toward nearest zombie
+        var aim_correction := _get_aim_assist()
+        base_angle += aim_correction
         for i in dart_count:
                 var dart = _dart_scene.instantiate()
                 var spread := 0.0
@@ -121,6 +126,34 @@ func _throw_darts():
                         dart.set_explosion(true)
         if AudioManager:
                 AudioManager.play_throw()
+
+## v2.8: Auto-aim assist - slight angle correction toward nearest zombie within range
+func _get_aim_assist() -> float:
+        var nearest_zombie = null
+        var nearest_dist = 300.0  # Max assist range
+        for z in get_tree().get_nodes_in_group("zombies"):
+                if not is_instance_valid(z) or z.is_dead:
+                        continue
+                # Only aim at zombies below player (coming toward us)
+                if z.global_position.y <= global_position.y:
+                        continue
+                var d = global_position.distance_to(z.global_position)
+                if d < nearest_dist:
+                        nearest_dist = d
+                        nearest_zombie = z
+        if nearest_zombie == null:
+                return 0.0
+        # Calculate angle to zombie, blend with straight up
+        var to_zombie = (nearest_zombie.global_position - global_position).normalized()
+        var zombie_angle = to_zombie.angle()
+        var up_angle = -PI / 2.0
+        var diff = zombie_angle - up_angle
+        # Normalize angle difference to [-PI, PI]
+        while diff > PI: diff -= TAU
+        while diff < -PI: diff += TAU
+        # Apply 30% assist strength, stronger when zombie is closer
+        var assist_strength = 0.3 * (1.0 - nearest_dist / 300.0)
+        return diff * assist_strength
 
 ## Nhận damage từ zombie
 func take_damage(amount: float):
@@ -183,10 +216,17 @@ func activate_bomb(_radius: float = 200.0, _damage: float = 80.0):
 
 func activate_speed_boost(duration: float = 5.0):
         speed_mult = 1.5
-        await get_tree().create_timer(duration).timeout
-        if not is_instance_valid(self):
-                return
-        speed_mult = 1.0
+        # v2.8 FIX: Cancel previous speed_boost timer to prevent race condition
+        if _speed_boost_timer and is_instance_valid(_speed_boost_timer):
+                _speed_boost_timer.time_left = duration
+        else:
+                _speed_boost_timer = get_tree().create_timer(duration)
+                _speed_boost_timer.timeout.connect(func():
+                        if not is_instance_valid(self):
+                                return
+                        speed_mult = 1.0
+                        _speed_boost_timer = null
+                )
 
 func activate_pierce(duration: float = 8.0):
         pierce_remaining = duration
@@ -206,10 +246,17 @@ func activate_explosion(duration: float = 8.0):
 
 func activate_berserk(duration: float = 5.0):
         damage_mult = 2.0
-        await get_tree().create_timer(duration).timeout
-        if not is_instance_valid(self):
-                return
-        damage_mult = 1.0
+        # v2.8 FIX: Cancel previous berserk timer to prevent race condition
+        if _berserk_timer and is_instance_valid(_berserk_timer):
+                _berserk_timer.time_left = duration
+        else:
+                _berserk_timer = get_tree().create_timer(duration)
+                _berserk_timer.timeout.connect(func():
+                        if not is_instance_valid(self):
+                                return
+                        damage_mult = 1.0
+                        _berserk_timer = null
+                )
 
 func activate_invincible(duration: float = 5.0):
         invincible_remaining = max(invincible_remaining, duration)
