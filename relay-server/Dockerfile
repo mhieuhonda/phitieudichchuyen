@@ -1,4 +1,7 @@
 FROM node:20-alpine
+# v2.6: Rebuild clean — force Docker cache invalidation
+ARG BUILD_DATE=2026-08-04
+LABEL build_date=$BUILD_DATE
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package.json ./
