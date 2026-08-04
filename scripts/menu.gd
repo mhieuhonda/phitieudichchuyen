@@ -1,9 +1,10 @@
 extends Control
 
-## Menu - Menu chính (v2.2)
+## Menu - Menu chính (v2.3)
 ## v2.0: "Chơi Ngay" → Mode Selection (Online/Offline)
 ##        + nút "Chơi Offline" nhanh cho người không cần online
 ## v2.2: Thêm nút "Hướng Dẫn" → mở Guide screen
+## v2.3: Xóa cấu hình Server URL - relay server đã hardcoded
 
 @onready var title_label: Label = $TitleLabel
 @onready var subtitle_label: Label = $SubtitleLabel
@@ -27,8 +28,8 @@ func _ready():
                 if btn:
                         btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-        new_feature_label.text = "[color=#00ff88][b]v2.2:[/b][/color] Hướng Dẫn chơi mới + Admin Guide (mã: hieulouisking)\n[color=#ffaa00][b]Server URL config[/b][/color]: đổi relay server trong Settings\n[color=#ff4444][b]Bug fixes[/b][/color]: dart/teleport vs remote players, HUD status overlap\n[color=#44aaff][b]Kill Streaks[/b][/color]: Double/Triple/Quadra/Penta Kill!"
-        version_label.text = "v2.2 - Phi Tiêu Dịch Chuyển"
+        new_feature_label.text = "[color=#00ff88][b]v2.3:[/b][/color] Xóa hoàn toàn cấu hình Server URL trong game\n[color=#ffaa00][b]Relay server hardcoded[/b][/color]: mọi client dùng chung 1 VPS duy nhất\n[color=#44aaff][b]UX sạch[/b][/color]: không còn nút \"Đổi server URL\" hay mục Mạng trong Settings\n[color=#ff4444][b]Chơi liền[/b][/color]: mở game → Chơi Online → vào trận ngay!"
+        version_label.text = "v2.3 - Phi Tiêu Dịch Chuyển"
 
         AudioManager.play_music("menu")
 

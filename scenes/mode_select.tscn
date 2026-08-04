@@ -74,13 +74,6 @@ theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(1.0, 0.85, 0.2, 1.0)
 text = "🔄 THỬ LẠI"
 
-[node name="ServerUrlButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 40)
-theme_override_font_sizes/font_size = 13
-theme_override_colors/font_color = Color(0.6, 0.8, 1.0, 1.0)
-text = "⚙ ĐỔI SERVER URL"
-
 [node name="BackButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 50)

@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.3 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 🔥 BREAKING: Xóa Hoàn Toàn Phần Cấu Hình Server Trong Game
+
+**Ngữ cảnh**: Không có game thương mại nào bắt user phải tự cấu hình server URL. Relay server là thứ backend — dev cấu hình sẵn, user chỉ việc mở game và chơi. Phiên bản v2.2 đã thêm phần config này như một giải pháp tạm thời khi dev chưa có VPS cố định; giờ VPS đã sẵn sàng nên xóa hẳn.
+
+**Đã xóa**:
+- ❌ Mục **🌐 MẠNG (SERVER URL)** trong Settings — LineEdit + nút "💾 LƯU & TEST" + nút "Mặc định" + Label kết quả
+- ❌ Nút **⚙ ĐỔI SERVER URL** trong màn hình Mode Select
+- ❌ Field `server_url` trong `SettingsManager` — không còn load/save vào `settings.cfg`
+- ❌ Hàm `SettingsManager.reset_server_url()` — không còn khái niệm "reset URL"
+- ❌ Logic test kết nối (one-shot signal handlers `_on_url_test_success` / `_on_url_test_fail`) trong `settings_menu.gd`
+- ❌ Hàm `_update_server_url_display()` và `_on_server_url_pressed()` trong `mode_select.gd`
+- ❌ Dependency vào `SettingsManager.server_url` trong `NetworkManager._ready()` và `connect_to_server()`
+
+**Đã thêm**:
+- ✅ `NetworkManager.DEFAULT_SERVER_URL` giờ là const duy nhất, không thể override từ UI
+- ✅ Hàm `connect_to_server(url="")` giữ tham số cũ để tương thích ngược, nhưng push_warning nếu `url != DEFAULT_SERVER_URL`
+- ✅ Mọi client tự kết nối đến VPS hardcoded (`ws://163.44.96.79:25671/ws`) khi vào màn Mode Select
+
+**Files thay đổi**:
+- `scripts/network_manager.gd`: const `DEFAULT_SERVER_URL` + xóa `SettingsManager.server_url` dependency
+- `scripts/settings_manager.gd`: xóa `var server_url`, xóa `reset_server_url()`, xóa load/save `network/server_url`
+- `scripts/settings_menu.gd`: xóa `@onready` vars cho ServerUrl UI + xóa 4 hàm xử lý (`_on_save_url_pressed`, `_on_url_test_success`, `_on_url_test_fail`, `_on_reset_url_pressed`, `_exit_tree` cleanup)
+- `scenes/settings.tscn`: xóa 6 node (NetworkSection, NetworkDescLabel, ServerUrlHBox, ServerUrlInput, SaveUrlButton, ResetUrlButton, ServerUrlResultLabel)
+- `scripts/mode_select.gd`: xóa `server_url_button` + 2 hàm (`_update_server_url_display`, `_on_server_url_pressed`)
+- `scenes/mode_select.tscn`: xóa node ServerUrlButton
+- `scripts/menu.gd`: update version label + new feature description
+- `project.godot`: `config/version` `2.2` → `2.3`
+- `export_presets.cfg`: `version/code` `22` → `23`, `version/name` `2.2` → `2.3`, `file_version`/`product_version` `2.2.0.0` → `2.3.0.0`
+
+### ✅ Verification
+
+- ✅ Settings chỉ còn 5 section: 🎨 Đồ Họa / 🔊 Âm Thanh / 🎁 Nhập Mã Quà Tặng / 🎛 Giao Diện / Thông Tin Thiết Bị
+- ✅ Mode Select chỉ còn 4 element: Title / Online / Offline / Server Status Label / Retry Button / Back
+- ✅ Mở game → Chơi Ngay → Chơi Online → tự kết nối VPS → matchmaking → vào trận
+- ✅ Không còn cách nào cho user đổi server URL trong game (phải edit source code)
+- ✅ Build CI/CD không bị vỡ (Godot 4.7 export templates vẫn dùng được)
+
+---
+
 ## v2.2 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 🔥 FIX CRITICAL: Lỗi Không Thể Chơi Online

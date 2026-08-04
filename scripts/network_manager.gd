@@ -29,6 +29,8 @@ signal zone_shrank(radius: float)
 signal pong_received(latency_ms: int)
 
 # === CONFIG ===
+# v2.3: Server URL hardcoded - mọi client dùng chung 1 relay server duy nhất
+# (đã được deploy sẵn trên VPS). Không cho phép user tự cấu hình nữa.
 const DEFAULT_SERVER_URL := "ws://163.44.96.79:25671/ws"
 var server_url: String = DEFAULT_SERVER_URL
 var auto_reconnect: bool = true
@@ -62,9 +64,7 @@ var connection_state: ConnectionState = ConnectionState.DISCONNECTED
 
 func _ready():
         _ws = WebSocketPeer.new()
-        # v2.2: Load server URL từ SettingsManager (nếu có)
-        if SettingsManager:
-                server_url = SettingsManager.server_url
+        # v2.3: server_url là const, không load từ SettingsManager nữa
         set_process(false)
 
 func _process(delta):
@@ -132,11 +132,11 @@ func _process(delta):
 # === PUBLIC API ===
 
 func connect_to_server(url: String = ""):
-        if url != "":
-                server_url = url
-        # v2.2: Nếu không có url truyền vào, lấy từ SettingsManager (đã lưu từ Settings)
-        elif SettingsManager and SettingsManager.server_url != "":
-                server_url = SettingsManager.server_url
+        # v2.3: Bỏ qua tham số url - luôn dùng DEFAULT_SERVER_URL hardcoded.
+        # Giữ tham số để tương thích ngược với các caller cũ.
+        if url != "" and url != DEFAULT_SERVER_URL:
+                push_warning("[NetworkManager] Custom server URL bị bỏ qua (v2.3 hardcoded): %s" % url)
+        server_url = DEFAULT_SERVER_URL
         if _is_connected:
                 return
         # Cancel any pending reconnect timer before starting fresh

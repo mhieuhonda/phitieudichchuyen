@@ -1,9 +1,10 @@
 extends Control
 
-## SettingsMenu - Menu cài đặt (v2.1)
+## SettingsMenu - Menu cài đặt (v2.3)
 ## Đồ họa, âm thanh, joystick, device info, UI customization
 ## v2.1: Thêm "Nhập Mã Quà Tặng" - mở khóa nhân vật đặc biệt qua mã
 ## v2.1: Redesign UI với section headers, scroll, đẹp hơn
+## v2.3: Xóa hoàn toàn phần cấu hình Server URL - relay server đã hardcoded
 
 @onready var back_button: Button = $BackButton
 @onready var quality_label: Label = $ScrollContainer/VBox/QualityLabel
@@ -25,11 +26,6 @@ extends Control
 @onready var gift_code_input: LineEdit = $ScrollContainer/VBox/GiftCodeHBox/GiftCodeInput
 @onready var redeem_button: Button = $ScrollContainer/VBox/GiftCodeHBox/RedeemButton
 @onready var gift_code_result_label: Label = $ScrollContainer/VBox/GiftCodeResultLabel
-# v2.2: Network server URL config
-@onready var server_url_input: LineEdit = $ScrollContainer/VBox/ServerUrlHBox/ServerUrlInput
-@onready var save_url_button: Button = $ScrollContainer/VBox/ServerUrlHBox/SaveUrlButton
-@onready var reset_url_button: Button = $ScrollContainer/VBox/ServerUrlHBox/ResetUrlButton
-@onready var server_url_result_label: Label = $ScrollContainer/VBox/ServerUrlResultLabel
 
 func _ready():
         back_button.pressed.connect(_on_back_pressed)
@@ -55,17 +51,8 @@ func _ready():
         if gift_code_input:
                 gift_code_input.text_submitted.connect(func(_t): _on_redeem_pressed())
 
-        # v2.2: Server URL config
-        if save_url_button:
-                save_url_button.pressed.connect(_on_save_url_pressed)
-        if reset_url_button:
-                reset_url_button.pressed.connect(_on_reset_url_pressed)
-        if server_url_input:
-                server_url_input.text = SettingsManager.server_url
-                server_url_input.text_submitted.connect(func(_t): _on_save_url_pressed())
-
         # UI hover sounds
-        for btn in [quality_very_low, quality_low, quality_medium, quality_high, back_button, ui_customize_button, redeem_button, save_url_button, reset_url_button]:
+        for btn in [quality_very_low, quality_low, quality_medium, quality_high, back_button, ui_customize_button, redeem_button]:
                 if btn:
                         btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
         for tog in [fps_toggle, shake_toggle, joystick_toggle, sound_toggle, music_toggle]:
@@ -133,65 +120,6 @@ func _on_redeem_pressed():
                 gift_code_result_label.text = "❌ Mã không hợp lệ!"
                 gift_code_result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
                 AudioManager.play_error()
-
-## v2.2: Lưu server URL và test kết nối
-func _on_save_url_pressed():
-        var url = server_url_input.text.strip_edges()
-        if url == "":
-                server_url_result_label.text = "⚠ URL không được để trống!"
-                server_url_result_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-                AudioManager.play_error()
-                return
-        if not url.begins_with("ws://") and not url.begins_with("wss://"):
-                server_url_result_label.text = "⚠ URL phải bắt đầu bằng ws:// hoặc wss://"
-                server_url_result_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-                AudioManager.play_error()
-                return
-        AudioManager.play_ui_click()
-        SettingsManager.server_url = url
-        SettingsManager.save_settings()
-        # Disconnect cũ (nếu có) rồi thử kết nối với URL mới
-        if NetworkManager.is_server_connected():
-                NetworkManager.disconnect_from_server()
-        # Cleanup any stale handlers
-        if NetworkManager.connected_to_server.is_connected(_on_url_test_success):
-                NetworkManager.connected_to_server.disconnect(_on_url_test_success)
-        if NetworkManager.connection_error.is_connected(_on_url_test_fail):
-                NetworkManager.connection_error.disconnect(_on_url_test_fail)
-        NetworkManager.connected_to_server.connect(_on_url_test_success, CONNECT_ONE_SHOT)
-        NetworkManager.connection_error.connect(_on_url_test_fail, CONNECT_ONE_SHOT)
-        server_url_result_label.text = "⏳ Đang test kết nối..."
-        server_url_result_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.4))
-        NetworkManager.connect_to_server(url)
-
-func _on_url_test_success():
-        if NetworkManager.connection_error.is_connected(_on_url_test_fail):
-                NetworkManager.connection_error.disconnect(_on_url_test_fail)
-        server_url_result_label.text = "✅ Kết nối thành công! Server online."
-        server_url_result_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
-        AudioManager.play_success()
-
-func _on_url_test_fail(err_msg: String):
-        if NetworkManager.connected_to_server.is_connected(_on_url_test_success):
-                NetworkManager.connected_to_server.disconnect(_on_url_test_success)
-        server_url_result_label.text = "❌ %s" % err_msg
-        server_url_result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-        AudioManager.play_error()
-
-## v2.2: Reset URL về mặc định
-func _on_reset_url_pressed():
-        AudioManager.play_ui_click()
-        SettingsManager.reset_server_url()
-        server_url_input.text = SettingsManager.server_url
-        server_url_result_label.text = "ℹ Đã reset về URL mặc định."
-        server_url_result_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-
-func _exit_tree():
-        # v2.2: Cleanup ONE_SHOT handlers to avoid stale callbacks after scene freed
-        if NetworkManager.connected_to_server.is_connected(_on_url_test_success):
-                NetworkManager.connected_to_server.disconnect(_on_url_test_success)
-        if NetworkManager.connection_error.is_connected(_on_url_test_fail):
-                NetworkManager.connection_error.disconnect(_on_url_test_fail)
 
 func _on_back_pressed():
         AudioManager.play_ui_click()

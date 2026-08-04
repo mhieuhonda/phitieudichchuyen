@@ -411,34 +411,27 @@ jobs:
           body: |
             ## 🎯 Phi Tiêu Dịch Chuyển ${{ steps.rel.outputs.tag }}
 
-            ### 🆕 Tính năng v2.1
+            ### 🆕 Tính năng v2.3 — Xóa Hoàn Toàn Cấu Hình Server URL
 
-            #### 🔥 FIX CRITICAL: Online Mode Hoạt Động!
-            - **Lỗi gốc**: `matchmaking_screen.gd` KHÔNG BAO GIỜ gọi `NetworkManager.join_matchmaking()` → user stuck "Đang tìm trận..." mãi mãi dù server online.
-            - **Fix**: Tự động join queue khi login success, retry 5 lần nếu fail.
+            #### 🔥 BREAKING: Không Còn Phần Cấu Hình Server Trong Game
 
-            #### 👑 Nhân Vật Mới: Hieu Louis - Classic
-            - **Spawn Glitch 3s Bất Tử**: Khi vào trận, nhân vật bị glitch + tỏa ra các dòng code hacker trong 3 giây. Trong 3 giây đó là bất tử.
-            - **Vô Hạn Đạn**: Không giới hạn số phi tiêu trên trường.
-            - **Không Cooldown Bắn**: Không bị giới hạn tần suất bắn liên tục.
-            - **Máu Cực Nhiều**: HP bonus +500, thanh HP dài hơn.
-            - **Crown Skill (♛)**: Nút kỹ năng hình tròn có vương miện. Ghim 5 đối thủ gần nhất, +50% điểm (8s), CD 50s.
-            - **SMG Reward**: Khi giết đủ 50 mạng, nhận tiểu liên bắn rất nhanh, vô hạn đạn (20s).
-            - **Vòng Tròn Đỏ Highlight**: Khi aim đúng vào đối thủ, hiện vòng tròn đỏ xung quanh để dễ bắn trúng.
-            - **Cách mở khóa**: Settings → Nhập Mã Quà Tặng → `hieulouis99`
+            **Lý do**: Không có game thương mại nào bắt user tự cấu hình server URL. Relay server là thứ backend — dev cấu hình sẵn, user chỉ việc mở game và chơi.
 
-            #### 🎨 Redesign UI
-            - Menu, Settings, Mode Select, Mobile Controls, HUD đều được làm đẹp hơn.
-            - Settings có section mới "🎁 Nhập Mã Quà Tặng".
-            - Mobile controls layout gọn, không chồng lấn.
+            **Đã xóa**:
+            - Mục **🌐 MẠNG (SERVER URL)** trong Settings
+            - Nút **⚙ ĐỔI SERVER URL** trong màn hình Mode Select
+            - Field `server_url` trong `SettingsManager`
+            - Hàm `SettingsManager.reset_server_url()`
 
-            #### 🐛 Bug Fixes
-            - Fix chồng lấn TeleportButton vs SkillMultishotButton (overlap 110x60px)
-            - Fix priority check: Teleport check TRƯỚC skill buttons
-            - Auto-retry join matchmaking (5 lần, cách 2s)
-            - Cleanup `login_success` + `connection_error` signal handlers trong `_exit_tree`
-            - Crown button auto-hide khi không phải Classic mode
-            - Target highlight pulsing vòng tròn đỏ quanh đối thủ
+            **Đã thêm**:
+            - ✅ Relay server URL **hardcoded** trong `NetworkManager.DEFAULT_SERVER_URL` (const)
+            - ✅ Mọi client dùng chung **một VPS duy nhất** đã deploy sẵn (IP `163.44.96.79:25671`)
+            - ✅ User mở game → Chơi Ngay → Chơi Online → tự kết nối → vào trận ngay
+
+            #### 📦 Version Bump
+            - `project.godot`: `config/version` `2.2` → `2.3`
+            - `export_presets.cfg`: `version/code` `22` → `23`, `version/name` `"2.2"` → `"2.3"`
+            - `menu.gd`: version label `v2.2` → `v2.3`
 
             ### 📦 Downloads
             - **Android**: `.apk` file (đã ký với debug keystore, có thể cài trực tiếp)

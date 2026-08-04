@@ -1,10 +1,10 @@
-# 🎯 Phi Tiêu Dịch Chuyển v2.2
+# 🎯 Phi Tiêu Dịch Chuyển v2.3
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — giờ đã có **Online Multiplayer**!
 
-![Version](https://img.shields.io/badge/version-2.2-blue)
+![Version](https://img.shields.io/badge/version-2.3-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
@@ -12,20 +12,49 @@
 
 ---
 
+## 🆕 Tính Năng v2.3 — Xóa Hoàn Toàn Cấu Hình Server URL
+
+### 🔥 BREAKING: Không Còn Phần Cấu Hình Server Trong Game
+
+**Lý do**: Không có game nào bắt user tự cấu hình server URL cả. Relay server là thứ backend — dev phải cấu hình sẵn, user chỉ việc mở game và chơi.
+
+**Thay đổi**:
+- ❌ Xóa mục **🌐 MẠNG (SERVER URL)** khỏi Settings — không còn input + nút Lưu & Test + nút Mặc định
+- ❌ Xóa nút **⚙ ĐỔI SERVER URL** khỏi màn hình Mode Select
+- ❌ Xóa field `server_url` khỏi `SettingsManager` — không còn load/save vào `settings.cfg`
+- ❌ Xóa hàm `reset_server_url()` — không còn khái niệm "reset URL"
+- ✅ Relay server URL **hardcoded** trong `NetworkManager.DEFAULT_SERVER_URL` (const)
+- ✅ Mọi client trên toàn thế giới dùng chung **một VPS duy nhất** đã deploy sẵn
+- ✅ User mở game → Chơi Ngay → Chơi Online → tự kết nối → vào trận ngay
+
+**VPS đã sẵn sàng**: Relay server Node.js + WebSocket đã deploy trên VPS (IP `163.44.96.79`, port `25671`). Mọi client kết nối đến địa chỉ này, không cần config gì thêm.
+
+**Cách đổi server (dành cho dev)**: Edit `const DEFAULT_SERVER_URL` trong `scripts/network_manager.gd`, build lại.
+
+### 📦 Version Bump
+- `project.godot`: `config/version` `2.2` → `2.3`
+- `export_presets.cfg`: `version/code` `22` → `23`, `version/name` `"2.2"` → `"2.3"`
+- `export_presets.cfg`: `application/file_version` + `product_version` `"2.2.0.0"` → `"2.3.0.0"`
+- `menu.gd`: version label `v2.2` → `v2.3`
+
+### ✅ Verification
+- ✅ Settings chỉ còn: Đồ Họa, Âm Thanh, Nhập Mã Quà Tặng, Giao Diện, Thông Tin Thiết Bị
+- ✅ Mode Select chỉ còn: Chơi Online, Chơi Offline, Thử Lại (khi server offline), Quay Lại
+- ✅ Mở game → Chơi Online → kết nối ngay đến VPS hardcoded
+- ✅ Không còn cách nào cho user đổi server URL trong game
+
+---
+
 ## 🆕 Tính Năng v2.2 — Fix Online + Hướng Dẫn + Admin Guide + Kill Streaks
 
 ### 🔥 FIX: Lỗi Không Thể Chơi Online
 
-Trước đây, client báo "Server offline" ngay cả khi relay server đã cấu hình đầy đủ. Nguyên nhân: server URL bị hardcode, không có timeout, không có cách đổi URL trong UI.
+Trước đây, client báo "Server offline" ngay cả khi relay server đã cấu hình đầy đủ. Nguyên nhân: không có timeout, không có nút thử lại.
 
 **Giải pháp**:
-- Thêm mục **🌐 MẠNG (SERVER URL)** trong Settings để user cấu hình relay server của mình
 - **Connection timeout 8s**: nếu server không phản hồi, tự báo lỗi thay vì đợi mãi mãi
 - Nút **"🔄 Thử lại"** trong Mode Select khi server offline
-- Nút **"⚙ Đổi SERVER URL"** để vào Settings nhanh
-- Nút **"💾 LƯU & TEST"** trong Settings - test kết nối ngay sau khi đổi URL
 - Thông báo lỗi chi tiết (close code + reason từ server)
-- Hỗ trợ cả `ws://` (LAN/test) và `wss://` (HTTPS production)
 
 ### 📖 NEW: Hướng Dẫn Chơi + Admin Guide
 

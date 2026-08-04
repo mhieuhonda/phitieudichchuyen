@@ -52,11 +52,6 @@ const DRAGGABLE_BUTTONS: Array = [
         "skill_dash", "skill_shield", "skill_multishot"
 ]
 
-# === NETWORK (v2.2) ===
-# Server URL mặc định. User có thể đổi trong Settings để trỏ đến relay server của mình.
-# Định dạng: ws://host:port/ws  hoặc  wss://host:port/ws (cho HTTPS)
-var server_url: String = "ws://163.44.96.79:25671/ws"
-
 # === DAILY LOGIN REWARD (v2.2) ===
 # Track ngày chơi cuối + số ngày liên tiếp
 var last_play_date: String = ""  # YYYY-MM-DD
@@ -228,8 +223,6 @@ func save_settings():
         # v1.3: drag-drop layout
         config.set_value("ui_custom", "custom_button_positions", custom_button_positions)
         config.set_value("ui_custom", "use_custom_layout", use_custom_layout)
-        # v2.2: Network server URL
-        config.set_value("network", "server_url", server_url)
         # v2.2: Daily login + stats
         config.set_value("stats", "last_play_date", last_play_date)
         config.set_value("stats", "daily_streak", daily_streak)
@@ -261,8 +254,6 @@ func _load_settings():
                 # v1.3: drag-drop layout
                 custom_button_positions = config.get_value("ui_custom", "custom_button_positions", {})
                 use_custom_layout = config.get_value("ui_custom", "use_custom_layout", false)
-                # v2.2: Network server URL
-                server_url = config.get_value("network", "server_url", "ws://163.44.96.79:25671/ws")
                 # v2.2: Daily login + stats
                 last_play_date = config.get_value("stats", "last_play_date", "")
                 daily_streak = config.get_value("stats", "daily_streak", 0)
@@ -319,11 +310,6 @@ func set_sound_enabled(enabled: bool):
 
 func set_music_enabled(enabled: bool):
         music_enabled = enabled
-        save_settings()
-
-## v2.2: Reset URL về mặc định
-func reset_server_url():
-        server_url = "ws://163.44.96.79:25671/ws"
         save_settings()
 
 ## v2.2: Check-in daily. Trả về (is_first_play_today, streak_count, reward_hp_percent)

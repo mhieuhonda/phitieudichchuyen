@@ -222,13 +222,15 @@ docker run -d -p 25671:25671 -p 25672:25672 \\
 
 [color=#ffaa00][b]2. CẤU HÌNH CLIENT[/b][/color]
 
-Trong game: [b]Settings → Mạng (Server URL)[/b]
-- Nhập URL relay server của bạn: [b]ws://your-vps-ip:25671/ws[/b]
-- Nếu dùng HTTPS reverse proxy (Nginx/Caddy): [b]wss://your-domain.com/ws[/b]
-- Bấm [b]Lưu & Test[/b] để kiểm tra kết nối
+[color=#ff6666]v2.3:[/color] Server URL đã [b]hardcoded[/b] trong source code (`scripts/network_manager.gd`, const `DEFAULT_SERVER_URL`). Không còn UI để user tự đổi trong game.
 
-[color=#ff6666]Lưu ý:[/color]
-• [b]ws://[/b] = plain WebSocket (chỉ dùng cho LAN/test)
+Để đổi server (chỉ dành cho dev):
+1. Mở [b]scripts/network_manager.gd[/b]
+2. Sửa dòng: [code]const DEFAULT_SERVER_URL := "ws://163.44.96.79:25671/ws"[/code]
+3. Build lại game
+
+[color=#44aaff]Lưu ý về giao thức:[/color]
+• [b]ws://[/b] = plain WebSocket (mặc định, dùng cho VPS có IP public)
 • [b]wss://[/b] = secure WebSocket (bắt buộc nếu web build chạy trên HTTPS)
 • Nếu deploy trên web HTTPS, [b]phải[/b] dùng wss:// - trình duyệt sẽ chặn ws://
 

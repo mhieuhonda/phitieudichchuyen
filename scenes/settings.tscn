@@ -216,49 +216,6 @@ custom_minimum_size = Vector2(0, 44)
 text = "🎨 CHỈNH SỬA GIAO DIỆN"
 theme_override_font_sizes/font_size = 14
 
-[node name="NetworkSection" type="Label" parent="ScrollContainer/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-theme_override_colors/font_color = Color(1.0, 0.85, 0.2, 1.0)
-text = "🌐 MẠNG (SERVER URL)"
-
-[node name="NetworkDescLabel" type="Label" parent="ScrollContainer/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1.0)
-text = "Địa chỉ Relay Server để chơi online. Định dạng: ws://host:port/ws hoặc wss://host:port/ws (HTTPS). Bấm Lưu & Test để kiểm tra."
-autowrap_mode = 3
-custom_minimum_size = Vector2(0, 60)
-
-[node name="ServerUrlHBox" type="HBoxContainer" parent="ScrollContainer/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="ServerUrlInput" type="LineEdit" parent="ScrollContainer/VBox/ServerUrlHBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(360, 36)
-placeholder_text = "ws://your-server:25671/ws"
-theme_override_font_sizes/font_size = 13
-
-[node name="SaveUrlButton" type="Button" parent="ScrollContainer/VBox/ServerUrlHBox"]
-layout_mode = 2
-custom_minimum_size = Vector2(140, 36)
-text = "💾 LƯU & TEST"
-theme_override_font_sizes/font_size = 13
-theme_override_colors/font_color = Color(0.4, 1.0, 0.5, 1.0)
-
-[node name="ResetUrlButton" type="Button" parent="ScrollContainer/VBox/ServerUrlHBox"]
-layout_mode = 2
-custom_minimum_size = Vector2(100, 36)
-text = "Mặc định"
-theme_override_font_sizes/font_size = 12
-
-[node name="ServerUrlResultLabel" type="Label" parent="ScrollContainer/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = ""
-
 [node name="DeviceInfoLabel" type="Label" parent="ScrollContainer/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
