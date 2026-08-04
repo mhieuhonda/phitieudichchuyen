@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20.19-alpine
 # v2.6: Rebuild clean — force Docker cache invalidation
 ARG BUILD_DATE=2026-08-04-v2
 LABEL build_date=$BUILD_DATE
