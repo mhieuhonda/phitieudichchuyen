@@ -1,5 +1,6 @@
-# Phi Tiêu Dịch Chuyển - Relay Server Deployment
+# Phi Tiêu Dịch Chuyển - Relay Server Deployment (v2.4)
 # Chạy trên VPS qua Coolify hoặc trực tiếp bằng docker-compose
+# v1.8: Single-port (3000) cho cả HTTP + WebSocket — Traefik-friendly
 
 version: '3.8'
 
@@ -9,14 +10,12 @@ services:
     container_name: phitieu-relay
     restart: unless-stopped
     ports:
-      - "25671:25671"  # WebSocket
-      - "25672:25672"  # HTTP API / Health
+      - "3000:3000"
     volumes:
       - phitieu-data:/app/data
     environment:
       - NODE_ENV=production
-      - WS_PORT=25671
-      - HTTP_PORT=25672
+      - PORT=3000
       - DB_PATH=/app/data/game.db
       - MATCH_MIN_PLAYERS=10
       - MATCH_MAX_PLAYERS=20
@@ -24,7 +23,7 @@ services:
       - TICK_RATE_MS=50
       - MAX_ROOMS=50
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:25672/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 30s
       timeout: 5s
       retries: 3

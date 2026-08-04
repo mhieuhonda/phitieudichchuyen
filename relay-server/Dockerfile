@@ -5,7 +5,8 @@ COPY package.json ./
 RUN npm install --production
 COPY . .
 RUN mkdir -p /app/data
-EXPOSE 25671 25672
+EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:25672/health || exit 1
+  CMD wget -qO- http://localhost:3000/health || exit 1
+ENV PORT=3000
 CMD ["node", "server.js"]

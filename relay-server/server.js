@@ -1,19 +1,21 @@
 /**
- * Phi Tiêu Dịch Chuyển - Relay Server v1.7
- * 
+ * Phi Tiêu Dịch Chuyển - Relay Server v1.8 (v2.4 release)
+ *
  * WebSocket relay server cho game online:
  * - Matchmaking: min 10, max 20 người mỗi phòng
  * - 30s timeout → tự fill bot AI nếu chưa đủ 10 người
  * - SQLite database cho player stats
  * - Room management với state sync
- * 
- * Ports:
- *   25671 - WebSocket (game traffic)
- *   25672 - HTTP (health check, REST API)
+ *
+ * v1.8 (v2.4): Refactor để chạy trên 1 port duy nhất (PORT env, default 3000)
+ * - HTTP server và WebSocket server dùng chung 1 port
+ * - Tương thích Traefik reverse proxy (wss://domain/ws)
+ * - Healthcheck đơn giản trên cùng port
+ * - Hỗ trợ cả ws:// (direct) và wss:// (qua proxy TLS)
  */
 
-const { WebSocketServer, WebSocket } = require('ws');
 const http = require('http');
+const { WebSocketServer, WebSocket } = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
@@ -143,31 +145,30 @@ function dbGetLeaderboard(limit = 20) {
 
 // === CONFIG ===
 const CONFIG = {
-  WS_PORT: parseInt(process.env.WS_PORT) || 25671,
-  HTTP_PORT: parseInt(process.env.HTTP_PORT) || 25672,
+  PORT: parseInt(process.env.PORT) || parseInt(process.env.WS_PORT) || 3000,
   MATCH_MIN_PLAYERS: parseInt(process.env.MATCH_MIN_PLAYERS) || 10,
   MATCH_MAX_PLAYERS: parseInt(process.env.MATCH_MAX_PLAYERS) || 20,
-  MATCH_TIMEOUT_MS: parseInt(process.env.MATCH_TIMEOUT_MS) || 30000, // 30 giây
-  TICK_RATE_MS: parseInt(process.env.TICK_RATE_MS) || 50, // 20 ticks/giây
+  MATCH_TIMEOUT_MS: parseInt(process.env.MATCH_TIMEOUT_MS) || 30000,
+  TICK_RATE_MS: parseInt(process.env.TICK_RATE_MS) || 50,
   MAX_ROOMS: parseInt(process.env.MAX_ROOMS) || 50,
-  ROOM_TIMEOUT_MS: parseInt(process.env.ROOM_TIMEOUT_MS) || 3600000, // 1 giờ
+  ROOM_TIMEOUT_MS: parseInt(process.env.ROOM_TIMEOUT_MS) || 3600000,
   PING_INTERVAL_MS: 30000,
 };
 
 // === STATE ===
-const clients = new Map(); // ws -> clientInfo
-const matchmakingQueue = new Map(); // playerId -> { ws, name, characterId, enqueuedAt }
+const clients = new Map();
+const matchmakingQueue = new Map();
 let matchTimeout = null;
-const rooms = new Map(); // roomId -> Room
+const rooms = new Map();
 
 class Room {
   constructor(id) {
     this.id = id;
-    this.players = new Map(); // playerId -> { ws, name, characterId, isBot, alive, score, kills, lastSync }
-    this.state = 'waiting'; // waiting | countdown | playing | ended
-    this.countdownTimer = 5; // 5 giây đếm ngược
+    this.players = new Map();
+    this.state = 'waiting';
+    this.countdownTimer = 5;
     this.createdAt = Date.now();
-    this.matchDuration = 300; // 5 phút
+    this.matchDuration = 300;
     this.gameTime = 0;
     this.tickInterval = null;
     this.zoneRadius = 900;
@@ -248,12 +249,11 @@ class Room {
       matchDuration: this.matchDuration
     });
 
-    dbCreateMatch(this.id, 'online', 
+    dbCreateMatch(this.id, 'online',
       Array.from(this.players.values()).filter(p => !p.isBot).length,
       Array.from(this.players.values()).filter(p => p.isBot).length
     );
 
-    // Game tick loop
     this.tickInterval = setInterval(() => this.gameTick(), CONFIG.TICK_RATE_MS);
   }
 
@@ -263,7 +263,6 @@ class Room {
     this.gameTime += CONFIG.TICK_RATE_MS / 1000;
     const timeRemaining = Math.max(0, this.matchDuration - this.gameTime);
 
-    // Zone shrink
     this.zoneShrinkTimer -= CONFIG.TICK_RATE_MS / 1000;
     if (this.zoneShrinkTimer <= 0) {
       this.zoneRadius = Math.max(200, this.zoneRadius - 50);
@@ -271,7 +270,6 @@ class Room {
       this.broadcast('zone_shrank', { radius: this.zoneRadius });
     }
 
-    // Check match end
     const alivePlayers = Array.from(this.players.values()).filter(p => p.alive && !p.isBot);
     const aliveBots = Array.from(this.players.values()).filter(p => p.alive && p.isBot);
     const totalAlive = alivePlayers.length + aliveBots.length;
@@ -281,7 +279,6 @@ class Room {
       return;
     }
 
-    // Send state sync
     const stateUpdate = {
       timeRemaining: timeRemaining.toFixed(1),
       zoneRadius: this.zoneRadius,
@@ -306,7 +303,6 @@ class Room {
     this.state = 'ended';
     if (this.tickInterval) clearInterval(this.tickInterval);
 
-    // Determine winner
     const sorted = Array.from(this.players.entries())
       .sort((a, b) => b[1].score - a[1].score);
     const winnerId = sorted.length > 0 ? sorted[0][0] : null;
@@ -319,7 +315,6 @@ class Room {
 
     this.broadcast('match_end', { winnerId, winnerName, leaderboard });
 
-    // Update DB
     const duration = this.gameTime;
     dbEndMatch(this.id, winnerId, duration);
     for (const [pid, p] of this.players) {
@@ -328,7 +323,6 @@ class Room {
       }
     }
 
-    // Clean up room after 10 seconds
     setTimeout(() => {
       rooms.delete(this.id);
       console.log(`[Room] Deleted room ${this.id}`);
@@ -396,7 +390,6 @@ function enqueuePlayer(playerId, ws, name, characterId) {
   matchmakingQueue.set(playerId, { ws, name, characterId, enqueuedAt: Date.now() });
   console.log(`[Match] Player ${name}(${playerId}) enqueued. Queue size: ${matchmakingQueue.size}`);
 
-  // Broadcast queue update
   for (const [pid, entry] of matchmakingQueue) {
     if (entry.ws.readyState === WebSocket.OPEN) {
       entry.ws.send(JSON.stringify({
@@ -406,23 +399,19 @@ function enqueuePlayer(playerId, ws, name, characterId) {
     }
   }
 
-  // Check if enough players
   if (matchmakingQueue.size >= CONFIG.MATCH_MIN_PLAYERS) {
     createMatchFromQueue();
   } else if (!matchTimeout) {
-    // Start 30s timeout
     matchTimeout = setTimeout(() => {
       console.log(`[Match] Timeout reached. Queue: ${matchmakingQueue.size} players`);
       if (matchmakingQueue.size >= 2) {
         createMatchFromQueue();
       } else {
-        // Not enough even after timeout, inform players
         for (const [pid, entry] of matchmakingQueue) {
           if (entry.ws.readyState === WebSocket.OPEN) {
             entry.ws.send(JSON.stringify({ type: 'matchmaking_timeout', data: { message: 'Không đủ người chơi, đang thêm bot AI...' } }));
           }
         }
-        // Force create with bots
         createMatchFromQueue();
       }
       matchTimeout = null;
@@ -449,23 +438,18 @@ function createMatchFromQueue() {
   const roomId = uuidv4();
   const room = new Room(roomId);
 
-  // Take players from queue (up to MAX)
   const entries = Array.from(matchmakingQueue.entries());
   const realPlayers = entries.slice(0, CONFIG.MATCH_MAX_PLAYERS);
 
-  // Remove from queue
   for (const [pid] of realPlayers) {
     matchmakingQueue.delete(pid);
-    clients.set(realPlayers.find(([id]) => id === pid)?.[1]?.ws, { playerId: pid, roomId });
   }
 
-  // Add real players
   for (const [pid, entry] of realPlayers) {
     room.addPlayer(pid, entry.ws, entry.name, entry.characterId, false);
     clients.set(entry.ws, { playerId: pid, roomId });
   }
 
-  // Fill bots if not enough
   const botsNeeded = Math.max(0, CONFIG.MATCH_MIN_PLAYERS - realPlayers.length);
   const botNames = ['Rồng', 'Phượng', 'Hổ', 'Báo', 'Sói', 'Cáo', 'Gấu', 'Diều', 'Cọp', 'Chồn', 'Thiên Long', 'Hắc Vũ'];
   for (let i = 0; i < botsNeeded; i++) {
@@ -477,13 +461,11 @@ function createMatchFromQueue() {
   rooms.set(roomId, room);
   console.log(`[Match] Room ${roomId} created: ${realPlayers.length} players + ${botsNeeded} bots`);
 
-  // Clear timeout
   if (matchTimeout) {
     clearTimeout(matchTimeout);
     matchTimeout = null;
   }
 
-  // Notify all players
   room.broadcast('match_found', {
     roomId,
     playerCount: realPlayers.length,
@@ -491,15 +473,88 @@ function createMatchFromQueue() {
     totalPlayers: room.players.size
   });
 
-  // Start countdown
   setTimeout(() => room.startCountdown(), 1000);
 }
 
-// === WEBSOCKET SERVER ===
-const wss = new WebSocketServer({ port: CONFIG.WS_PORT, path: '/ws' });
+// === HTTP SERVER (health + REST API on same port as WebSocket) ===
+const httpServer = http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Content-Type', 'application/json');
 
-wss.on('connection', (ws) => {
-  console.log(`[WS] New connection. Total: ${wss.clients.size}`);
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  const url = req.url || '/';
+
+  if (url === '/health' || url === '/api/health') {
+    res.writeHead(200);
+    res.end(JSON.stringify({
+      status: 'ok',
+      uptime: process.uptime(),
+      rooms: rooms.size,
+      clients: clients.size,
+      queue: matchmakingQueue.size,
+      version: '1.8.0'
+    }));
+    return;
+  }
+
+  if (url === '/api/status') {
+    res.writeHead(200);
+    res.end(JSON.stringify({
+      version: '1.8.0',
+      rooms: rooms.size,
+      clients: clients.size,
+      queue: matchmakingQueue.size,
+      config: {
+        minPlayers: CONFIG.MATCH_MIN_PLAYERS,
+        maxPlayers: CONFIG.MATCH_MAX_PLAYERS,
+        matchTimeout: CONFIG.MATCH_TIMEOUT_MS,
+        tickRate: CONFIG.TICK_RATE_MS,
+      },
+      roomList: Array.from(rooms.entries()).map(([id, r]) => ({
+        id, state: r.state, players: r.players.size,
+        gameTime: Math.round(r.gameTime),
+      })),
+    }));
+    return;
+  }
+
+  if (url === '/api/leaderboard') {
+    res.writeHead(200);
+    res.end(JSON.stringify(dbGetLeaderboard(20)));
+    return;
+  }
+
+  if (url.startsWith('/api/player/')) {
+    const pid = url.split('/api/player/')[1];
+    const player = dbGetPlayer(pid);
+    if (player) {
+      res.writeHead(200);
+      res.end(JSON.stringify(player));
+    } else {
+      res.writeHead(404);
+      res.end(JSON.stringify({ error: 'Player not found' }));
+    }
+    return;
+  }
+
+  // Default: simple landing page
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Phi Tiêu Dịch Chuyển - Relay Server</title></head><body style="font-family:monospace;background:#0a0e1a;color:#4af;padding:40px"><h1>🎯 Phi Tiêu Dịch Chuyển - Relay Server v1.8</h1><p>WebSocket endpoint: <code>wss://${req.headers.host}/ws</code></p><p><a href="/health">/health</a> | <a href="/api/status">/api/status</a> | <a href="/api/leaderboard">/api/leaderboard</a></p></body></html>`);
+});
+
+// === WEBSOCKET SERVER (mounted on same HTTP server, path /ws) ===
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+wss.on('connection', (ws, req) => {
+  console.log(`[WS] New connection from ${req.socket.remoteAddress}. Total: ${wss.clients.size}`);
 
   ws.on('message', (raw) => {
     let msg;
@@ -509,7 +564,7 @@ wss.on('connection', (ws) => {
 
     switch (type) {
       case 'login': {
-        const { playerId, name, characterId } = data;
+        const { playerId, name, characterId } = data || {};
         const pid = playerId || uuidv4();
         dbUpsertPlayer(pid, name || 'Player', characterId || 0);
         clients.set(ws, { playerId: pid, roomId: null });
@@ -542,7 +597,7 @@ wss.on('connection', (ws) => {
         const clientInfo = clients.get(ws);
         if (!clientInfo?.roomId) return;
         const room = rooms.get(clientInfo.roomId);
-        if (room) room.handlePlayerUpdate(clientInfo.playerId, data);
+        if (room) room.handlePlayerUpdate(clientInfo.playerId, data || {});
         break;
       }
 
@@ -550,7 +605,7 @@ wss.on('connection', (ws) => {
         const clientInfo = clients.get(ws);
         if (!clientInfo?.roomId) return;
         const room = rooms.get(clientInfo.roomId);
-        if (room) room.handleDartThrow(clientInfo.playerId, data);
+        if (room) room.handleDartThrow(clientInfo.playerId, data || {});
         break;
       }
 
@@ -558,7 +613,7 @@ wss.on('connection', (ws) => {
         const clientInfo = clients.get(ws);
         if (!clientInfo?.roomId) return;
         const room = rooms.get(clientInfo.roomId);
-        if (room) room.handleTeleport(clientInfo.playerId, data);
+        if (room) room.handleTeleport(clientInfo.playerId, data || {});
         break;
       }
 
@@ -566,7 +621,7 @@ wss.on('connection', (ws) => {
         const clientInfo = clients.get(ws);
         if (!clientInfo?.roomId) return;
         const room = rooms.get(clientInfo.roomId);
-        if (room) room.handleKill(clientInfo.playerId, data.victimId, data);
+        if (room) room.handleKill(clientInfo.playerId, data?.victimId, data || {});
         break;
       }
 
@@ -574,7 +629,7 @@ wss.on('connection', (ws) => {
         const clientInfo = clients.get(ws);
         if (!clientInfo?.roomId) return;
         const room = rooms.get(clientInfo.roomId);
-        if (room) room.handleSkillUse(clientInfo.playerId, data);
+        if (room) room.handleSkillUse(clientInfo.playerId, data || {});
         break;
       }
 
@@ -582,7 +637,7 @@ wss.on('connection', (ws) => {
         const clientInfo = clients.get(ws);
         if (!clientInfo?.roomId) return;
         const room = rooms.get(clientInfo.roomId);
-        if (room) room.handleRespawn(clientInfo.playerId, data);
+        if (room) room.handleRespawn(clientInfo.playerId, data || {});
         break;
       }
 
@@ -604,14 +659,11 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     const clientInfo = clients.get(ws);
     if (clientInfo) {
-      // Remove from matchmaking queue
       dequeuePlayer(clientInfo.playerId);
-      // Remove from room
       if (clientInfo.roomId) {
         const room = rooms.get(clientInfo.roomId);
         if (room) {
           room.removePlayer(clientInfo.playerId);
-          // If room is empty, clean up
           if (room.players.size === 0) {
             rooms.delete(clientInfo.roomId);
             console.log(`[Room] Room ${clientInfo.roomId} empty, deleted`);
@@ -622,65 +674,6 @@ wss.on('connection', (ws) => {
       console.log(`[WS] Player ${clientInfo.playerId} disconnected`);
     }
   });
-});
-
-// === HTTP SERVER (health check + REST API) ===
-const httpServer = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', 'application/json');
-
-  if (req.url === '/health') {
-    res.writeHead(200);
-    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), rooms: rooms.size, clients: clients.size, queue: matchmakingQueue.size }));
-    return;
-  }
-
-  if (req.url === '/api/status') {
-    res.writeHead(200);
-    res.end(JSON.stringify({
-      version: '1.7.0',
-      rooms: rooms.size,
-      clients: clients.size,
-      queue: matchmakingQueue.size,
-      config: {
-        minPlayers: CONFIG.MATCH_MIN_PLAYERS,
-        maxPlayers: CONFIG.MATCH_MAX_PLAYERS,
-        matchTimeout: CONFIG.MATCH_TIMEOUT_MS,
-        tickRate: CONFIG.TICK_RATE_MS,
-      },
-      roomList: Array.from(rooms.entries()).map(([id, r]) => ({
-        id, state: r.state, players: r.players.size,
-        gameTime: Math.round(r.gameTime),
-      })),
-    }));
-    return;
-  }
-
-  if (req.url === '/api/leaderboard') {
-    res.writeHead(200);
-    res.end(JSON.stringify(dbGetLeaderboard(20)));
-    return;
-  }
-
-  if (req.url.startsWith('/api/player/')) {
-    const pid = req.url.split('/api/player/')[1];
-    const player = dbGetPlayer(pid);
-    if (player) {
-      res.writeHead(200);
-      res.end(JSON.stringify(player));
-    } else {
-      res.writeHead(404);
-      res.end(JSON.stringify({ error: 'Player not found' }));
-    }
-    return;
-  }
-
-  res.writeHead(404);
-  res.end(JSON.stringify({ error: 'Not found' }));
-});
-
-httpServer.listen(CONFIG.HTTP_PORT, () => {
-  console.log(`[HTTP] Health/API server on port ${CONFIG.HTTP_PORT}`);
 });
 
 // === CLEANUP ===
@@ -697,6 +690,9 @@ setInterval(() => {
 
 // === START ===
 initDatabase();
-console.log(`[Server] Phi Tiêu Dịch Chuyển Relay Server v1.7`);
-console.log(`[Server] WebSocket on port ${CONFIG.WS_PORT}`);
-console.log(`[Server] Match config: ${CONFIG.MATCH_MIN_PLAYERS}-${CONFIG.MATCH_MAX_PLAYERS} players, ${CONFIG.MATCH_TIMEOUT_MS}ms timeout`);
+httpServer.listen(CONFIG.PORT, () => {
+  console.log(`[Server] Phi Tiêu Dịch Chuyển Relay Server v1.8 (v2.4)`);
+  console.log(`[Server] HTTP + WebSocket on port ${CONFIG.PORT}`);
+  console.log(`[Server] WS endpoint: ws://localhost:${CONFIG.PORT}/ws`);
+  console.log(`[Server] Match config: ${CONFIG.MATCH_MIN_PLAYERS}-${CONFIG.MATCH_MAX_PLAYERS} players, ${CONFIG.MATCH_TIMEOUT_MS}ms timeout`);
+});
