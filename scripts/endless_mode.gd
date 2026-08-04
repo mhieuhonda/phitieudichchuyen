@@ -38,6 +38,7 @@ var total_kills: int = 0
 var level_kills: int = 0
 var zombies_to_spawn: int = 0
 var zombies_spawned: int = 0
+var zombies_escaped: int = 0  # Track zombies that went off-screen
 var is_game_over: bool = false
 var is_level_transitioning: bool = false
 var _spawn_timer: float = 0.0
@@ -63,11 +64,66 @@ func _ready():
         # Listen language changes
         if I18N:
                 I18N.language_changed.connect(func(_l): _refresh_hud())
+        # Apply premium styling to game over panel
+        _apply_premium_styling()
         # Khởi tạo ải đầu tiên
         _start_level(1)
         if AudioManager:
                 AudioManager.play_music("game")
                 AudioManager.play_warning()  # horror atmosphere hint
+
+func _apply_premium_styling():
+        # Style game over panel
+        if game_over_panel:
+                var style = StyleBoxFlat.new()
+                style.bg_color = Color(0.04, 0.02, 0.06, 0.94)
+                style.border_color = Color(0.5, 0.15, 0.15, 0.5)
+                style.border_width_top = 2
+                style.border_width_bottom = 2
+                style.border_width_left = 2
+                style.border_width_right = 2
+                style.corner_radius_top_left = 14
+                style.corner_radius_top_right = 14
+                style.corner_radius_bottom_left = 14
+                style.corner_radius_bottom_right = 14
+                style.shadow_color = Color(0.3, 0, 0, 0.5)
+                style.shadow_size = 12
+                game_over_panel.add_theme_stylebox_override("panel", style)
+        # Style buttons
+        _style_game_button(retry_button, Color(0.12, 0.1, 0.04, 0.9), Color(1.0, 0.85, 0.2))
+        _style_game_button(next_level_button, Color(0.04, 0.12, 0.06, 0.9), Color(0.3, 1.0, 0.5))
+        _style_game_button(menu_button, Color(0.08, 0.08, 0.1, 0.8), Color(0.65, 0.65, 0.75))
+
+func _style_game_button(btn: Button, bg_color: Color, accent_color: Color):
+        if not btn:
+                return
+        var style_normal = StyleBoxFlat.new()
+        style_normal.bg_color = bg_color
+        style_normal.corner_radius_top_left = 10
+        style_normal.corner_radius_top_right = 10
+        style_normal.corner_radius_bottom_left = 10
+        style_normal.corner_radius_bottom_right = 10
+        style_normal.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.3)
+        style_normal.border_width_top = 1
+        style_normal.border_width_bottom = 1
+        style_normal.border_width_left = 1
+        style_normal.border_width_right = 1
+        style_normal.content_margin_top = 8
+        style_normal.content_margin_bottom = 8
+        style_normal.content_margin_left = 16
+        style_normal.content_margin_right = 16
+        style_normal.shadow_color = Color(0, 0, 0, 0.35)
+        style_normal.shadow_size = 5
+        style_normal.shadow_offset = Vector2(0, 3)
+        var style_hover = style_normal.duplicate()
+        style_hover.bg_color = Color(bg_color.r + 0.07, bg_color.g + 0.05, bg_color.b + 0.07, bg_color.a)
+        style_hover.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.6)
+        style_hover.shadow_size = 7
+        var style_pressed = style_normal.duplicate()
+        style_pressed.bg_color = Color(bg_color.r * 0.8, bg_color.g * 0.8, bg_color.b * 0.8, bg_color.a)
+        btn.add_theme_stylebox_override("normal", style_normal)
+        btn.add_theme_stylebox_override("hover", style_hover)
+        btn.add_theme_stylebox_override("pressed", style_pressed)
 
 func _process(delta: float):
         if is_game_over or is_level_transitioning:
@@ -92,6 +148,7 @@ func _start_level(level: int):
         current_level = level
         level_kills = 0
         zombies_spawned = 0
+        zombies_escaped = 0
         zombies_to_spawn = _calc_zombies_count(level)
         _spawn_timer = 0.5  # delay 0.5s trước khi spawn
         # Cập nhật skills hub level
@@ -138,6 +195,8 @@ func _spawn_zombie():
         zombie.setup(z_type, base_hp, base_speed, base_damage, player)
         # Connect zombie_killed (signal truyền zombie instance)
         zombie.zombie_killed.connect(_on_zombie_killed)
+        # Connect zombie_escaped để track zombie đi mất
+        zombie.zombie_escaped.connect(_on_zombie_escaped)
         # v2.4: Horror sounds - 50% chance growl when spawning, scream for runner/brute
         if AudioManager:
                 if z_type == 0:
@@ -161,11 +220,18 @@ func _on_zombie_killed(zombie: Node2D):
         _refresh_hud()
         _check_level_complete()
 
+func _on_zombie_escaped(_zombie: Node2D):
+        ## Zombie went off-screen without being killed - track it for level completion
+        zombies_escaped += 1
+        _refresh_hud()
+        _check_level_complete()
+
 func _check_level_complete():
         if is_game_over or is_level_transitioning:
                 return
-        if zombies_spawned >= zombies_to_spawn and level_kills >= zombies_to_spawn:
-                # Tất cả zombie đã chết → qua ải
+        # Level complete when all zombies have been spawned AND
+        # all have been either killed or escaped off-screen
+        if zombies_spawned >= zombies_to_spawn and (level_kills + zombies_escaped) >= zombies_to_spawn:
                 _level_complete()
 
 func _level_complete():
@@ -209,6 +275,7 @@ func _on_next_level():
         skills_hub.reset_cooldowns()
         # Xóa zombie còn sót (nếu có)
         _clear_zombies()
+        zombies_escaped = 0  # Reset escaped count for new level
         _start_level(current_level + 1)
 
 # === GAME OVER ===
@@ -247,6 +314,7 @@ func _on_retry():
                 player.global_position = Vector2(640, 600)
         skills_hub.reset_cooldowns()
         total_kills = 0
+        zombies_escaped = 0
         _start_level(1)
 
 func _on_menu():
@@ -383,7 +451,8 @@ func _refresh_hud():
         if hp_label and is_instance_valid(player):
                 hp_label.text = I18N.t("endless.hp", [int(player.hp), int(player.max_hp)])
         if kills_label:
-                kills_label.text = I18N.t("endless.kills", [level_kills, zombies_to_spawn])
+                var target_count = zombies_to_spawn - zombies_escaped
+                kills_label.text = I18N.t("endless.kills", [level_kills, target_count])
 
 func _show_message(text: String, duration: float):
         message_label.text = text

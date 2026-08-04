@@ -1,6 +1,6 @@
 extends Node
 
-## CharacterData - Dữ liệu nhân vật (v2.2)
+## CharacterData - Dữ liệu nhân vật (v2.3)
 ## Mỗi nhân vật có: tên, chỉ số, kỹ năng, sprite, màu sắc
 ## Singleton autoload (đăng ký trong project.godot, không dùng class_name
 ## vì Godot 4.7 cấm class_name trùng tên autoload singleton)
@@ -14,10 +14,16 @@ extends Node
 ## - "hieulouis99": mở khóa nhân vật Hieu Louis - Classic (char_id=12)
 ## - "hieulouisking": mở khóa "Hướng Dẫn Cho Admin" trong mục Hướng Dẫn
 ##   (không lộ thông tin nhạy cảm, chỉ là tài liệu nội bộ cho admin)
+##
+## v2.3: Thêm nhân vật "Ma Tôn" (id=13)
+## - HARD COUNTER Hieu Louis - Classic: mọi chỉ số đều cao hơn
+## - HP 1000 (gấp đôi Classic's 500), Speed 80 (vs 50), Dart 200 (vs 100)
+## - Skill "Ma Tôn Quyền": instant-kill Classic, immune Crown, +100% score, 5s invincibility
+## - Chỉ mở khóa qua mã quà tặng "maton99"
 
-enum CharType { WARRIOR, MAGE, BRAWLER, ASSASSIN, CLASSIC }
+enum CharType { WARRIOR, MAGE, BRAWLER, ASSASSIN, CLASSIC, MATON }
 
-# 13 nhân vật (12 cũ + 1 mới v2.1)
+# 14 nhân vật (12 cũ + 1 v2.1 + 1 v2.3)
 const CHARACTERS = [
         {
                 "id": 0,
@@ -202,6 +208,21 @@ const CHARACTERS = [
                 "lore": "Hacker huyền thoại từ deep web. Khi spawn, code glitch tỏa ra 3 giây bất tử. Crown skill ghim 5 đối thủ cùng lúc, +50% điểm. Số darts vô hạn, không bị giới hạn tần suất bắn. Máu cực nhiều, thanh HP dài hơn hẳn. Khi giết 50 mạng, nhận tiểu liên vô hạn 20s. Chỉ mở khóa qua mã quà tặng bí mật.",
                 "color": Color(0.0, 1.0, 0.5),  # Hacker green
         },
+        # === v2.3: MA TÔN - HARD COUNTER CLASSIC ===
+        {
+                "id": 13,
+                "name": "Ma Tôn",
+                "title": "Ma Vương Siêu Cấp",
+                "file": "char_ma_ton",
+                "type": CharType.MATON,
+                "hp_bonus": 1000.0,       # Gấp đôi Classic's 500
+                "speed_bonus": 80.0,      # Vượt Classic's 50
+                "dart_bonus": 200,        # Gấp đôi Classic's 100
+                "skill_bonus": "maton",   # Ma Tôn Quyền - hard counter Classic
+                "skill_desc": "Ma Tôn Quyền: Instant-kill bất kỳ Classic character, immune Crown skill, +100% score multiplier, permanent invincibility 5s on spawn.",
+                "lore": "Ma Vương Siêu Cấp - thực thể siêu nhiên tối thượng sinh ra để khắc phục Hieu Louis - Classic. Ma Tôn Quyền đấm xuyên mọi lớp bảo vệ, instant-kill bất kỳ Classic character. Miễn nhiễm hoàn toàn với Crown skill. Nhân hệ số điểm x2 (+100%). Khi spawn, tỏa aura bất tử 5 giây - lâu hơn glitch 3s của Classic. Mọi chỉ số đều áp đảo: HP 1000 (gấp đôi Classic), Speed 80, 200 darts. Ma Tôn là答复 cuối cùng cho mọi hacker.",
+                "color": Color(0.8, 0.0, 1.0),  # Deep purple, supernatural
+        },
 ]
 
 # Nhân vật đang được chọn
@@ -219,6 +240,7 @@ signal character_changed(char_id: int)
 const GIFT_CODES: Dictionary = {
         "hieulouis99": { "type": "character", "value": 12 },          # Mở khóa Hieu Louis - Classic
         "hieulouisking": { "type": "feature", "value": "admin_guide" }, # Mở khóa Admin Guide
+        "maton99": { "type": "character", "value": 13 },               # Mở khóa Ma Tôn (v2.3)
 }
 
 # v2.2: Lưu message từ lần redeem gần nhất để UI hiển thị
@@ -316,6 +338,7 @@ func get_type_name(type: int) -> String:
                 CharType.BRAWLER: return "Quyền Sư"
                 CharType.ASSASSIN: return "Sát Thủ"
                 CharType.CLASSIC: return "Hacker"
+                CharType.MATON: return "Ma Tôn"
                 _: return "Khác"
 
 func get_hp_bonus(id: int) -> float:

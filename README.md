@@ -1,243 +1,132 @@
-# 🎯 Phi Tiêu Dịch Chuyển v2.3
+# 🎯 Phi Tiêu Dịch Chuyển v2.7
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
-> Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — giờ đã có **Online Multiplayer**!
+> Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — với **Online Multiplayer**, **14 Nhân Vật**, và **Premium UI**!
 
-![Version](https://img.shields.io/badge/version-2.3-blue)
+![Version](https://img.shields.io/badge/version-2.7-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 ![Multiplayer](https://img.shields.io/badge/multiplayer-Online%20%2B%20Offline-orange)
+![Characters](https://img.shields.io/badge/characters-14-purple)
 
 ---
 
-## 🆕 Tính Năng v2.3 — Xóa Hoàn Toàn Cấu Hình Server URL
+## 🆕 Tính Năng v2.7 — Ma Tôn + Bug Fixes + Zombie Overhaul + Premium UI
 
-### 🔥 BREAKING: Không Còn Phần Cấu Hình Server Trong Game
+### 👑 Nhân Vật Mới: Ma Tôn — Ma Vương Siêu Cấp
 
-**Lý do**: Không có game nào bắt user tự cấu hình server URL cả. Relay server là thứ backend — dev phải cấu hình sẵn, user chỉ việc mở game và chơi.
+Nhân vật siêu cấp khắc chế hoàn toàn **Hieu Louis - Classic**:
 
-**Thay đổi**:
-- ❌ Xóa mục **🌐 MẠNG (SERVER URL)** khỏi Settings — không còn input + nút Lưu & Test + nút Mặc định
-- ❌ Xóa nút **⚙ ĐỔI SERVER URL** khỏi màn hình Mode Select
-- ❌ Xóa field `server_url` khỏi `SettingsManager` — không còn load/save vào `settings.cfg`
-- ❌ Xóa hàm `reset_server_url()` — không còn khái niệm "reset URL"
-- ✅ Relay server URL **hardcoded** trong `NetworkManager.DEFAULT_SERVER_URL` (const)
-- ✅ Mọi client trên toàn thế giới dùng chung **một VPS duy nhất** đã deploy sẵn
-- ✅ User mở game → Chơi Ngay → Chơi Online → tự kết nối → vào trận ngay
+| Chỉ số | Classic (id=12) | **Ma Tôn (id=13)** | Lợi thế |
+|--------|-----------------|---------------------|---------|
+| HP Bonus | +500 | **+1000** | 2× |
+| Speed Bonus | +50 | **+80** | 1.6× |
+| Dart Bonus | 100 | **200** | 2× |
+| Skill | Crown (ghim 5 đối thủ) | **Ma Tôn Quyền** (instant-kill Classic, immune Crown, +100% score) | Siêu việt |
+| Spawn Invul | 3s glitch | **5s bất tử** | 1.67× |
+| Color | Hacker Green | **Supernatural Purple** | 👑 |
 
-**VPS đã sẵn sàng**: Relay server Node.js + WebSocket đã deploy trên VPS (IP `163.44.96.79`, port `25671`). Mọi client kết nối đến địa chỉ này, không cần config gì thêm.
+**Cách mở khóa**: Settings → Nhập Mã Quà Tặng → nhập `maton99` → Đổi Mã
 
-**Cách đổi server (dành cho dev)**: Edit `const DEFAULT_SERVER_URL` trong `scripts/network_manager.gd`, build lại.
+**Ma Tôn Quyền** — Kỹ năng đặc biệt:
+- Instant-kill bất kỳ nhân vật Classic nào trúng đạn
+- Miễn nhiễm hoàn toàn với Crown Skill
+- +100% score multiplier khi active
+- 5 giây bất tử khi spawn (vs Classic 3s)
 
-### 📦 Version Bump
-- `project.godot`: `config/version` `2.2` → `2.3`
-- `export_presets.cfg`: `version/code` `22` → `23`, `version/name` `"2.2"` → `"2.3"`
-- `export_presets.cfg`: `application/file_version` + `product_version` `"2.2.0.0"` → `"2.3.0.0"`
-- `menu.gd`: version label `v2.2` → `v2.3`
+### 🐛 6 Bug Fixes Nghiêm Trọng
 
-### ✅ Verification
-- ✅ Settings chỉ còn: Đồ Họa, Âm Thanh, Nhập Mã Quà Tặng, Giao Diện, Thông Tin Thiết Bị
-- ✅ Mode Select chỉ còn: Chơi Online, Chơi Offline, Thử Lại (khi server offline), Quay Lại
-- ✅ Mở game → Chơi Online → kết nối ngay đến VPS hardcoded
-- ✅ Không còn cách nào cho user đổi server URL trong game
+| # | Bug | Mô tả | Fix |
+|---|-----|-------|-----|
+| 1 | **Level softlock** | Zombie thoát khỏi màn hình → level không complete được | Đếm zombie escaped, điều chỉnh completion check |
+| 2 | **Pickups undetectable** | Remote player không nhặt được pickup (sai collision_mask) | Thêm layer 64 vào pickup collision_mask |
+| 3 | **Stale killer name** | Sau respawn, killer name cũ vẫn hiện | Reset `last_killer_name` trong `_respawn()` |
+| 4 | **Invincibility leak** | Shield/Invincible mang qua level mới | Reset `invincible_remaining` trong `reset_temporary_skills()` |
+| 5 | **Missing refill_darts** | EndlessPlayer thiếu method, crash nếu có pickup | Thêm `refill_darts()` method |
+| 6 | **Dart crash on free** | EndlessDart crash nếu freed trong spawn immunity | Thêm `is_instance_valid` check sau await |
 
----
+### 🧟 Zombie Graphics Overhaul — 6 Hệ Thống Visual
 
-## 🆕 Tính Năng v2.2 — Fix Online + Hướng Dẫn + Admin Guide + Kill Streaks
+1. **Scary Color Palettes** — Mỗi zombie type có màu riêng rẽ, đáng sợ hơn
+2. **Wobble Animation** — Chuyển động S-shape, mỗi type có "tính cách" riêng
+3. **Damage Flash** — Flash trắng-vàng khi bị hit
+4. **Freeze/Ice Effect** — Xanh nhạt + scale pulse khi đóng băng
+5. **BRUTE Pulsing Glow** — Glow oscillating cho zombie to nhất
+6. **Dramatic Death** — 6-phase death animation (flash → expand → dark → splat → fade → free)
 
-### 🔥 FIX: Lỗi Không Thể Chơi Online
+### 🎨 Premium UI Redesign — Dark Luxury Theme
 
-Trước đây, client báo "Server offline" ngay cả khi relay server đã cấu hình đầy đủ. Nguyên nhân: không có timeout, không có nút thử lại.
-
-**Giải pháp**:
-- **Connection timeout 8s**: nếu server không phản hồi, tự báo lỗi thay vì đợi mãi mãi
-- Nút **"🔄 Thử lại"** trong Mode Select khi server offline
-- Thông báo lỗi chi tiết (close code + reason từ server)
-
-### 📖 NEW: Hướng Dẫn Chơi + Admin Guide
-
-Thêm nút **"📖 HƯỚNG DẪN"** trong menu chính với 2 tab:
-
-- **Tab Player**: Hướng dẫn đầy đủ - mục tiêu, điều khiển PC/Mobile, cơ chế chơi, 4 kỹ năng, 13 nhân vật, mẹo chơi, leaderboard
-- **Tab Admin**: Mở khóa bằng mã `hieulouisking`. Bao gồm:
-  - Hướng dẫn deploy relay server (Docker, Node.js, GHCR)
-  - Cấu hình client (ws:// vs wss://)
-  - HTTP API endpoints (health, status, leaderboard, player)
-  - Quản lý SQLite database (backup, restore, reset)
-  - **Cách thêm nhân vật mới** vào game (kích thước ảnh 256x256, nền trong suốt, vị trí file, edit CharacterData)
-  - Scale relay server, env vars, debug & monitoring
-  - Tìm & sửa lỗi thường gặp
-  - Build & release workflow
-
-### 🎁 Mở Rộng Mã Quà Tặng
-
-- `hieulouis99` - Mở khóa nhân vật **Hieu Louis - Classic** (cũ)
-- `hieulouisking` - Mở khóa **Admin Guide** trong mục Hướng Dẫn (mới)
-
-Hệ thống gift codes refactor thành `{type, value}`:
-- `type=character`: mở khóa nhân vật
-- `type=feature`: mở khóa tính năng đặc biệt
-
-### 🐛 FIX BUGS NGHIÊM TRỌNG
-
-- **Dart không va chạm remote_players**: thêm layer 64 (RemotePlayer) vào collision_mask + check group
-- **Teleport không kill remote_players**: thêm loop qua `remote_players` group trong `_check_teleport_kill`
-- **Remote_player thiếu method `take_damage_from`**: implement method với hit flash + death effect
-- **HUD combo_label bị ghi đè**: thêm flag `_combo_display_active` để tách biệt combo display và status display
-- **MainOnline._on_match_end không gọi end_match()**: fix để stop game tick + record stats
-- **Settings ONE_SHOT handlers leak**: cleanup trong `_exit_tree()`
-
-### 🎨 FIX: Sprite "Hieu Louis - Classic"
-
-Ảnh gốc 1024x1024 + nền tối → sprite mới 256x256 với:
-- Hacker hooded silhouette (dark green body)
-- Glowing green matrix-style eyes
-- Binary code snippets bay quanh
-- Vương miện vàng (Crown skill motif)
-- Nền trong suốt hoàn toàn
-
-### 🚀 NEW: Kill Streak Announcements
-
-- Track kill streak (5s window giữa mỗi kill)
-- Hiện announcement lớn ở giữa màn hình:
-  - ⚔ DOUBLE KILL! → 🔥 TRIPLE KILL! → 💥 QUADRA KILL! → 👑 PENTA KILL!
-  - 🚀 KILLING SPREE → 💀 UNSTOPPABLE → ⚡ GODLIKE
-- Reset streak khi player chết
-
-### 🎁 NEW: Daily Login Reward
-
-- Track số ngày liên tiếp đã chơi
-- Reward HP bonus: 5% max HP × streak (capped 30%)
-- Hiện popup "🎁 ĐĂNG NHẬP NGÀY N!" khi vào trận đầu tiên trong ngày
-- Track stats: total_matches, total_wins, total_kills
+Toàn bộ 14 UI files được redesign với:
+- **Color Palette**: Deep dark + Gold accent + Cyan + Purple
+- **StyleBoxFlat Buttons**: Rounded corners, gradient, hover glow, press feedback
+- **Font Shadows**: Tất cả labels có shadow tạo chiều sâu
+- **Panel Styling**: Semi-transparent dark + purple border + drop shadow
+- **Hover Effects**: Tween-based scale animation trên mọi button
+- **HP Bar**: Dynamic gradient (green → yellow → red)
+- **Kill Feed**: Fade-out messages mượt mà
 
 ---
 
-## 🆕 Tính Năng v2.1 — Hieu Louis - Classic + Online Fix + UI Redesign
+## 🥷 14 Nhân Vật Độc Đáo
 
-### 🔥 FIX CRITICAL: Online Mode Hoạt Động!
+| # | Tên | Loại | Đặc điểm | Kỹ năng riêng |
+|---|------|------|-----------|---------------|
+| 1 | Rồng Đỏ | Chiến Binh | +15 HP | Dash mạnh hơn 20% |
+| 2 | Phượng Xanh | Pháp Sư | +1 Phi tiêu | Multishot bắn 4 phi tiêu |
+| 3 | Hổ Vàng | Quyền Sư | +25 HP | Shield lâu hơn 50% |
+| 4 | Báo Lục | Sát Thủ | +20 Tốc độ | Dash cooldown giảm 30% |
+| 5 | Sói Tím | Chiến Binh | +10 HP, +5 Tốc độ | Dash để lại vệt tối |
+| 6 | Cáo Hồng | Pháp Sư | +1 Phi tiêu, +15 Tốc độ | Phi tiêu homing nhẹ |
+| 7 | Gấu Nâu | Quyền Sư | +30 HP | Shield phản damage 20% |
+| 8 | Diều Cam | Sát Thủ | +15 Tốc độ | Dash xuyên đối thủ |
+| 9 | Cọp Xanh | Chiến Binh | +10 HP, +10 Tốc độ | Dash tạo sóng nước |
+| 10 | Chồn Bạc | Sát Thủ | +25 Tốc độ | Dash 2 lần liên tiếp |
+| 11 | Thiên Long | Pháp Sư | +2 Phi tiêu | Multishot bắn 5 phi tiêu |
+| 12 | Hắc Vũ | Sát Thủ | +30 Tốc độ | Dash vô hình 1s |
+| 13 | Hieu Louis - Classic | Hacker | +500 HP, +50 Tốc độ, 100 Dart | Crown Skill + SMG + Spawn Invul 3s |
+| 14 | **Ma Tôn** | **Ma Tôn** | **+1000 HP, +80 Tốc độ, 200 Dart** | **Ma Tôn Quyền + Spawn Invul 5s** |
 
-- **Lỗi gốc**: `matchmaking_screen.gd` KHÔNG BAO GIỜ gọi `NetworkManager.join_matchmaking()` → user stuck "Đang tìm trận..." mãi mãi dù server online. Đã fix: tự động join queue khi login success, retry 5 lần nếu fail.
-- **Fix chồng lấn nút**: TeleportButton chồng lên SkillMultishotButton (overlap 110x60px). Đã reposition layout gọn hơn, không chồng lấn.
-- **Fix priority check**: Multishot được check trước Teleport → vùng overlap trigger sai nút. Đã đổi: Teleport check TRƯỚC skill buttons.
+### Mã Quà Tặng
 
-### 👑 Nhân Vật Mới: Hieu Louis - Classic
-
-Nhân vật đặc biệt "hacker huyền thoại" với bộ kỹ năng cực ngầu:
-
-- **Spawn Glitch 3s Bất Tử**: Khi vào trận, nhân vật bị glitch + tỏa ra các dòng code hacker (`0xCC`, `ROOT`, `BREACH`, `0xBEEF`...) trong 3 giây. Trong 3 giây đó là **bất tử**.
-- **Vô Hạn Đạn**: Không giới hạn số phi tiêu trên trường (max 999 darts).
-- **Không Cooldown Bắn**: Không bị giới hạn tần suất bắn liên tục.
-- **Máu Cực Nhiều**: HP bonus +500, thanh HP dài hơn nhân vật thường.
-- **Tốc Độ Cao**: +50 speed bonus.
-- **Teleport Cooldown Cực Thấp**: 0.05s thay vì 0.15s.
-- **Crown Skill (♛)**: Nút kỹ năng hình tròn có vương miện.
-  - Ghim 5 đối thủ gần nhất bằng phi tiêu
-  - +50% điểm trong thời gian ghim (8s)
-  - Cooldown 50 giây
-- **SMG Reward**: Khi giết đủ 50 mạng, nhận tiểu liên bắn rất nhanh, vô hạn đạn, tồn tại 20 giây.
-- **Vòng Tròn Đỏ Highlight**: Khi nút xoay (joystick/aim) chĩa đúng vào đối thủ nào, đối thủ đó sẽ hiện vòng tròn đỏ xung quanh để dễ bắn trúng hơn.
-
-**Cách mở khóa**: Vào Settings → Nhập Mã Quà Tặng → nhập `hieulouis99` → Đổi Mã.
-
-### 🎨 Redesign UI
-
-- **Menu chính**: Title 56px với glow shadow, gradient background, badges nổi bật.
-- **Settings**: Scroll container, section headers (🎨 Đồ Họa / 🔊 Âm Thanh / 🎁 Nhập Mã Quà Tặng / 🎛 Giao Diện), layout 2 cột cho toggles.
-- **Mode Select**: Button text lớn 24px, accents màu xanh dương.
-- **Mobile Controls**: Layout gọn, không chồng lấn. Teleport button tách biệt khỏi skill buttons.
-- **HUD**: Hiển thị trạng thái Crown/SMG/Spawn Invul realtime.
-
-### 🐛 Bug Fixes Khác
-
-- **Mobile controls**: Touch priority teleport > skill buttons (fix overlap)
-- **Network signals**: MatchmakingScreen cleanup `login_success` + `connection_error` handlers
-- **Auto-retry join matchmaking**: Nếu chưa vào queue sau 2s, tự retry (max 5 lần)
-- **Crown button visibility**: Chỉ hiện khi đang chơi Hieu Louis - Classic
-- **Target highlight**: Vòng tròn đỏ pulsing quanh đối thủ trong đường ngắm
-- **Character screen**: Hiển thị "Phi tiêu: VÔ HẠN" cho Classic, gợi ý mã quà tặng cho nhân vật chưa mở khóa
-
-### 📦 Version Bump
-- `project.godot`: config/version `2.0` → `2.1`
-- `export_presets.cfg`: version/code `20` → `21`, version/name `"2.0"` → `"2.1"`
-- `export_presets.cfg`: application/file_version + product_version `"2.0.0.0"` → `"2.1.0.0"`
-- `menu.gd`: version label `v2.0` → `v2.1`
-- New input action: `skill_crown` (phím C)
-
-### ✅ Verification
-- ✅ Matchmaking tự join queue khi vào màn hình
-- ✅ Teleport button không bị overlap với multishot
-- ✅ Hieu Louis - Classic spawn glitch effect hoạt động
-- ✅ Crown skill ghim 5 đối thủ + +50% điểm
-- ✅ SMG reward sau 50 kills
-- ✅ Target highlight vòng tròn đỏ
-- ✅ Gift code "hieulouis99" mở khóa nhân vật
-- ✅ UI redesign đẹp, chuyên nghiệp hơn
+| Mã | Mở khóa |
+|----|---------|
+| `hieulouis99` | Hieu Louis - Classic (id=13) |
+| `maton99` | **Ma Tôn** — Ma Vương Siêu Cấp (id=14) |
+| `hieulouisking` | Admin Guide trong Hướng Dẫn |
 
 ---
 
-## 🆕 Tính Năng v2.0 — Sửa Hết Regressions, Hoàn Thiện!
+## 🧟 Chế Độ Vượt Ải — 500 Level
 
-Bản v2.0 tập trung **so sánh toàn diện v1.6 vs v1.9**, sửa hết regressions và hoàn thiện mọi thứ.
+- 500 level với độ khó tăng dần
+- 3 loại zombie: Walker (chậm), Runner (nhanh), Brute (mạnh)
+- 15 kỹ năng mở khóa dần theo level
+- Đồ họa zombie đã được overhauled hoàn toàn (v2.7)
+- Horror sound effects đặc biệt
 
-### 🔥 Fix Blocker: Python Docstring Parse Error
+### 15 Kỹ Năng Vượt Ải
 
-`remote_player.gd` sử dụng `"""..."""` (Python docstring) — Godot 4.7 báo parse error. Online multiplayer **hoàn toàn broken** vì `remote_player.tscn` không load được. Đã fix bằng `## ...` (GDScript doc comment).
-
-### 🟡 Fix: Mid-Flight Hint Flicker
-
-Hint nhấp nháy vì luôn ẩn sau 1.5s kể cả khi phi tiêu vẫn bay. Đã restore logic v1.6 (check `_has_flying_darts()`).
-
-### 🟡 Fix: UX Regression — Extra Click cho Offline
-
-Nút "Chơi Ngay" giờ cần thêm 1 click (Mode Select). Đã cải thiện UX cho màn hình chọn chế độ.
-
-### 📋 Regression Audit Hoàn Chỉnh
-
-| Loại | Số lượng | Chi tiết |
-|------|----------|----------|
-| 🔴 Blocker | 1 | Python docstring parse error |
-| 🟡 Minor | 2 | Extra click; hint flicker |
-| 🟢 Bug fixes (genuine) | 10+ | is_instance_valid guards, respawn safety, etc. |
-| ✅ Unchanged | 11 scripts + 14 scenes | Core game không thay đổi |
-
-- **NetworkManager**: `get_latency()` luôn return 0; `_try_reconnect` stack-up timers; `disconnect_from_server()` không phân biệt user-initiated vs network-drop
-- **ModeSelect/Matchmaking/MainOnline**: Signal leaks khi rời scene → crash "Invalid access to freed instance"
-- **AIPlayer**: `_find_nearest_player` không check `is_instance_valid`; `target_player` không guard trong HUNTING/FLEEING; `kill()` respawn timer không guard
-- **Player**: `_die()` respawn timer không guard
-- **HUD**: Filter `ai_players` không check `is_instance_valid`; `_on_dart_thrown` lambda truy cập freed node
-- **Main/MainOnline**: Screen shake chia 0 khi `duration=0`
+| # | Kỹ năng | Mô tả | Unlock Level |
+|---|---------|-------|-------------|
+| 1 | Bắn nhanh | CD -50% 5s | 1 |
+| 2 | Hồi máu | +30 HP | 1 |
+| 3 | Khiên | Miễn damage 3s | 3 |
+| 4 | Multishot | 8s bắn 3 phi tiêu | 5 |
+| 5 | Đóng băng | Đóng băng zombie 2s | 8 |
+| 6 | Bomb | Nổ AOE | 12 |
+| 7 | Tăng tốc | Speed +50% 5s | 15 |
+| 8 | Xuyên phá | Phi tiêu xuyên zombie 8s | 20 |
+| 9 | Hút máu | +5 HP/kill 10s | 25 |
+| 10 | Chậm thời gian | Slow zombie 3s | 30 |
+| 11 | Tự tìm | Homing darts 8s | 40 |
+| 12 | Nổ dây chuyền | Chain explosion 8s | 50 |
+| 13 | Cuồng nộ | Damage x2 5s | 75 |
+| 14 | Nuke | Kill all zombies | 100 |
+| 15 | Bất tử | Invincible 5s | 150 |
 
 ---
-
-## 🆕 Tính Năng v1.7 — Chơi Online!
-
-### 🌐 Multiplayer Real-Time
-
-Bản v1.7 biến game thành **online multiplayer** với hệ thống matchmaking tự động:
-
-- **Mode Selection**: Ấn "Chơi Ngay" → chọn **Online** hoặc **Offline**
-- **Online**: Ghép trận 10-20 người chơi thật qua Relay Server
-- **Offline**: Chơi với AI bots như các bản trước
-- **Matchmaking**:
-  - Tối thiểu 10 người, tối đa 20 người mỗi phòng
-  - 30 giây timeout → tự thêm bot AI nếu chưa đủ 10 người
-  - 5 giây countdown trước khi trận bắt đầu
-- **State Sync**: Đồng bộ vị trí, HP, size, score, kills, darts, skills ở 20 ticks/giây
-- **Relay Server**: WebSocket server Node.js + SQLite database cho player stats
-
-### ⚡ GitHub Actions Parallel Builds
-
-Workflow build 3 nền tảng **song song** (Android, Windows, Linux) → tốc độ build tăng 2-3x:
-
-```
-┌─ Build Android ─┐
-├─ Build Windows ──┤  ← chạy đồng thời
-├─ Build Linux ────┤
-└─ Build Relay ────┘
-```
 
 ## 🎮 Cách Chơi
 
@@ -258,10 +147,6 @@ Workflow build 3 nền tảng **song song** (Android, Windows, Linux) → tốc 
 
 ### Relay Server
 
-Relay Server chạy trên VPS, xử lý:
-- **WebSocket** (port 25671): Game traffic real-time
-- **HTTP API** (port 25672): Health check, leaderboard, player stats
-
 ```
 API Endpoints:
   GET /health           → Server health check
@@ -273,40 +158,27 @@ API Endpoints:
 ### Deploy Relay Server
 
 ```bash
-# Dùng docker-compose
 docker-compose up -d
 
-# Hoặc pull image từ GHCR
+# Hoặc pull từ GHCR
 docker pull ghcr.io/mhieuhonda/phitieu-relay:latest
 docker run -d -p 25671:25671 -p 25672:25672 \
   -v phitieu-data:/app/data \
   ghcr.io/mhieuhonda/phitieu-relay:latest
 ```
 
-## 🥷 12 Nhân Vật Độc Đáo
+---
 
-| # | Tên | Loại | Đặc điểm | Kỹ năng riêng |
-|---|------|------|-----------|---------------|
-| 1 | Rồng Đỏ | Chiến Binh | +15 HP | Dash mạnh hơn 20% |
-| 2 | Phượng Xanh | Pháp Sư | +1 Phi tiêu | Multishot bắn 4 phi tiêu |
-| 3 | Hổ Vàng | Quyền Sư | +25 HP | Shield lâu hơn 50% |
-| 4 | Báo Lục | Sát Thủ | +20 Tốc độ | Dash cooldown giảm 30% |
-| 5 | Sói Tím | Chiến Binh | +10 HP, +5 Tốc độ | Dash để lại vệt tối |
-| 6 | Cáo Hồng | Pháp Sư | +1 Phi tiêu, +15 Tốc độ | Phi tiêu homing nhẹ |
-| 7 | Gấu Nâu | Quyền Sư | +30 HP | Shield phản damage 20% |
-| 8 | Diều Cam | Sát Thủ | +15 Tốc độ | Dash xuyên đối thủ |
-| 9 | Cọp Xanh | Chiến Binh | +10 HP, +10 Tốc độ | Dash tạo sóng nước |
-| 10 | Chồn Bạc | Sát Thủ | +25 Tốc độ | Dash 2 lần liên tiếp |
-| 11 | Thiên Long | Pháp Sư | +2 Phi tiêu | Multishot bắn 5 phi tiêu |
-| 12 | Hắc Vũ | Sát Thủ | +30 Tốc độ | Dash vô hình 1s |
-
-## 🛠️ Kỹ Năng
+## 🛠️ Kỹ Năng (Offline Mode)
 
 | Kỹ năng | Phím | Cooldown | Mô tả |
 |---------|------|----------|-------|
 | Dash | Q | 8s | Lao về phía trước với tốc độ cao |
 | Shield | E | 15s | Miễn damage trong 3 giây |
 | Multishot | Shift | 12s | Lần ném tiếp theo bắn 3 phi tiêu cùng lúc |
+| Crown | C | 50s | Ghim 5 đối thủ + +50% điểm (Classic only) |
+
+---
 
 ## 🕹️ Điều Khiển
 
@@ -319,6 +191,7 @@ docker run -d -p 25671:25671 -p 25672:25672 \
 | Q | Dash |
 | E | Shield |
 | Shift | Multishot |
+| C | Crown Skill (Classic only) |
 | R | Restart |
 | ESC | Quay lại menu |
 
@@ -327,6 +200,8 @@ docker run -d -p 25671:25671 -p 25672:25672 \
 - Nút Ném (phải): Nhắm & ném phi tiêu
 - Nút Dịch Chuyển: Dịch chuyển đến phi tiêu
 - Nút Dash / Shield / Multishot: Kỹ năng
+
+---
 
 ## 🏗️ Công Nghệ
 
@@ -338,54 +213,43 @@ docker run -d -p 25671:25671 -p 25672:25672 \
 - **Nền tảng**: Android, PC (Windows/Linux), Web
 - **CI/CD**: GitHub Actions — 3 parallel build jobs
 - **Container**: Docker + GHCR (GitHub Container Registry)
-- **Âm thanh**: 155+ sound effects + 5 nhạc nền
+- **Âm thanh**: 155+ sound effects + 5 nhạc nền + horror SFX
 - **Physics**: 7 collision layers (Player, Dart, Wall, AI, Obstacle, Pickup, RemotePlayer)
+- **I18N**: Tiếng Việt / English
+
+---
 
 ## 📁 Cấu Trúc Dự Án
 
 ```
 phitieudichchuyen/
 ├── .github/workflows/
-│   └── build-release.yml    # Parallel CI/CD (3 builds + relay + release)
+│   └── build-release.yml    # Parallel CI/CD
 ├── assets/
-│   ├── audio/               # 155+ SFX + 5 music
-│   └── sprites/characters/  # 12 characters + 10 AI sprites
+│   ├── audio/               # 155+ SFX + 5 music + horror SFX
+│   └── sprites/characters/  # 14 characters + 10 AI sprites
 ├── relay-server/
 │   ├── server.js            # WebSocket relay + matchmaking + SQLite
-│   ├── package.json         # Node.js dependencies
-│   ├── Dockerfile           # Docker image for VPS deployment
+│   ├── package.json
+│   ├── Dockerfile
 │   └── .dockerignore
-├── scenes/
-│   ├── main.tscn            # Offline game scene
-│   ├── main_online.tscn     # Online game scene
-│   ├── menu.tscn            # Main menu
-│   ├── mode_select.tscn     # Online/Offline selection
-│   ├── matchmaking.tscn     # Matchmaking screen
-│   ├── remote_player.tscn   # Remote player entity
-│   ├── player.tscn, ai_player.tscn, dart.tscn, ...
-│   └── hud.tscn, map.tscn, ...
-├── scripts/
-│   ├── network_manager.gd   # Network autoload (WebSocket client)
-│   ├── main_online.gd       # Online game logic
-│   ├── mode_select.gd       # Mode selection logic
-│   ├── matchmaking_screen.gd# Matchmaking UI logic
-│   ├── remote_player.gd     # Remote player logic
-│   ├── game_manager.gd, player.gd, ai_player.gd, ...
-│   └── audio_manager.gd, settings_manager.gd, ...
-├── docker-compose.yml       # VPS deployment
-├── project.godot            # Godot 4.7 config (v1.7)
-├── export_presets.cfg       # Export Android / Windows / Linux
+├── scenes/                  # 20+ scene files
+├── scripts/                 # 20+ GDScript files
+├── docker-compose.yml
+├── project.godot            # Godot 4.7 config (v2.7)
+├── export_presets.cfg
 ├── icon.svg
 ├── LICENSE
 ├── README.md
 └── CHANGELOG.md
 ```
 
+---
+
 ## 🚀 Cài Đặt & Chạy
 
 ### Yêu cầu
 - Godot 4.7 stable (hoặc mới hơn)
-- Nền tảng: Windows / macOS / Linux / Android
 
 ### Chạy từ source
 ```bash
@@ -397,7 +261,7 @@ cd phitieudichchuyen
 
 ### Export
 1. Mở project trong Godot 4.7
-2. Project → Export → Add platform (đã có sẵn preset Android, Windows, Linux)
+2. Project → Export → Add platform
 3. Bấm Export Project
 
 ### Chạy Relay Server (local test)
@@ -409,37 +273,45 @@ node server.js
 # HTTP API: http://localhost:25672/health
 ```
 
+---
+
 ## 📜 Lịch Sử Phiên Bản
 
+### v2.7 (2026-08-04) — Ma Tôn + Bug Fixes + Zombie Overhaul + Premium UI
+- **NEW**: Nhân vật Ma Tôn — Ma Vương Siêu Cấp (khắc chế Classic)
+- **NEW**: Gift code `maton99` mở khóa Ma Tôn
+- **FIX**: 6 bugs nghiêm trọng (level softlock, pickup collision, stale killer, invincibility leak, missing method, dart crash)
+- **VISUAL**: Zombie graphics overhaul — 6 hệ thống visual mới
+- **VISUAL**: Premium UI redesign — 14 files, dark luxury theme
+
+### v2.6 (2026-08-04) — Coolify Deployment Fix
+- Fix Docker HEALTHCHECK --start-period
+- Fix Git repo URL format cho Coolify
+
+### v2.4 (2026-08-04) — Endless Mode + I18N
+- Chế độ Vượt Ải (500 level, 15 skills)
+- Đa ngôn ngữ Tiếng Việt / English
+- Horror sound effects cho zombie mode
+
+### v2.2 (2026-08-04) — Fix Online + Kill Streaks + Daily Login
+- Fix online mode, kill streak announcements
+- Daily login reward, gift code system
+
+### v2.1 (2026-08-03) — Hieu Louis - Classic
+- Nhân vật đặc biệt + Crown Skill + SMG Reward
+- Gift code `hieulouis99`
+
+### v2.0 (2026-08-03) — Regression Fixes
+- Fix Python docstring parse error
+- Full regression audit
+
 ### v1.7 (2026-08-03) — Online Multiplayer
-- **NEW**: Chơi Online qua WebSocket Relay Server
-- **NEW**: Matchmaking 10-20 người, 30s timeout, bot AI fill
-- **NEW**: Mode Selection (Online / Offline)
-- **NEW**: GitHub Actions parallel builds (3x faster)
-- **NEW**: Relay Server (Node.js + SQLite) Docker deployment
-
-### v1.6 (2026-08-03) — Modern GDScript Cleanup
-- Modern hoá 45+ `emit_signal()` → `.emit()`
-- Fix collision_mask sync, dead input actions, AudioManager cleanup
-
-### v1.5 (2026-08-03) — Rà Soát Toàn Diện
-- Fix Python docstring, skill_cooldowns init, AI group, AI size bug
-
-### v1.4 (2026-08-03) — Clean Sweep
-- Fix `set_deferred`, AI pickup HP, AudioManager API
-
-### v1.3 (2026-08-03) — UI Customization
-- Fix class_name conflict, kéo thả 6 nút bấm
-
-### v1.2 (2026-08-03) — 12 Nhân Vật
-- Character selection, bonus stats, sprite đẹp
-
-### v1.1 (2026-08-03) — Bug Fixes
-- Fix sprite scale, collision, teleport, speed
+- WebSocket multiplayer, matchmaking, relay server
 
 ### v1.0 (2026) — Initial Release
-- Ném phi tiêu + Dịch chuyển + Ăn đối thủ
-- AI + Vòng bo + Leaderboard + 155+ SFX
+- Ném phi tiêu + Dịch chuyển + Ăn đối thủ + 12 nhân vật
+
+---
 
 ## 📄 Giấy Phép
 
@@ -448,5 +320,5 @@ Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 ---
 
 <p align="center">
-  <b>Phi Tiêu Dịch Chuyển</b> — Ném phi tiêu, dịch chuyển, nuốt đối thủ!
+  <b>Phi Tiêu Dịch Chuyển v2.7</b> — Ném phi tiêu, dịch chuyển, nuốt đối thủ!
 </p>

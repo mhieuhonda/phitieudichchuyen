@@ -49,180 +49,191 @@ var _fixed_x: float = 0.0  # X cố định (đường thẳng)
 @onready var muzzle: Marker2D = $Muzzle
 
 func _ready():
-	add_to_group("players")
-	hp = max_hp
-	hp_bar.max_value = max_hp
-	hp_bar.value = hp
-	shield_sprite.visible = false
-	emit_signal("hp_changed", hp, max_hp)
+        add_to_group("players")
+        hp = max_hp
+        hp_bar.max_value = max_hp
+        hp_bar.value = hp
+        shield_sprite.visible = false
+        hp_changed.emit(hp, max_hp)
 
 func _physics_process(delta: float):
-	if not is_alive:
-		return
-	# Cập nhật timers skill
-	_update_skill_timers(delta)
-	# Di chuyển dọc trục Y dựa trên joystick (lên = -Y, xuống = +Y)
-	# Chỉ cho phép đi lên (forward) + đi lùi (backward) trong khoảng giới hạn
-	var move_y := 0.0
-	if _joystick_output.length() > 0.1:
-		# Dùng thành phần Y của joystick (âm = lên, dương = xuống)
-		move_y = _joystick_output.y * move_speed * speed_mult * delta
-	var new_y = global_position.y + move_y
-	new_y = clamp(new_y, _y_upper_limit, _y_lower_limit)
-	global_position.y = new_y
-	global_position.x = _fixed_x  # Khóa X
-	# Tự động ném phi tiêu lên trên theo cooldown
-	_throw_timer -= delta
-	if _throw_timer <= 0.0:
-		_throw_darts()
-		_throw_timer = base_throw_cooldown * throw_cooldown_mult
+        if not is_alive:
+                return
+        # Cập nhật timers skill
+        _update_skill_timers(delta)
+        # Di chuyển dọc trục Y dựa trên joystick (lên = -Y, xuống = +Y)
+        # Chỉ cho phép đi lên (forward) + đi lùi (backward) trong khoảng giới hạn
+        var move_y := 0.0
+        if _joystick_output.length() > 0.1:
+                # Dùng thành phần Y của joystick (âm = lên, dương = xuống)
+                move_y = _joystick_output.y * move_speed * speed_mult * delta
+        var new_y = global_position.y + move_y
+        new_y = clamp(new_y, _y_upper_limit, _y_lower_limit)
+        global_position.y = new_y
+        global_position.x = _fixed_x  # Khóa X
+        # Tự động ném phi tiêu lên trên theo cooldown
+        _throw_timer -= delta
+        if _throw_timer <= 0.0:
+                _throw_darts()
+                _throw_timer = base_throw_cooldown * throw_cooldown_mult
 
 func _update_skill_timers(delta: float):
-	if invincible_remaining > 0:
-		invincible_remaining = max(0.0, invincible_remaining - delta)
-		shield_sprite.visible = invincible_remaining > 0
-	if multishot_remaining > 0:
-		multishot_remaining = max(0.0, multishot_remaining - delta)
-	if pierce_remaining > 0:
-		pierce_remaining = max(0.0, pierce_remaining - delta)
-	if homing_remaining > 0:
-		homing_remaining = max(0.0, homing_remaining - delta)
-	if life_steal_remaining > 0:
-		life_steal_remaining = max(0.0, life_steal_remaining - delta)
-	if explosion_remaining > 0:
-		explosion_remaining = max(0.0, explosion_remaining - delta)
+        if invincible_remaining > 0:
+                invincible_remaining = max(0.0, invincible_remaining - delta)
+                shield_sprite.visible = invincible_remaining > 0
+        if multishot_remaining > 0:
+                multishot_remaining = max(0.0, multishot_remaining - delta)
+        if pierce_remaining > 0:
+                pierce_remaining = max(0.0, pierce_remaining - delta)
+        if homing_remaining > 0:
+                homing_remaining = max(0.0, homing_remaining - delta)
+        if life_steal_remaining > 0:
+                life_steal_remaining = max(0.0, life_steal_remaining - delta)
+        if explosion_remaining > 0:
+                explosion_remaining = max(0.0, explosion_remaining - delta)
 
 ## Thiết lập joystick output (gọi từ endless_mode)
 func set_joystick_output(output: Vector2):
-	_joystick_output = output
+        _joystick_output = output
 
 ## Ném phi tiêu lên trên
 func _throw_darts():
-	var dart_count := 1
-	if multishot_remaining > 0:
-		dart_count = 3
-	var base_angle := -PI / 2.0  # Hướng lên trên
-	for i in dart_count:
-		var dart = _dart_scene.instantiate()
-		var spread := 0.0
-		if dart_count > 1:
-			spread = (i - (dart_count - 1) / 2.0) * 0.18
-		var angle = base_angle + spread
-		var dir = Vector2(cos(angle), sin(angle))
-		get_parent().add_child(dart)
-		dart.global_position = muzzle.global_position
-		dart.setup(dir, dart_speed, dart_damage * damage_mult, self)
-		# Tag dart với pierce/homing/explosion
-		if pierce_remaining > 0:
-			dart.set_pierce(true)
-		if homing_remaining > 0:
-			dart.set_homing(true)
-		if explosion_remaining > 0:
-			dart.set_explosion(true)
-	if AudioManager:
-		AudioManager.play_throw()
+        var dart_count := 1
+        if multishot_remaining > 0:
+                dart_count = 3
+        var base_angle := -PI / 2.0  # Hướng lên trên
+        for i in dart_count:
+                var dart = _dart_scene.instantiate()
+                var spread := 0.0
+                if dart_count > 1:
+                        spread = (i - (dart_count - 1) / 2.0) * 0.18
+                var angle = base_angle + spread
+                var dir = Vector2(cos(angle), sin(angle))
+                get_parent().add_child(dart)
+                dart.global_position = muzzle.global_position
+                dart.setup(dir, dart_speed, dart_damage * damage_mult, self)
+                # Tag dart với pierce/homing/explosion
+                if pierce_remaining > 0:
+                        dart.set_pierce(true)
+                if homing_remaining > 0:
+                        dart.set_homing(true)
+                if explosion_remaining > 0:
+                        dart.set_explosion(true)
+        if AudioManager:
+                AudioManager.play_throw()
 
 ## Nhận damage từ zombie
 func take_damage(amount: float):
-	if not is_alive:
-		return
-	if invincible_remaining > 0:
-		return  # Bất tử / Khiên
-	hp = max(0.0, hp - amount)
-	hp_bar.value = hp
-	emit_signal("hp_changed", hp, max_hp)
-	# Hit flash effect
-	_flash_hit()
-	if AudioManager:
-		AudioManager.play_damage()
-	if hp <= 0:
-		_die()
+        if not is_alive:
+                return
+        if invincible_remaining > 0:
+                return  # Bất tử / Khiên
+        hp = max(0.0, hp - amount)
+        hp_bar.value = hp
+        hp_changed.emit(hp, max_hp)
+        # Hit flash effect
+        _flash_hit()
+        if AudioManager:
+                AudioManager.play_damage()
+        if hp <= 0:
+                _die()
 
 func _flash_hit():
-	var tween = create_tween()
-	tween.tween_property(body_rect, "modulate", Color(1.0, 0.3, 0.3, 1.0), 0.08)
-	tween.tween_property(body_rect, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.12)
+        var tween = create_tween()
+        tween.tween_property(body_rect, "modulate", Color(1.0, 0.3, 0.3, 1.0), 0.08)
+        tween.tween_property(body_rect, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.12)
 
 func _die():
-	if not is_alive:
-		return
-	is_alive = false
-	if AudioManager:
-		AudioManager.play_death()
-	emit_signal("player_died")
+        if not is_alive:
+                return
+        is_alive = false
+        if AudioManager:
+                AudioManager.play_death()
+        player_died.emit()
 
 ## Hồi máu (HEAL skill)
 func heal(amount: float):
-	hp = min(max_hp, hp + amount)
-	hp_bar.value = hp
-	emit_signal("hp_changed", hp, max_hp)
-	if AudioManager:
-		AudioManager.play_pickup_health()
+        hp = min(max_hp, hp + amount)
+        hp_bar.value = hp
+        hp_changed.emit(hp, max_hp)
+        if AudioManager:
+                AudioManager.play_pickup_health()
 
 ## === SKILL ACTIVATION (gọi từ skills_hub) ===
 
 func activate_quick_shot():
-	throw_cooldown_mult = 0.5
+        throw_cooldown_mult = 0.5
 
 func activate_heal():
-	heal(30.0)
+        heal(30.0)
 
 func activate_shield(duration: float = 3.0):
-	invincible_remaining = max(invincible_remaining, duration)
+        invincible_remaining = max(invincible_remaining, duration)
 
 func activate_multishot(duration: float = 8.0):
-	multishot_remaining = duration
+        multishot_remaining = duration
 
 func activate_freeze(_duration: float = 2.0):
-	# Freeze được xử lý ở endless_mode (apply cho tất cả zombie)
-	pass
+        # Freeze được xử lý ở endless_mode (apply cho tất cả zombie)
+        pass
 
 func activate_bomb(_radius: float = 200.0, _damage: float = 80.0):
-	# Bomb được xử lý ở endless_mode
-	pass
+        # Bomb được xử lý ở endless_mode
+        pass
 
 func activate_speed_boost(duration: float = 5.0):
-	speed_mult = 1.5
-	await get_tree().create_timer(duration).timeout
-	speed_mult = 1.0
+        speed_mult = 1.5
+        await get_tree().create_timer(duration).timeout
+        if not is_instance_valid(self):
+                return
+        speed_mult = 1.0
 
 func activate_pierce(duration: float = 8.0):
-	pierce_remaining = duration
+        pierce_remaining = duration
 
 func activate_life_steal(duration: float = 10.0):
-	life_steal_remaining = duration
+        life_steal_remaining = duration
 
 func activate_slow_time(_duration: float = 3.0):
-	# Slow time được xử lý ở endless_mode
-	pass
+        # Slow time được xử lý ở endless_mode
+        pass
 
 func activate_homing(duration: float = 8.0):
-	homing_remaining = duration
+        homing_remaining = duration
 
 func activate_explosion(duration: float = 8.0):
-	explosion_remaining = duration
+        explosion_remaining = duration
 
 func activate_berserk(duration: float = 5.0):
-	damage_mult = 2.0
-	await get_tree().create_timer(duration).timeout
-	damage_mult = 1.0
+        damage_mult = 2.0
+        await get_tree().create_timer(duration).timeout
+        if not is_instance_valid(self):
+                return
+        damage_mult = 1.0
 
 func activate_invincible(duration: float = 5.0):
-	invincible_remaining = max(invincible_remaining, duration)
+        invincible_remaining = max(invincible_remaining, duration)
 
 ## Reset skill states khi bắt đầu level mới
 func reset_temporary_skills():
-	multishot_remaining = 0.0
-	pierce_remaining = 0.0
-	homing_remaining = 0.0
-	life_steal_remaining = 0.0
-	explosion_remaining = 0.0
-	throw_cooldown_mult = 1.0
-	damage_mult = 1.0
-	speed_mult = 1.0
+        multishot_remaining = 0.0
+        pierce_remaining = 0.0
+        homing_remaining = 0.0
+        life_steal_remaining = 0.0
+        explosion_remaining = 0.0
+        throw_cooldown_mult = 1.0
+        damage_mult = 1.0
+        speed_mult = 1.0
+        invincible_remaining = 0.0
+        if shield_sprite:
+                shield_sprite.visible = false
 
 ## Khôi phục full HP (khi qua ải)
+func refill_darts(bonus: int, duration: float):
+        ## Pickup dart refill - heal slightly (endless mode has infinite darts)
+        heal(15.0)
+
 func full_heal():
-	hp = max_hp
-	hp_bar.value = hp
-	emit_signal("hp_changed", hp, max_hp)
+        hp = max_hp
+        hp_bar.value = hp
+        hp_changed.emit(hp, max_hp)

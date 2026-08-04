@@ -26,9 +26,51 @@ func _ready():
         for btn in [back_button, tab_player_button, tab_admin_button]:
                 if btn:
                         btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+        # Apply premium styling
+        _apply_premium_styling()
         # Mặc định hiển thị tab Player
         _switch_tab(TAB_PLAYER)
         AudioManager.play_music("menu")
+
+func _apply_premium_styling():
+        # Style back button
+        var back_style = StyleBoxFlat.new()
+        back_style.bg_color = Color(0.08, 0.08, 0.1, 0.8)
+        back_style.corner_radius_top_left = 6
+        back_style.corner_radius_top_right = 6
+        back_style.corner_radius_bottom_left = 6
+        back_style.corner_radius_bottom_right = 6
+        back_style.border_color = Color(0.35, 0.35, 0.45, 0.25)
+        back_style.border_width_top = 1
+        back_style.border_width_bottom = 1
+        back_style.border_width_left = 1
+        back_style.border_width_right = 1
+        if back_button:
+                back_button.add_theme_stylebox_override("normal", back_style)
+        # Style tab buttons
+        for btn in [tab_player_button, tab_admin_button]:
+                if not btn:
+                        continue
+                var style_n = StyleBoxFlat.new()
+                style_n.bg_color = Color(0.06, 0.06, 0.1, 0.85)
+                style_n.corner_radius_top_left = 8
+                style_n.corner_radius_top_right = 8
+                style_n.corner_radius_bottom_left = 8
+                style_n.corner_radius_bottom_right = 8
+                style_n.border_color = Color(0.3, 0.25, 0.5, 0.25)
+                style_n.border_width_top = 1
+                style_n.border_width_bottom = 1
+                style_n.border_width_left = 1
+                style_n.border_width_right = 1
+                style_n.content_margin_top = 4
+                style_n.content_margin_bottom = 4
+                style_n.content_margin_left = 10
+                style_n.content_margin_right = 10
+                var style_h = style_n.duplicate()
+                style_h.bg_color = Color(0.1, 0.08, 0.18, 0.9)
+                style_h.border_color = Color(0.5, 0.4, 0.8, 0.4)
+                btn.add_theme_stylebox_override("normal", style_n)
+                btn.add_theme_stylebox_override("hover", style_h)
 
 func _switch_tab(tab: String):
         _current_tab = tab

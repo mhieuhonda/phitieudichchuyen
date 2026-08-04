@@ -21,134 +21,185 @@ var _join_attempts: int = 0
 var _wait_timer: float = 0.0
 
 func _ready():
-	cancel_button.pressed.connect(_on_cancel_pressed)
-	cancel_button.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+        cancel_button.pressed.connect(_on_cancel_pressed)
+        cancel_button.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-	# Connect network signals
-	NetworkManager.matchmaking_update.connect(_on_matchmaking_update)
-	NetworkManager.matchmaking_found.connect(_on_match_found)
-	NetworkManager.matchmaking_timeout.connect(_on_matchmaking_timeout)
-	NetworkManager.match_countdown.connect(_on_match_countdown)
-	NetworkManager.match_start.connect(_on_match_start)
-	NetworkManager.login_success.connect(_on_login_success)
-	NetworkManager.connection_error.connect(_on_connection_error)
+        # Connect network signals
+        NetworkManager.matchmaking_update.connect(_on_matchmaking_update)
+        NetworkManager.matchmaking_found.connect(_on_match_found)
+        NetworkManager.matchmaking_timeout.connect(_on_matchmaking_timeout)
+        NetworkManager.match_countdown.connect(_on_match_countdown)
+        NetworkManager.match_start.connect(_on_match_start)
+        NetworkManager.login_success.connect(_on_login_success)
+        NetworkManager.connection_error.connect(_on_connection_error)
 
-	status_label.text = "Đang kết nối đến server..."
-	queue_label.text = ""
-	countdown_label.text = ""
-	# Pulse the status label as a "searching" indicator (no AnimationPlayer needed)
-	var tween := create_tween().set_loops()
-	tween.tween_property(status_label, "modulate:a", 0.4, 0.6).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(status_label, "modulate:a", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
+        status_label.text = "Đang kết nối đến server..."
+        queue_label.text = ""
+        countdown_label.text = ""
+        # Pulse the status label as a "searching" indicator (no AnimationPlayer needed)
+        var tween := create_tween().set_loops()
+        tween.tween_property(status_label, "modulate:a", 0.4, 0.6).set_trans(Tween.TRANS_SINE)
+        tween.tween_property(status_label, "modulate:a", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
 
-	# v2.1 FIX: Đảm bảo đã login trước khi join queue. Nếu chưa login, đợi login_success.
-	# Trước đây user vào màn hình này mà KHÔNG BAO GIỜ gửi matchmaking_join → kẹt forever.
-	_try_join_matchmaking()
+        # Apply premium styling
+        _apply_premium_styling()
+
+        # v2.1 FIX: Đảm bảo đã login trước khi join queue. Nếu chưa login, đợi login_success.
+        # Trước đây user vào màn hình này mà KHÔNG BAO GIỜ gửi matchmaking_join → kẹt forever.
+        _try_join_matchmaking()
+
+func _apply_premium_styling():
+        # Style panel
+        var panel = $CenterContainer/PanelContainer
+        if panel:
+                var style = StyleBoxFlat.new()
+                style.bg_color = Color(0.06, 0.06, 0.12, 0.92)
+                style.border_color = Color(0.3, 0.25, 0.5, 0.4)
+                style.border_width_top = 2
+                style.border_width_bottom = 2
+                style.border_width_left = 2
+                style.border_width_right = 2
+                style.corner_radius_top_left = 16
+                style.corner_radius_top_right = 16
+                style.corner_radius_bottom_left = 16
+                style.corner_radius_bottom_right = 16
+                style.shadow_color = Color(0, 0, 0, 0.5)
+                style.shadow_size = 12
+                style.content_margin_top = 24
+                style.content_margin_bottom = 24
+                style.content_margin_left = 32
+                style.content_margin_right = 32
+                panel.add_theme_stylebox_override("panel", style)
+        # Style cancel button
+        if cancel_button:
+                var style_n = StyleBoxFlat.new()
+                style_n.bg_color = Color(0.12, 0.06, 0.06, 0.85)
+                style_n.corner_radius_top_left = 10
+                style_n.corner_radius_top_right = 10
+                style_n.corner_radius_bottom_left = 10
+                style_n.corner_radius_bottom_right = 10
+                style_n.border_color = Color(0.7, 0.3, 0.3, 0.3)
+                style_n.border_width_top = 1
+                style_n.border_width_bottom = 1
+                style_n.border_width_left = 1
+                style_n.border_width_right = 1
+                style_n.content_margin_top = 8
+                style_n.content_margin_bottom = 8
+                style_n.content_margin_left = 16
+                style_n.content_margin_right = 16
+                style_n.shadow_color = Color(0, 0, 0, 0.3)
+                style_n.shadow_size = 4
+                style_n.shadow_offset = Vector2(0, 2)
+                var style_h = style_n.duplicate()
+                style_h.bg_color = Color(0.18, 0.08, 0.08, 0.9)
+                style_h.border_color = Color(0.8, 0.35, 0.35, 0.5)
+                cancel_button.add_theme_stylebox_override("normal", style_n)
+                cancel_button.add_theme_stylebox_override("hover", style_h)
 
 func _exit_tree():
-	# v1.9 FIX: disconnect network signal handlers so they don't fire on freed scene
-	if NetworkManager.matchmaking_update.is_connected(_on_matchmaking_update):
-		NetworkManager.matchmaking_update.disconnect(_on_matchmaking_update)
-	if NetworkManager.matchmaking_found.is_connected(_on_match_found):
-		NetworkManager.matchmaking_found.disconnect(_on_match_found)
-	if NetworkManager.matchmaking_timeout.is_connected(_on_matchmaking_timeout):
-		NetworkManager.matchmaking_timeout.disconnect(_on_matchmaking_timeout)
-	if NetworkManager.match_countdown.is_connected(_on_match_countdown):
-		NetworkManager.match_countdown.disconnect(_on_match_countdown)
-	if NetworkManager.match_start.is_connected(_on_match_start):
-		NetworkManager.match_start.disconnect(_on_match_start)
-	if NetworkManager.login_success.is_connected(_on_login_success):
-		NetworkManager.login_success.disconnect(_on_login_success)
-	if NetworkManager.connection_error.is_connected(_on_connection_error):
-		NetworkManager.connection_error.disconnect(_on_connection_error)
+        # v1.9 FIX: disconnect network signal handlers so they don't fire on freed scene
+        if NetworkManager.matchmaking_update.is_connected(_on_matchmaking_update):
+                NetworkManager.matchmaking_update.disconnect(_on_matchmaking_update)
+        if NetworkManager.matchmaking_found.is_connected(_on_match_found):
+                NetworkManager.matchmaking_found.disconnect(_on_match_found)
+        if NetworkManager.matchmaking_timeout.is_connected(_on_matchmaking_timeout):
+                NetworkManager.matchmaking_timeout.disconnect(_on_matchmaking_timeout)
+        if NetworkManager.match_countdown.is_connected(_on_match_countdown):
+                NetworkManager.match_countdown.disconnect(_on_match_countdown)
+        if NetworkManager.match_start.is_connected(_on_match_start):
+                NetworkManager.match_start.disconnect(_on_match_start)
+        if NetworkManager.login_success.is_connected(_on_login_success):
+                NetworkManager.login_success.disconnect(_on_login_success)
+        if NetworkManager.connection_error.is_connected(_on_connection_error):
+                NetworkManager.connection_error.disconnect(_on_connection_error)
 
 func _process(delta: float) -> void:
-	_wait_timer += delta
-	# Hiện gợi ý nếu đợi quá lâu
-	if _wait_timer > 8.0 and not _is_counting_down:
-		queue_label.text = "Đang chờ người chơi khác join...\n(Trận sẽ bắt đầu khi đủ 10 người hoặc sau 30s)"
-	# Retry join matchmaking nếu chưa vào queue (server có thể chưa nhận msg trước)
-	if NetworkManager.is_logged_in() and not NetworkManager.is_in_matchmaking() and not NetworkManager.is_in_match():
-		_join_retry_timer += delta
-		if _join_retry_timer >= 2.0 and _join_attempts < 5:
-			_join_retry_timer = 0.0
-			_join_attempts += 1
-			_do_join_matchmaking()
+        _wait_timer += delta
+        # Hiện gợi ý nếu đợi quá lâu
+        if _wait_timer > 8.0 and not _is_counting_down:
+                queue_label.text = "Đang chờ người chơi khác join...\n(Trận sẽ bắt đầu khi đủ 10 người hoặc sau 30s)"
+        # Retry join matchmaking nếu chưa vào queue (server có thể chưa nhận msg trước)
+        if NetworkManager.is_logged_in() and not NetworkManager.is_in_matchmaking() and not NetworkManager.is_in_match():
+                _join_retry_timer += delta
+                if _join_retry_timer >= 2.0 and _join_attempts < 5:
+                        _join_retry_timer = 0.0
+                        _join_attempts += 1
+                        _do_join_matchmaking()
 
 func _try_join_matchmaking():
-	# Nếu đã login, join ngay. Nếu chưa, đợi login_success signal.
-	if NetworkManager.is_logged_in():
-		_do_join_matchmaking()
-	else:
-		# Đảm bảo đã connect & login
-		if not NetworkManager.is_server_connected():
-			status_label.text = "Đang kết nối đến server..."
-			NetworkManager.connect_to_server()
-			# Login sẽ được mode_select tự gọi khi connect thành công,
-			# nhưng nếu user vào thẳng matchmaking thì tự login:
-			NetworkManager.connected_to_server.connect(func():
-				if not NetworkManager.is_logged_in():
-					var pname = "Player"
-					if CharacterData:
-						pname = CharacterData.get_selected().get("name", "Player")
-					NetworkManager.login(pname, CharacterData.selected_character_id if CharacterData else 0)
-			, CONNECT_ONE_SHOT)
-		status_label.text = "Đang chờ đăng nhập..."
+        # Nếu đã login, join ngay. Nếu chưa, đợi login_success signal.
+        if NetworkManager.is_logged_in():
+                _do_join_matchmaking()
+        else:
+                # Đảm bảo đã connect & login
+                if not NetworkManager.is_server_connected():
+                        status_label.text = "Đang kết nối đến server..."
+                        NetworkManager.connect_to_server()
+                        # Login sẽ được mode_select tự gọi khi connect thành công,
+                        # nhưng nếu user vào thẳng matchmaking thì tự login:
+                        NetworkManager.connected_to_server.connect(func():
+                                if not NetworkManager.is_logged_in():
+                                        var pname = "Player"
+                                        if CharacterData:
+                                                pname = CharacterData.get_selected().get("name", "Player")
+                                        NetworkManager.login(pname, CharacterData.selected_character_id if CharacterData else 0)
+                        , CONNECT_ONE_SHOT)
+                status_label.text = "Đang chờ đăng nhập..."
 
 func _do_join_matchmaking():
-	if not NetworkManager.is_logged_in():
-		return
-	if NetworkManager.is_in_matchmaking() or NetworkManager.is_in_match():
-		return
-	var pname = "Player"
-	var char_id = 0
-	if CharacterData:
-		pname = CharacterData.get_selected().get("name", "Player")
-		char_id = CharacterData.selected_character_id
-	NetworkManager.join_matchmaking(pname, char_id)
-	status_label.text = "Đang tìm trận..."
-	queue_label.text = "Đang chờ thông tin từ server..."
+        if not NetworkManager.is_logged_in():
+                return
+        if NetworkManager.is_in_matchmaking() or NetworkManager.is_in_match():
+                return
+        var pname = "Player"
+        var char_id = 0
+        if CharacterData:
+                pname = CharacterData.get_selected().get("name", "Player")
+                char_id = CharacterData.selected_character_id
+        NetworkManager.join_matchmaking(pname, char_id)
+        status_label.text = "Đang tìm trận..."
+        queue_label.text = "Đang chờ thông tin từ server..."
 
 func _on_login_success(player_id: String):
-	# Khi login xong, join matchmaking ngay
-	_do_join_matchmaking()
+        # Khi login xong, join matchmaking ngay
+        _do_join_matchmaking()
 
 func _on_connection_error(error_msg: String):
-	status_label.text = "❌ Lỗi kết nối: %s" % error_msg
-	status_label.modulate.a = 1.0
-	queue_label.text = "Đang thử kết nối lại..."
+        status_label.text = "❌ Lỗi kết nối: %s" % error_msg
+        status_label.modulate.a = 1.0
+        queue_label.text = "Đang thử kết nối lại..."
 
 func _on_cancel_pressed():
-	AudioManager.play_cancel()
-	if NetworkManager.is_in_matchmaking():
-		NetworkManager.leave_matchmaking()
-	get_tree().change_scene_to_file("res://scenes/mode_select.tscn")
+        AudioManager.play_cancel()
+        if NetworkManager.is_in_matchmaking():
+                NetworkManager.leave_matchmaking()
+        get_tree().change_scene_to_file("res://scenes/mode_select.tscn")
 
 func _on_matchmaking_update(queue_size: int, min_players: int, max_players: int):
-	queue_label.text = "Người chơi: %d / %d (tối đa %d)" % [queue_size, min_players, max_players]
-	status_label.text = "Đang tìm trận..."
-	_wait_timer = 0.0  # Reset wait timer khi có update
+        queue_label.text = "Người chơi: %d / %d (tối đa %d)" % [queue_size, min_players, max_players]
+        status_label.text = "Đang tìm trận..."
+        _wait_timer = 0.0  # Reset wait timer khi có update
 
 func _on_match_found(room_id: String, player_count: int, bot_count: int, total_players: int):
-	status_label.text = "✅ Tìm thấy trận!"
-	queue_label.text = "%d người chơi + %d bot = %d tổng" % [player_count, bot_count, total_players]
-	status_label.modulate.a = 1.0  # ensure visible after pulse loop
-	AudioManager.play_success()
+        status_label.text = "✅ Tìm thấy trận!"
+        queue_label.text = "%d người chơi + %d bot = %d tổng" % [player_count, bot_count, total_players]
+        status_label.modulate.a = 1.0  # ensure visible after pulse loop
+        AudioManager.play_success()
 
 func _on_matchmaking_timeout(message: String):
-	status_label.text = message
-	queue_label.text = "Đang thêm bot AI..."
-	AudioManager.play_notification()
+        status_label.text = message
+        queue_label.text = "Đang thêm bot AI..."
+        AudioManager.play_notification()
 
 func _on_match_countdown(seconds: int):
-	_is_counting_down = true
-	_countdown_seconds = seconds
-	countdown_label.text = "Bắt đầu sau: %d..." % seconds
-	status_label.text = "Trận bắt đầu!"
-	status_label.modulate.a = 1.0  # ensure visible after pulse loop
-	AudioManager.play_confirm()
+        _is_counting_down = true
+        _countdown_seconds = seconds
+        countdown_label.text = "Bắt đầu sau: %d..." % seconds
+        status_label.text = "Trận bắt đầu!"
+        status_label.modulate.a = 1.0  # ensure visible after pulse loop
+        AudioManager.play_confirm()
 
 func _on_match_start(data: Dictionary):
-	# Chuyển sang scene game online
-	SettingsManager.pending_scene = "res://scenes/main_online.tscn"
-	get_tree().change_scene_to_file("res://scenes/loading.tscn")
+        # Chuyển sang scene game online
+        SettingsManager.pending_scene = "res://scenes/main_online.tscn"
+        get_tree().change_scene_to_file("res://scenes/loading.tscn")

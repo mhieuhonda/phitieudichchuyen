@@ -106,11 +106,11 @@ func _on_body_entered(body: Node2D):
                 _stick_to_position(global_position)
                 return
         # v2.2 FIX: Thêm check remote_players để dart có thể va chạm remote player online
-        if body.is_in_group("ai_players") and body.owner_player_id != owner_player_id:
+        if body.is_in_group("ai_players") and ("owner_player_id" in body) and body.owner_player_id != owner_player_id:
                 dart_hit_player.emit(self, body)
                 _stick_to_position(global_position)
                 return
-        if body.is_in_group("players") and body.player_id != owner_player_id:
+        if body.is_in_group("players") and ("player_id" in body) and body.player_id != owner_player_id:
                 dart_hit_player.emit(self, body)
                 _stick_to_position(global_position)
                 return

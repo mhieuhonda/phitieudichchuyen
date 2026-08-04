@@ -946,6 +946,7 @@ func _respawn():
                 return
         is_alive = true
         is_respawning = false
+        last_killer_name = KILLER_NONE
         current_hp = GameManager.player_max_hp
         GameManager.player_hp = GameManager.player_max_hp
         GameManager.player_size = GameManager.initial_player_radius

@@ -17,7 +17,16 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.06, 0.06, 0.12, 1)
+color = Color(0.02, 0.02, 0.06, 1)
+
+[node name="BackgroundGradient" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.03, 0.1, 0.4)
 
 [node name="TitleLabel" type="Label" parent="."]
 layout_mode = 1
@@ -29,7 +38,11 @@ offset_top = 10.0
 offset_right = 260.0
 offset_bottom = 40.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(1.0, 0.85, 0.3, 1.0)
+theme_override_colors/font_shadow_color = Color(0.5, 0.35, 0.0, 0.5)
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/shadow_outline_size = 4
 text = "CHỈNH SỬA GIAO DIỆN - KÉO THẢ NÚT"
 horizontal_alignment = 1
 
@@ -40,6 +53,8 @@ offset_top = 15.0
 offset_right = 115.0
 offset_bottom = 50.0
 text = "← QUAY LẠI"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.65, 0.65, 0.75, 1.0)
 
 [node name="LeftPanel" type="Panel" parent="."]
 layout_mode = 1
@@ -61,6 +76,7 @@ theme_override_constants/separation = 8
 
 [node name="JoystickSizeLabel" type="Label" parent="LeftPanel/VBox"]
 text = "Kích thước joystick: 100%"
+theme_override_colors/font_color = Color(0.75, 0.78, 0.88, 1)
 
 [node name="JoystickSizeSlider" type="HSlider" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(280, 20)
@@ -71,6 +87,7 @@ value = 1.0
 
 [node name="ButtonSizeLabel" type="Label" parent="LeftPanel/VBox"]
 text = "Kích thước nút: 100%"
+theme_override_colors/font_color = Color(0.75, 0.78, 0.88, 1)
 
 [node name="ButtonSizeSlider" type="HSlider" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(280, 20)
@@ -81,6 +98,7 @@ value = 1.0
 
 [node name="UIOpacityLabel" type="Label" parent="LeftPanel/VBox"]
 text = "Độ trong suốt UI: 100%"
+theme_override_colors/font_color = Color(0.75, 0.78, 0.88, 1)
 
 [node name="UIOpacitySlider" type="HSlider" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(280, 20)
@@ -91,7 +109,7 @@ value = 1.0
 
 [node name="LayoutStatusLabel" type="Label" parent="LeftPanel/VBox"]
 text = "Layout tùy chỉnh: TẮT (dùng mặc định)"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.5, 0.52, 0.6, 1)
 
 [node name="SpacerA" type="Control" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(0, 10)
@@ -99,14 +117,20 @@ custom_minimum_size = Vector2(0, 10)
 [node name="SaveLayoutButton" type="Button" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(280, 42)
 text = "💾 LƯU VỊ TRÍ NÚT"
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.3, 1.0, 0.5, 1.0)
 
 [node name="ClearLayoutButton" type="Button" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(280, 36)
 text = "↺ ĐẶT VỊ TRÍ VỀ MẶC ĐỊNH"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.65, 0.65, 0.75, 1.0)
 
 [node name="ResetButton" type="Button" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(280, 36)
 text = "ĐẶT LẠI TẤT CẢ MẶC ĐỊNH"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.85, 0.45, 0.45, 1.0)
 
 [node name="PreviewArea" type="Panel" parent="."]
 layout_mode = 1
@@ -126,6 +150,7 @@ offset_right = 200.0
 offset_bottom = 25.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.78, 0.88, 1)
 text = "Khu vực kéo thả - kéo nút đến vị trí mong muốn"
 horizontal_alignment = 1
 
@@ -144,4 +169,4 @@ grow_vertical = 0
 theme_override_font_sizes/font_size = 12
 text = "Kéo thả các nút vào vị trí mong muốn → bấm LƯU để áp dụng."
 horizontal_alignment = 1
-theme_override_colors/font_color = Color(0.8, 0.85, 0.95, 1)
+theme_override_colors/font_color = Color(0.5, 0.55, 0.7, 0.9)

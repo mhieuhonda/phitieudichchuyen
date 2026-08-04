@@ -1,6 +1,6 @@
 extends Control
 
-## SkillsHub - Hub kỹ năng cho Vượt Ải (v2.4)
+## SkillsHub - Hub kỹ năng cho Vượt Ải (v2.4) - Premium UI
 ## - 15 kỹ năng trong grid 3 cột x 5 hàng (BÊN PHẢI màn hình)
 ## - Mỗi kỹ năng: icon emoji + tên + cooldown + description
 ## - KHÓA cho đến khi đạt level yêu cầu
@@ -105,6 +105,13 @@ const SKILLS := [
 	},
 ]
 
+# Premium skill colors by type
+const SKILL_COLORS := {
+	"buff": Color(0.4, 0.8, 1.0),      # Cyan for buffs
+	"instant": Color(1.0, 0.7, 0.25),   # Orange for instant
+	"toggle": Color(0.7, 0.6, 1.0),     # Purple for toggle
+}
+
 # State tracking
 var current_level: int = 1
 var _cooldowns: Dictionary = {}  # skill_id -> remaining_seconds
@@ -116,10 +123,31 @@ var _lock_labels: Dictionary = {}  # skill_id -> Label (lock overlay)
 @onready var title_label: Label = $Panel/Margin/VBox/TitleLabel
 
 func _ready():
+	_apply_premium_styling()
 	_build_grid()
 	_refresh_ui()
 	if I18N:
 		I18N.language_changed.connect(func(_l): _refresh_ui())
+
+func _apply_premium_styling():
+	# Style the panel container
+	var panel = $Panel
+	if panel:
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color(0.05, 0.04, 0.1, 0.88)
+		style.border_color = Color(0.4, 0.3, 0.6, 0.35)
+		style.border_width_top = 1
+		style.border_width_bottom = 1
+		style.border_width_left = 1
+		style.border_width_right = 1
+		style.corner_radius_top_left = 12
+		style.corner_radius_top_right = 12
+		style.corner_radius_bottom_left = 12
+		style.corner_radius_bottom_right = 12
+		style.shadow_color = Color(0, 0, 0, 0.4)
+		style.shadow_size = 6
+		style.shadow_offset = Vector2(-2, 2)
+		panel.add_theme_stylebox_override("panel", style)
 
 func _build_grid():
 	grid.columns = 3
@@ -128,12 +156,56 @@ func _build_grid():
 	for skill in SKILLS:
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(64, 64)
-		btn.add_theme_font_size_override("font_size", 24)
+		btn.add_theme_font_size_override("font_size", 26)
 		btn.text = skill.icon
 		# Dùng .bind(skill.id) để capture giá trị tại thời điểm bind (tránh closure bug)
 		btn.pressed.connect(_on_skill_pressed.bind(skill.id))
 		# Tooltip = description (theo ngôn ngữ hiện tại)
 		btn.tooltip_text = "%s\n%s" % [_get_skill_name(skill), _get_skill_desc(skill)]
+		
+		# Premium button styling
+		var skill_color = SKILL_COLORS.get(skill.type, Color(0.6, 0.6, 0.7))
+		var style_normal = StyleBoxFlat.new()
+		style_normal.bg_color = Color(0.06, 0.05, 0.1, 0.85)
+		style_normal.corner_radius_top_left = 10
+		style_normal.corner_radius_top_right = 10
+		style_normal.corner_radius_bottom_left = 10
+		style_normal.corner_radius_bottom_right = 10
+		style_normal.border_color = Color(skill_color.r, skill_color.g, skill_color.b, 0.3)
+		style_normal.border_width_top = 1
+		style_normal.border_width_bottom = 1
+		style_normal.border_width_left = 1
+		style_normal.border_width_right = 1
+		style_normal.shadow_color = Color(0, 0, 0, 0.3)
+		style_normal.shadow_size = 3
+		style_normal.shadow_offset = Vector2(0, 2)
+		
+		var style_hover = style_normal.duplicate()
+		style_hover.bg_color = Color(0.1, 0.08, 0.18, 0.9)
+		style_hover.border_color = Color(skill_color.r, skill_color.g, skill_color.b, 0.6)
+		style_hover.shadow_size = 5
+		
+		var style_pressed = style_normal.duplicate()
+		style_pressed.bg_color = Color(0.04, 0.03, 0.07, 0.9)
+		style_pressed.border_color = Color(skill_color.r, skill_color.g, skill_color.b, 0.8)
+		
+		var style_disabled = StyleBoxFlat.new()
+		style_disabled.bg_color = Color(0.03, 0.03, 0.05, 0.6)
+		style_disabled.corner_radius_top_left = 10
+		style_disabled.corner_radius_top_right = 10
+		style_disabled.corner_radius_bottom_left = 10
+		style_disabled.corner_radius_bottom_right = 10
+		style_disabled.border_color = Color(0.15, 0.15, 0.2, 0.2)
+		style_disabled.border_width_top = 1
+		style_disabled.border_width_bottom = 1
+		style_disabled.border_width_left = 1
+		style_disabled.border_width_right = 1
+		
+		btn.add_theme_stylebox_override("normal", style_normal)
+		btn.add_theme_stylebox_override("hover", style_hover)
+		btn.add_theme_stylebox_override("pressed", style_pressed)
+		btn.add_theme_stylebox_override("disabled", style_disabled)
+		
 		# Container cho cooldown overlay + lock overlay
 		var overlay_container = Control.new()
 		overlay_container.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -143,11 +215,11 @@ func _build_grid():
 		cd_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 		cd_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cd_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		cd_label.add_theme_font_size_override("font_size", 18)
+		cd_label.add_theme_font_size_override("font_size", 20)
 		cd_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
 		cd_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 		cd_label.add_theme_constant_override("shadow_offset_y", 1)
-		cd_label.add_theme_constant_override("shadow_outline_size", 2)
+		cd_label.add_theme_constant_override("shadow_outline_size", 3)
 		cd_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cd_label.visible = false
 		# Lock overlay
@@ -155,8 +227,8 @@ func _build_grid():
 		lock_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 		lock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lock_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		lock_label.add_theme_font_size_override("font_size", 14)
-		lock_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.4, 0.95))
+		lock_label.add_theme_font_size_override("font_size", 13)
+		lock_label.add_theme_color_override("font_color", Color(0.35, 0.35, 0.45, 0.95))
 		lock_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 		lock_label.add_theme_constant_override("shadow_offset_y", 1)
 		lock_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -234,7 +306,7 @@ func _on_skill_pressed(skill_id: int):
 	_set_cooldown(skill_id, skill.cooldown)
 	if AudioManager:
 		AudioManager.play_powerup()
-	emit_signal("skill_activated", skill_id, skill.key)
+	skill_activated.emit(skill_id, skill.key)
 
 ## Lấy thông tin skill theo id
 func get_skill(skill_id: int) -> Dictionary:

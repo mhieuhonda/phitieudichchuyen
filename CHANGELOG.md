@@ -1,5 +1,62 @@
 # Changelog
 
+## v2.7 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 👑 NEW: Nhân Vật Ma Tôn — Ma Vương Siêu Cấp
+
+Nhân vật thứ 14, siêu cấp khắc chế hoàn toàn Hieu Louis - Classic:
+
+- **HP Bonus +1000** (vs Classic +500) — gấp đôi máu
+- **Speed Bonus +80** (vs Classic +50) — nhanh hơn 60%
+- **Dart Bonus 200** (vs Classic 100) — gấp đôi đạn
+- **Ma Tôn Quyền skill**: Instant-kill Classic, immune Crown, +100% score multiplier
+- **5s Spawn Invulnerability** (vs Classic 3s)
+- **CharType.MATON** enum mới
+- **Color**: Deep supernatural purple `Color(0.8, 0.0, 1.0)`
+- **Unlock**: Gift code `maton99`
+
+### 🐛 FIX: 6 Bugs Nghiêm Trọng
+
+1. **Level softlock khi zombie thoát** (CRITICAL): Zombie đi quá y=800 biến mất không đếm → level không complete. Fix: thêm `zombie_escaped` signal, đếm escaped, điều chỉnh completion check.
+2. **Pickups undetectable by Remote Players**: pickup collision_mask thiếu layer 64 (RemotePlayer). Fix: 9 → 73.
+3. **Stale killer name sau respawn**: `last_killer_name` không reset. Fix: reset trong `_respawn()`.
+4. **Invincibility persists across levels**: `reset_temporary_skills()` không reset `invincible_remaining`. Fix: thêm reset.
+5. **Missing `refill_darts` on EndlessPlayer**: Crash nếu pickup gọi `refill_darts()` trên EndlessPlayer. Fix: thêm method.
+6. **EndlessDart crash on free during spawn immunity**: Dart freed trong await → crash. Fix: thêm `is_instance_valid` check.
+
+### 🧟 VISUAL: Zombie Graphics Overhaul
+
+6 hệ thống visual mới cho zombie:
+
+1. **Scary Color Palettes**: WALKER rotten green, RUNNER feral red, BRUTE imposing purple
+2. **Wobble Animation**: Sin-based S-shape movement, mỗi type có "tính cách" riêng
+3. **Damage Flash**: Bright white-yellow flash khi hit
+4. **Freeze/Ice Effect**: Blue tint + scale pulse khi đóng băng
+5. **BRUTE Pulsing Glow**: Oscillating glow alpha + body heaving
+6. **Dramatic Death**: 6-phase tween (flash → expand → dark → splat → fade → free)
+
+New visual nodes trong zombie.tscn: GlowRect, ShadowRect, HeadRect, WoundRect, MouthRect
+
+### 🎨 VISUAL: Premium UI Redesign
+
+Toàn bộ 14 UI files redesign với dark luxury theme:
+
+- **Color Palette**: Deep dark + Gold + Cyan + Purple accents
+- **StyleBoxFlat Buttons**: Rounded corners, gradient, hover glow, press feedback
+- **Font Shadows**: Tất cả labels có shadow
+- **Panel Styling**: Semi-transparent dark + purple border + drop shadow
+- **Hover Effects**: Tween-based scale animation
+- **HP Bar**: Dynamic gradient (green→yellow→red)
+- **Kill Feed**: Fade-out messages
+
+Files modified: menu.tscn, menu.gd, mode_select.tscn, mode_select.gd, character_screen.tscn, character_screen.gd, settings.tscn, settings_menu.gd, hud.tscn, hud.gd, endless_mode.tscn, endless_mode.gd, skills_hub.gd, guide.tscn, guide.gd, loading.tscn, loading_screen.gd, matchmaking.tscn, matchmaking_screen.gd, ui_customization.tscn
+
+### 📦 Version Bump
+- `project.godot`: config/version `2.6` → `2.7`
+- `menu.gd`: version label `v2.4` → `v2.7`
+
+---
+
 ## v2.6 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 🔥 FIX COOLIFY DEPLOYMENT — SERVER BỊ KILL TRƯỚC KHI SẴN SÀNG

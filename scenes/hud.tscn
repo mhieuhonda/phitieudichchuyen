@@ -9,24 +9,27 @@ anchors_preset = 0
 offset_left = 0.0
 offset_top = 0.0
 offset_right = 500.0
-offset_bottom = 48.0
+offset_bottom = 50.0
 
 [node name="ScoreLabel" type="Label" parent="TopBar"]
 layout_mode = 0
 offset_left = 10.0
-offset_top = 6.0
+offset_top = 5.0
 offset_right = 160.0
-offset_bottom = 30.0
+offset_bottom = 28.0
 text = "Điểm: 0"
-theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_colors/font_color = Color(1, 0.88, 0.3, 1)
+theme_override_colors/font_shadow_color = Color(0.4, 0.3, 0, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 3
 
 [node name="HpBar" type="ProgressBar" parent="TopBar"]
 layout_mode = 0
 offset_left = 10.0
-offset_top = 28.0
+offset_top = 29.0
 offset_right = 160.0
-offset_bottom = 42.0
+offset_bottom = 44.0
 max_value = 100.0
 value = 100.0
 show_percentage = false
@@ -34,30 +37,41 @@ show_percentage = false
 [node name="DartCountLabel" type="Label" parent="TopBar"]
 layout_mode = 0
 offset_left = 170.0
-offset_top = 6.0
+offset_top = 5.0
 offset_right = 340.0
-offset_bottom = 30.0
+offset_bottom = 28.0
 text = "Phi tiêu: 0/3"
 theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.78, 0.88, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
 
 [node name="ZoneTimerLabel" type="Label" parent="TopBar"]
 layout_mode = 0
 offset_left = 170.0
-offset_top = 28.0
+offset_top = 29.0
 offset_right = 340.0
-offset_bottom = 42.0
+offset_bottom = 44.0
 text = "Bo: 30s"
 theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(1, 0.5, 0.3, 1)
+theme_override_colors/font_shadow_color = Color(0.3, 0.1, 0, 0.4)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
 
 [node name="AliveLabel" type="Label" parent="TopBar"]
 layout_mode = 0
 offset_left = 350.0
-offset_top = 6.0
+offset_top = 5.0
 offset_right = 490.0
-offset_bottom = 30.0
+offset_bottom = 28.0
 text = "Sống: 6"
 theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.78, 0.88, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
 
 [node name="MatchTimerLabel" type="Label" parent="."]
 anchors_preset = 5
@@ -70,8 +84,11 @@ offset_bottom = 40.0
 grow_horizontal = 2
 text = "05:00"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 28
 theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/shadow_outline_size = 4
 
 [node name="ComboLabel" type="Label" parent="."]
 visible = false
@@ -83,10 +100,13 @@ offset_top = 60.0
 offset_right = 120.0
 offset_bottom = 100.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 28
 text = "COMBO x2!"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(1, 0.8, 0, 1)
+theme_override_colors/font_shadow_color = Color(0.5, 0.3, 0, 0.7)
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/shadow_outline_size = 5
 
 [node name="ZoneWarning" type="Panel" parent="."]
 visible = false
@@ -112,8 +132,11 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "NGOÀI VÒNG BO!"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(1, 0.3, 0.3, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(1, 0.25, 0.25, 1)
+theme_override_colors/font_shadow_color = Color(0.4, 0, 0, 0.6)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 3
 
 [node name="KillFeed" type="VBoxContainer" parent="."]
 anchors_preset = 1
@@ -141,6 +164,9 @@ text = "SPACE = Dịch chuyển tới phi tiêu!"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.3, 0.8, 1, 1)
 theme_override_font_sizes/font_size = 15
+theme_override_colors/font_shadow_color = Color(0, 0.2, 0.4, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 3
 
 [node name="GameOverPanel" type="Panel" parent="."]
 visible = false
@@ -168,7 +194,11 @@ offset_bottom = 55.0
 grow_horizontal = 2
 text = "BẠN ĐÃ BỊ TIÊU DIỆT!"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(1.0, 0.3, 0.3, 1.0)
+theme_override_colors/font_shadow_color = Color(0.4, 0, 0, 0.6)
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/shadow_outline_size = 5
 
 [node name="RestartLabel" type="Label" parent="GameOverPanel"]
 layout_mode = 1
@@ -183,6 +213,10 @@ grow_horizontal = 2
 text = "Hồi sinh sau 3s..."
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.4)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
 
 [node name="SkillPanel" type="Panel" parent="."]
 anchor_left = 0.5
@@ -210,6 +244,9 @@ horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.4, 1, 0.9, 1)
+theme_override_colors/font_shadow_color = Color(0, 0.3, 0.3, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
 
 [node name="SkillShieldLabel" type="Label" parent="SkillPanel"]
 layout_mode = 1
@@ -225,6 +262,9 @@ horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.5, 0.9, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0.2, 0.4, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
 
 [node name="SkillMultishotLabel" type="Label" parent="SkillPanel"]
 layout_mode = 1
@@ -240,6 +280,9 @@ horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(1, 0.7, 0.2, 1)
+theme_override_colors/font_shadow_color = Color(0.3, 0.2, 0, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
 
 [node name="FPSLabel" type="Label" parent="."]
 visible = false
@@ -257,6 +300,7 @@ grow_vertical = 0
 text = "FPS: 60"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.5, 0.55, 0.65, 0.8)
 
 [node name="ResultsPanel" type="Panel" parent="."]
 visible = false
@@ -283,7 +327,11 @@ grow_horizontal = 2
 text = "KẾT THÚC TRANH ĐẤU!"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 32
+theme_override_colors/font_color = Color(1.0, 0.85, 0.3, 1.0)
+theme_override_colors/font_shadow_color = Color(0.5, 0.35, 0, 0.6)
+theme_override_constants/shadow_offset_y = 3
+theme_override_constants/shadow_outline_size = 6
 
 [node name="ResultsList" type="VBoxContainer" parent="ResultsPanel"]
 layout_mode = 1
@@ -311,6 +359,8 @@ offset_bottom = -25.0
 grow_horizontal = 2
 grow_vertical = 0
 text = "CHƠI LẠI"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.3, 1.0, 0.5, 1.0)
 
 [node name="ResultsMenuBtn" type="Button" parent="ResultsPanel"]
 layout_mode = 1
@@ -326,3 +376,5 @@ offset_bottom = -25.0
 grow_horizontal = 2
 grow_vertical = 0
 text = "MENU CHÍNH"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.7, 0.65, 1.0, 1.0)
