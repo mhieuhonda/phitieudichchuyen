@@ -34,6 +34,9 @@ var server_url: String = DEFAULT_SERVER_URL
 var auto_reconnect: bool = true
 var max_reconnect_attempts: int = 5
 var reconnect_delay: float = 3.0
+# v2.2: Connection timeout - nếu sau 8s mà chưa STATE_OPEN, coi như fail
+const CONNECT_TIMEOUT: float = 8.0
+var _connect_timer: float = 0.0
 
 # === STATE ===
 var _ws: WebSocketPeer = null
@@ -59,6 +62,9 @@ var connection_state: ConnectionState = ConnectionState.DISCONNECTED
 
 func _ready():
         _ws = WebSocketPeer.new()
+        # v2.2: Load server URL từ SettingsManager (nếu có)
+        if SettingsManager:
+                server_url = SettingsManager.server_url
         set_process(false)
 
 func _process(delta):
@@ -88,15 +94,32 @@ func _process(delta):
                 elif connection_state == ConnectionState.CONNECTING:
                         # Initial connection attempt failed before reaching STATE_OPEN.
                         # Without this branch the user would be stuck on "Connecting..." forever.
+                        var close_code = _ws.get_close_code()
+                        var close_reason = _ws.get_close_reason()
+                        var err_msg = "Không thể kết nối đến server"
+                        if close_code != 1000 and close_code != 0:
+                                err_msg = "Server từ chối kết nối (code %d" % close_code
+                                if close_reason != "":
+                                        err_msg += ": %s" % close_reason
+                                err_msg += ")"
                         connection_state = ConnectionState.DISCONNECTED
-                        connection_error.emit("Không thể kết nối đến server")
+                        connection_error.emit(err_msg)
                         _try_reconnect()
         elif state == WebSocketPeer.STATE_OPEN:
                 if not _is_connected:
                         _is_connected = true
                         connection_state = ConnectionState.CONNECTED
                         _reconnect_attempts = 0
+                        _connect_timer = 0.0
                         connected_to_server.emit()
+        elif state == WebSocketPeer.STATE_CONNECTING:
+                # v2.2: Timeout - nếu CONNECTING quá lâu, force-close để trigger error path
+                _connect_timer += delta
+                if _connect_timer >= CONNECT_TIMEOUT:
+                        print("[NetworkManager] Connection timeout after %.1fs, force-closing" % _connect_timer)
+                        _connect_timer = 0.0
+                        _ws.close()
+                        # Don't return - let next iteration detect STATE_CLOSED and emit error
 
         # Ping
         if _is_connected:
@@ -111,6 +134,9 @@ func _process(delta):
 func connect_to_server(url: String = ""):
         if url != "":
                 server_url = url
+        # v2.2: Nếu không có url truyền vào, lấy từ SettingsManager (đã lưu từ Settings)
+        elif SettingsManager and SettingsManager.server_url != "":
+                server_url = SettingsManager.server_url
         if _is_connected:
                 return
         # Cancel any pending reconnect timer before starting fresh
@@ -119,12 +145,19 @@ func connect_to_server(url: String = ""):
         auto_reconnect = true
         _reconnect_attempts = 0
         _user_disconnect = false
+        _connect_timer = 0.0  # v2.2: reset timeout
+        # Validate URL format
+        if not server_url.begins_with("ws://") and not server_url.begins_with("wss://"):
+                connection_error.emit("URL server không hợp lệ (phải bắt đầu bằng ws:// hoặc wss://)")
+                connection_state = ConnectionState.DISCONNECTED
+                return
         # Recreate peer to clear any leftover state from a previous closed connection
         _ws = WebSocketPeer.new()
         connection_state = ConnectionState.CONNECTING
+        print("[NetworkManager] Connecting to: %s" % server_url)
         var err = _ws.connect_to_url(server_url)
         if err != OK:
-                connection_error.emit("Không thể kết nối đến server")
+                connection_error.emit("Không thể kết nối đến server (lỗi %d)" % err)
                 connection_state = ConnectionState.DISCONNECTED
                 return
         set_process(true)

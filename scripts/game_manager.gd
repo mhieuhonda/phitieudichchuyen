@@ -21,6 +21,8 @@ signal combo_achieved(combo_count: int)
 signal screen_shake_requested(intensity: float, duration: float)
 signal match_time_changed(time_remaining: float)
 signal skill_used(player_id: int, skill_id: String)
+# v2.2: Daily login reward signal
+signal daily_reward_granted(streak: int, hp_bonus_percent: float)
 
 # === CẤU HÌNH ===
 @export_group("Phi Tiêu")
@@ -136,6 +138,14 @@ func reset_game():
         char_hp_bonus = CharacterData.get_hp_bonus(CharacterData.selected_character_id)
     base_player_max_hp = 100.0 + char_hp_bonus
     player_max_hp = compute_max_hp_for_size(player_size)
+    # v2.2: Apply daily login reward HP bonus
+    if SettingsManager:
+        var daily = SettingsManager.check_daily_login()
+        if daily.is_first_play_today and daily.reward_hp_percent > 0.0:
+            var bonus_hp = int(player_max_hp * daily.reward_hp_percent)
+            player_max_hp += bonus_hp
+            daily_reward_granted.emit(daily.streak_count, daily.reward_hp_percent)
+            print("[GameManager] Daily reward: streak=%d, +%.0f%% HP (+%d)" % [daily.streak_count, daily.reward_hp_percent * 100, bonus_hp])
     player_hp = player_max_hp
     zone_radius = map_size.x * 0.45
     zone_center = map_size / 2.0
@@ -317,6 +327,10 @@ func end_match():
     var winner_name = "Hòa!" if sorted.is_empty() else sorted[0]["name"]
     if not sorted.is_empty() and sorted[0]["score"] == 0:
         winner_name = "Không có người thắng!"
+    # v2.2: Record match result to SettingsManager for stats/achievements
+    var is_win = not sorted.is_empty() and sorted[0].get("is_player", false)
+    if SettingsManager:
+        SettingsManager.record_match_result(player_kills, is_win)
     game_over.emit(winner_name, sorted)
     AudioManager.play_music("victory" if (sorted.size() > 0 and sorted[0]["is_player"]) else "defeat")
 

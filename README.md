@@ -1,14 +1,88 @@
-# 🎯 Phi Tiêu Dịch Chuyển v2.1
+# 🎯 Phi Tiêu Dịch Chuyển v2.2
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — giờ đã có **Online Multiplayer**!
 
-![Version](https://img.shields.io/badge/version-2.1-blue)
+![Version](https://img.shields.io/badge/version-2.2-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 ![Multiplayer](https://img.shields.io/badge/multiplayer-Online%20%2B%20Offline-orange)
+
+---
+
+## 🆕 Tính Năng v2.2 — Fix Online + Hướng Dẫn + Admin Guide + Kill Streaks
+
+### 🔥 FIX: Lỗi Không Thể Chơi Online
+
+Trước đây, client báo "Server offline" ngay cả khi relay server đã cấu hình đầy đủ. Nguyên nhân: server URL bị hardcode, không có timeout, không có cách đổi URL trong UI.
+
+**Giải pháp**:
+- Thêm mục **🌐 MẠNG (SERVER URL)** trong Settings để user cấu hình relay server của mình
+- **Connection timeout 8s**: nếu server không phản hồi, tự báo lỗi thay vì đợi mãi mãi
+- Nút **"🔄 Thử lại"** trong Mode Select khi server offline
+- Nút **"⚙ Đổi SERVER URL"** để vào Settings nhanh
+- Nút **"💾 LƯU & TEST"** trong Settings - test kết nối ngay sau khi đổi URL
+- Thông báo lỗi chi tiết (close code + reason từ server)
+- Hỗ trợ cả `ws://` (LAN/test) và `wss://` (HTTPS production)
+
+### 📖 NEW: Hướng Dẫn Chơi + Admin Guide
+
+Thêm nút **"📖 HƯỚNG DẪN"** trong menu chính với 2 tab:
+
+- **Tab Player**: Hướng dẫn đầy đủ - mục tiêu, điều khiển PC/Mobile, cơ chế chơi, 4 kỹ năng, 13 nhân vật, mẹo chơi, leaderboard
+- **Tab Admin**: Mở khóa bằng mã `hieulouisking`. Bao gồm:
+  - Hướng dẫn deploy relay server (Docker, Node.js, GHCR)
+  - Cấu hình client (ws:// vs wss://)
+  - HTTP API endpoints (health, status, leaderboard, player)
+  - Quản lý SQLite database (backup, restore, reset)
+  - **Cách thêm nhân vật mới** vào game (kích thước ảnh 256x256, nền trong suốt, vị trí file, edit CharacterData)
+  - Scale relay server, env vars, debug & monitoring
+  - Tìm & sửa lỗi thường gặp
+  - Build & release workflow
+
+### 🎁 Mở Rộng Mã Quà Tặng
+
+- `hieulouis99` - Mở khóa nhân vật **Hieu Louis - Classic** (cũ)
+- `hieulouisking` - Mở khóa **Admin Guide** trong mục Hướng Dẫn (mới)
+
+Hệ thống gift codes refactor thành `{type, value}`:
+- `type=character`: mở khóa nhân vật
+- `type=feature`: mở khóa tính năng đặc biệt
+
+### 🐛 FIX BUGS NGHIÊM TRỌNG
+
+- **Dart không va chạm remote_players**: thêm layer 64 (RemotePlayer) vào collision_mask + check group
+- **Teleport không kill remote_players**: thêm loop qua `remote_players` group trong `_check_teleport_kill`
+- **Remote_player thiếu method `take_damage_from`**: implement method với hit flash + death effect
+- **HUD combo_label bị ghi đè**: thêm flag `_combo_display_active` để tách biệt combo display và status display
+- **MainOnline._on_match_end không gọi end_match()**: fix để stop game tick + record stats
+- **Settings ONE_SHOT handlers leak**: cleanup trong `_exit_tree()`
+
+### 🎨 FIX: Sprite "Hieu Louis - Classic"
+
+Ảnh gốc 1024x1024 + nền tối → sprite mới 256x256 với:
+- Hacker hooded silhouette (dark green body)
+- Glowing green matrix-style eyes
+- Binary code snippets bay quanh
+- Vương miện vàng (Crown skill motif)
+- Nền trong suốt hoàn toàn
+
+### 🚀 NEW: Kill Streak Announcements
+
+- Track kill streak (5s window giữa mỗi kill)
+- Hiện announcement lớn ở giữa màn hình:
+  - ⚔ DOUBLE KILL! → 🔥 TRIPLE KILL! → 💥 QUADRA KILL! → 👑 PENTA KILL!
+  - 🚀 KILLING SPREE → 💀 UNSTOPPABLE → ⚡ GODLIKE
+- Reset streak khi player chết
+
+### 🎁 NEW: Daily Login Reward
+
+- Track số ngày liên tiếp đã chơi
+- Reward HP bonus: 5% max HP × streak (capped 30%)
+- Hiện popup "🎁 ĐĂNG NHẬP NGÀY N!" khi vào trận đầu tiên trong ngày
+- Track stats: total_matches, total_wins, total_kills
 
 ---
 

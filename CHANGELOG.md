@@ -1,5 +1,156 @@
 # Changelog
 
+## v2.2 - Phi Tiêu Dịch Chuyển (2026-08-04)
+
+### 🔥 FIX CRITICAL: Lỗi Không Thể Chơi Online
+
+**Lỗi gốc**: Client báo "Server offline - Chỉ chơi offline" ngay cả khi relay server đã cấu hình đầy đủ. Nguyên nhân:
+1. Server URL bị hardcode `ws://163.44.96.79:25671/ws` - không có cách để user đổi sang server của mình
+2. Không có connection timeout - nếu server không phản hồi, user đợi mãi mãi
+3. Khi click "Online" sau khi đổi URL, client không retry
+4. Thông báo lỗi không chi tiết (chỉ "Server offline")
+
+**Fix**:
+- Thêm mục **Mạng (Server URL)** trong Settings để user cấu hình relay server của mình
+- Thêm **connection timeout 8s** - nếu server không phản hồi sau 8s, tự đóng connection và báo lỗi
+- Thêm nút **"Thử lại"** trong Mode Select khi server offline
+- Thêm nút **"Đổi server URL"** để vào Settings nhanh
+- Thêm nút **"Lưu & Test"** trong Settings - test kết nối ngay sau khi đổi URL
+- Hiện thông báo lỗi chi tiết (close code + reason từ server)
+- URL validation: phải bắt đầu bằng `ws://` hoặc `wss://`
+- Online button luôn enabled (user có thể thử lại ngay)
+
+### 📖 NEW: Hướng Dẫn Chơi + Admin Guide
+
+**Tính năng mới**: Thêm nút **"📖 HƯỚNG DẪN"** trong menu chính.
+
+- **Tab Player**: Hướng dẫn đầy đủ cho người chơi:
+  - Mục tiêu, điều khiển PC/Mobile
+  - Cơ chế chơi: ném phi tiêu, dịch chuyển, ăn đối thủ, vòng bo
+  - 4 kỹ năng: Dash, Shield, Multishot, Crown
+  - 13 nhân vật + cách mở khóa
+  - Mẹo chơi, leaderboard, online mode
+- **Tab Admin**: Hiện khi nhập mã `hieulouisking` (mở khóa feature `admin_guide`):
+  - Hướng dẫn deploy relay server (Docker, Node.js)
+  - Cấu hình client (ws:// vs wss://)
+  - HTTP API endpoints
+  - Quản lý SQLite database
+  - **Cách thêm nhân vật mới** vào game (kích thước ảnh 256x256, nền trong suốt để dễ tách, v.v.)
+  - Scale relay server, debug & monitoring
+  - Tìm & sửa lỗi thường gặp
+
+### 🎁 Mở Rộng Hệ Thống Mã Quà Tặng
+
+- Mã `hieulouis99` (cũ): mở khóa nhân vật **Hieu Louis - Classic**
+- Mã `hieulouisking` (mới): mở khóa **Admin Guide** trong mục Hướng Dẫn
+- Refactor `GIFT_CODES` thành cấu trúc `{type, value}` để hỗ trợ nhiều loại unlock:
+  - `type=character`: mở khóa nhân vật (value=char_id)
+  - `type=feature`: mở khóa tính năng (value=feature_name)
+- Lưu `unlocked_features` trong `user://character_data.cfg`
+- UI Settings hiển thị message chi tiết khi redeem (vd: "Đã mở khóa tính năng: Hướng Dẫn Cho Admin")
+
+### 🐛 FIX BUGS NGHIÊM TRỌNG
+
+**Bug 1: Dart không va chạm remote_players**
+- `dart.gd._on_body_entered` chỉ check `ai_players` và `players`, không check `remote_players`
+- Khi chơi online, dart bay xuyên qua remote players mà không gây damage
+- **Fix**: Thêm check `body.is_in_group("remote_players")` + thêm layer 64 (RemotePlayer) vào `collision_mask`
+
+**Bug 2: Teleport không kill remote_players**
+- `player.gd._check_teleport_kill` chỉ lặp qua `ai_players` group
+- Khi dịch chuyển đến gần remote player, không tiêu diệt được
+- **Fix**: Thêm loop qua `remote_players` group + gọi `take_damage_from()` + gửi kill report lên server
+
+**Bug 3: Remote players không có method `take_damage_from`**
+- `remote_player.gd` không implement method này
+- Khi dart/teleport gọi `take_damage_from` trên remote player → fail silent
+- **Fix**: Thêm method `take_damage_from` vào `remote_player.gd` với hit flash + death effect
+
+**Bug 4: HUD combo_label bị ghi đè bởi Crown/SMG status**
+- `_update_skill_ui()` mỗi frame set combo_label.text = status (Crown/SMG/Invul)
+- Khi user đạt combo kill, "COMBO x3!" bị ghi đè ngay frame sau
+- **Fix**: Thêm flag `_combo_display_active` - chỉ hiện status khi combo display không active
+
+**Bug 5: MainOnline._on_match_end không gọi GameManager.end_match()**
+- `game_active` stays true, time keeps ticking, HUD vẫn update sau khi match end
+- **Fix**: Set `GameManager.game_ended = true, game_active = false` + record match stats
+
+**Bug 6: Settings ONE_SHOT handlers leak**
+- Test connection trong Settings để lại ONE_SHOT handlers nếu user rời scene trước khi nhận response
+- **Fix**: Cleanup handlers trong `_exit_tree()`
+
+### 🎨 FIX: Sprite "Hieu Louis - Classic"
+
+**Lỗi gốc**: Ảnh gốc 1024x1024 (gấp 4 lần kích thước chuẩn 256x256) + nền tối không trong suốt → nhân vật hiện quá to + có hộp đen quanh.
+
+**Fix**: Tạo sprite mới 256x256 với:
+- Hacker hooded silhouette (dark green body)
+- Glowing green matrix-style eyes
+- Binary code snippets (`1011`, `0110`, `EXE`, `ROOT`, `0x90`, `KERN`...) bay quanh
+- Vương miện vàng phía trên (Crown skill motif)
+- Nền trong suốt hoàn toàn (43.5% transparent, tương tự các nhân vật khác 51.2%)
+- Outer glow hacker green subtle
+
+### 🚀 NEW: Kill Streak Announcements
+
+- Track kill streak (5s window giữa mỗi kill)
+- Hiện announcement lớn ở giữa màn hình:
+  - 2 kills: ⚔ DOUBLE KILL!
+  - 3 kills: 🔥 TRIPLE KILL!
+  - 4 kills: 💥 QUADRA KILL!
+  - 5 kills: 👑 PENTA KILL!
+  - 6-8: 🚀 KILLING SPREE x{N}!
+  - 9-10: 💀 UNSTOPPABLE x{N}!
+  - >10: ⚡ GODLIKE x{N}!
+- Âm thanh combo từ kill thứ 3 trở đi
+- Reset streak khi player chết
+
+### 🎁 NEW: Daily Login Reward
+
+- Track ngày chơi cuối trong `SettingsManager`
+- Streak: số ngày liên tiếp đã chơi
+- Reward HP bonus: 5% max HP × streak (capped 30%)
+- Hiện popup "🎁 ĐĂNG NHẬP NGÀY N! +X% HP bonus!" khi vào trận đầu tiên trong ngày
+- Track stats: `total_matches`, `total_wins`, `total_kills` để dùng cho achievements sau
+
+### 📦 Version Bump
+
+- `project.godot`: config/version `2.1` → `2.2`
+- `export_presets.cfg`: version/code `21` → `22`, version/name `"2.1"` → `"2.2"`
+- `export_presets.cfg`: application/file_version + product_version `"2.1.0.0"` → `"2.2.0.0"`
+- `menu.gd`: version label `v2.1` → `v2.2`
+- New scenes: `scenes/guide.tscn`, `scripts/guide.gd`
+
+### ✅ Files Changed
+
+**Modified**:
+- `project.godot` - version bump
+- `export_presets.cfg` - version bump
+- `scripts/network_manager.gd` - connection timeout + use SettingsManager URL
+- `scripts/settings_manager.gd` - server_url + daily login + stats
+- `scripts/mode_select.gd` - retry button + use saved URL + always enable online
+- `scenes/mode_select.tscn` - retry button + server URL button
+- `scripts/settings_menu.gd` - server URL config + cleanup handlers
+- `scenes/settings.tscn` - network section UI
+- `scripts/menu.gd` - guide button + version bump
+- `scenes/menu.tscn` - guide button
+- `scripts/character_data.gd` - gift codes refactor + features unlock
+- `scripts/dart.gd` - remote_players collision
+- `scripts/player.gd` - teleport kill remote + kill streak notify
+- `scripts/remote_player.gd` - take_damage_from method
+- `scripts/hud.gd` - combo_label bug fix + kill streak + daily reward
+- `scripts/main_online.gd` - record match stats + end match properly
+- `scripts/game_manager.gd` - daily reward signal + record stats
+- `assets/sprites/characters/char_hieu_louis_classic.png` - new 256x256 sprite
+- `README.md` - version bump + new features
+- `CHANGELOG.md` - v2.2 entry
+
+**New**:
+- `scripts/guide.gd` - Guide screen logic
+- `scenes/guide.tscn` - Guide scene
+
+---
+
 ## v2.1 - Phi Tiêu Dịch Chuyển (2026-08-04)
 
 ### 🔥 FIX CRITICAL: Online Mode Hoạt Động!

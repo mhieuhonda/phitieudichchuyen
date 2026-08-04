@@ -30,7 +30,7 @@ grow_vertical = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
 layout_mode = 2
-custom_minimum_size = Vector2(580, 0)
+custom_minimum_size = Vector2(620, 0)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer"]
 layout_mode = 2
@@ -61,9 +61,25 @@ text = "🎮 CHƠI OFFLINE"
 
 [node name="ServerStatusLabel" type="Label" parent="CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "Đang kiểm tra server..."
 horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RetryButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1.0, 0.85, 0.2, 1.0)
+text = "🔄 THỬ LẠI"
+
+[node name="ServerUrlButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 40)
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.6, 0.8, 1.0, 1.0)
+text = "⚙ ĐỔI SERVER URL"
 
 [node name="BackButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2

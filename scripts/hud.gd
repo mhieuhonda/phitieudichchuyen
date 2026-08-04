@@ -36,6 +36,12 @@ var combo_display_timer: float = 0.0
 var fps_update_timer: float = 0.0
 var zone_warning_sound_timer: float = 0.0
 var was_outside_zone: bool = false
+# v2.2: Track combo display state separately from status display
+var _combo_display_active: bool = false
+# v2.2: Kill streak tracking
+var _kill_streak: int = 0
+var _kill_streak_timer: float = 0.0
+const KILL_STREAK_WINDOW: float = 5.0  # 5s giữa mỗi kill để duy trì streak
 
 func _ready():
     GameManager.player_score_changed.connect(_on_score_changed)
@@ -46,6 +52,11 @@ func _ready():
     GameManager.screen_shake_requested.connect(_on_screen_shake)
     GameManager.match_time_changed.connect(_on_match_time_changed)
     GameManager.game_over.connect(_on_game_over)
+    # v2.2: Add to "hud" group so player can find us via get_first_node_in_group
+    add_to_group("hud")
+    # v2.2: Listen for daily reward signal
+    if not GameManager.daily_reward_granted.is_connected(_on_daily_reward):
+        GameManager.daily_reward_granted.connect(_on_daily_reward)
 
     zone_shrink_timer = GameManager.zone_shrink_interval
 
@@ -131,10 +142,17 @@ func _process(delta):
         match_timer_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
 
     # Combo display timer
-    if combo_label.visible:
+    if combo_label.visible and _combo_display_active:
         combo_display_timer -= delta
         if combo_display_timer <= 0:
             combo_label.visible = false
+            _combo_display_active = false
+
+    # v2.2: Kill streak timer
+    if _kill_streak > 0:
+        _kill_streak_timer -= delta
+        if _kill_streak_timer <= 0:
+            _kill_streak = 0  # Reset streak sau khi hết thời gian
 
     # FPS counter
     fps_label.visible = SettingsManager.show_fps
@@ -175,7 +193,8 @@ func _update_skill_ui():
             skill_multishot_label.text = "Multi\nSẴN SÀNG"
             skill_multishot_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2))
     # v2.1: Hiển thị trạng thái Crown / SMG / Spawn Invul trong combo_label
-    if combo_label and not combo_label.visible:
+    # v2.2 FIX: Không ghi đè combo display - chỉ hiện status khi combo_label chưa active
+    if combo_label and not _combo_display_active:
         var status_text = ""
         var status_color = Color(1, 1, 1)
         if "is_classic_mode" in player and player.is_classic_mode:
@@ -246,6 +265,7 @@ func _on_combo_achieved(combo_count: int):
     combo_label.text = "COMBO x%d!" % combo_count
     combo_label.visible = true
     combo_display_timer = 2.0
+    _combo_display_active = true  # v2.2: chặn status display trong 2s
     _add_kill_feed("COMBO x%d!" % combo_count, Color(1.0, 0.8, 0.0))
 
 func _on_screen_shake(intensity: float, duration: float):
@@ -265,6 +285,9 @@ func _on_player_died(p: CharacterBody2D):
         game_over_label.text = "BẠN ĐÃ BỊ TIÊU DIỆT!"
     restart_label.text = "Hồi sinh sau %.0fs..." % GameManager.respawn_time
     _add_kill_feed("Bạn đã bị tiêu diệt!", Color(1.0, 0.2, 0.2))
+    # v2.2: Reset kill streak khi chết
+    _kill_streak = 0
+    _kill_streak_timer = 0.0
 
 func _on_player_respawned(p: CharacterBody2D):
     game_over_panel.visible = false
@@ -290,6 +313,66 @@ func _add_kill_feed(text: String, color: Color = Color.WHITE):
     label.add_theme_font_size_override("font_size", 12)
     kill_feed.add_child(label)
     get_tree().create_timer(3.0).timeout.connect(label.queue_free)
+
+## v2.2: Gọi khi player giết được 1 đối thủ để track kill streak
+func register_player_kill():
+    _kill_streak += 1
+    _kill_streak_timer = KILL_STREAK_WINDOW
+    # Chỉ announce từ kill thứ 2 trở đi
+    if _kill_streak < 2:
+        return
+    var announcement = ""
+    var color = Color(1.0, 0.85, 0.2)
+    match _kill_streak:
+        2:
+            announcement = "⚔ DOUBLE KILL!"
+            color = Color(0.4, 1.0, 0.5)
+        3:
+            announcement = "🔥 TRIPLE KILL!"
+            color = Color(1.0, 0.7, 0.2)
+        4:
+            announcement = "💥 QUADRA KILL!"
+            color = Color(1.0, 0.5, 0.3)
+        5:
+            announcement = "👑 PENTA KILL!"
+            color = Color(1.0, 0.4, 0.7)
+        6, 7, 8:
+            announcement = "🚀 KILLING SPREE x%d!" % _kill_streak
+            color = Color(1.0, 0.4, 0.5)
+        9, 10:
+            announcement = "💀 UNSTOPPABLE x%d!" % _kill_streak
+            color = Color(1.0, 0.3, 0.5)
+        _:
+            # > 10
+            announcement = "⚡ GODLIKE x%d!" % _kill_streak
+            color = Color(1.0, 0.2, 0.8)
+    if announcement != "":
+        _add_kill_feed(announcement, color)
+        # Show big combo label
+        if combo_label:
+            combo_label.text = announcement
+            combo_label.visible = true
+            combo_display_timer = 2.5
+            _combo_display_active = true
+            combo_label.add_theme_color_override("font_color", color)
+        if _kill_streak >= 3:
+            AudioManager.play_combo(min(_kill_streak, 5))
+
+## v2.2: Lấy kill streak hiện tại
+func get_kill_streak() -> int:
+    return _kill_streak
+
+## v2.2: Hiển thị thông báo daily reward
+func _on_daily_reward(streak: int, hp_bonus_percent: float):
+    var msg = "🎁 ĐĂNG NHẬP NGÀY %d!\n+%.0f%% HP bonus!" % [streak, hp_bonus_percent * 100]
+    _add_kill_feed(msg, Color(1.0, 0.85, 0.2))
+    if combo_label:
+        combo_label.text = "🎁 DAY %d!\n+%.0f%% HP" % [streak, hp_bonus_percent * 100]
+        combo_label.visible = true
+        combo_display_timer = 4.0
+        _combo_display_active = true
+        combo_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+    AudioManager.play_achievement()
 
 func _restart_game():
     get_tree().reload_current_scene()

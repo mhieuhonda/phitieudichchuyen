@@ -52,6 +52,20 @@ const DRAGGABLE_BUTTONS: Array = [
         "skill_dash", "skill_shield", "skill_multishot"
 ]
 
+# === NETWORK (v2.2) ===
+# Server URL mặc định. User có thể đổi trong Settings để trỏ đến relay server của mình.
+# Định dạng: ws://host:port/ws  hoặc  wss://host:port/ws (cho HTTPS)
+var server_url: String = "ws://163.44.96.79:25671/ws"
+
+# === DAILY LOGIN REWARD (v2.2) ===
+# Track ngày chơi cuối + số ngày liên tiếp
+var last_play_date: String = ""  # YYYY-MM-DD
+var daily_streak: int = 0  # số ngày liên tiếp
+# Tổng số trận đã chơi + tổng số trận thắng (cho achievements)
+var total_matches: int = 0
+var total_wins: int = 0
+var total_kills: int = 0
+
 # === THIẾT BỊ ===
 var device_tier: int = DeviceTier.MID_RANGE
 var was_auto_detected: bool = false
@@ -214,6 +228,14 @@ func save_settings():
         # v1.3: drag-drop layout
         config.set_value("ui_custom", "custom_button_positions", custom_button_positions)
         config.set_value("ui_custom", "use_custom_layout", use_custom_layout)
+        # v2.2: Network server URL
+        config.set_value("network", "server_url", server_url)
+        # v2.2: Daily login + stats
+        config.set_value("stats", "last_play_date", last_play_date)
+        config.set_value("stats", "daily_streak", daily_streak)
+        config.set_value("stats", "total_matches", total_matches)
+        config.set_value("stats", "total_wins", total_wins)
+        config.set_value("stats", "total_kills", total_kills)
         config.save(config_path)
 
 func _load_settings():
@@ -239,6 +261,14 @@ func _load_settings():
                 # v1.3: drag-drop layout
                 custom_button_positions = config.get_value("ui_custom", "custom_button_positions", {})
                 use_custom_layout = config.get_value("ui_custom", "use_custom_layout", false)
+                # v2.2: Network server URL
+                server_url = config.get_value("network", "server_url", "ws://163.44.96.79:25671/ws")
+                # v2.2: Daily login + stats
+                last_play_date = config.get_value("stats", "last_play_date", "")
+                daily_streak = config.get_value("stats", "daily_streak", 0)
+                total_matches = config.get_value("stats", "total_matches", 0)
+                total_wins = config.get_value("stats", "total_wins", 0)
+                total_kills = config.get_value("stats", "total_kills", 0)
 
 ## Lấy vị trí chuẩn hóa (0..1) của một nút; trả về Vector2 mặc định nếu chưa lưu
 func get_button_position(button_name: String, default_pos: Vector2) -> Vector2:
@@ -289,6 +319,52 @@ func set_sound_enabled(enabled: bool):
 
 func set_music_enabled(enabled: bool):
         music_enabled = enabled
+        save_settings()
+
+## v2.2: Reset URL về mặc định
+func reset_server_url():
+        server_url = "ws://163.44.96.79:25671/ws"
+        save_settings()
+
+## v2.2: Check-in daily. Trả về (is_first_play_today, streak_count, reward_hp_percent)
+## - is_first_play_today: true nếu là lần đầu chơi trong ngày
+## - streak_count: số ngày liên tiếp đã chơi
+## - reward_hp_percent: % HP bonus (capped at 30%)
+func check_daily_login() -> Dictionary:
+        var today = _get_today_str()
+        var yesterday = _get_yesterday_str()
+        var is_first = (last_play_date != today)
+        if is_first:
+                if last_play_date == yesterday:
+                        daily_streak += 1
+                else:
+                        daily_streak = 1  # reset streak
+                last_play_date = today
+                save_settings()
+        # Reward: 5% HP per streak day, max 30%
+        var reward_pct = min(daily_streak * 0.05, 0.30)
+        return {
+                "is_first_play_today": is_first,
+                "streak_count": daily_streak,
+                "reward_hp_percent": reward_pct,
+        }
+
+func _get_today_str() -> String:
+        var dt = Time.get_datetime_dict_from_system()
+        return "%04d-%02d-%02d" % [dt.year, dt.month, dt.day]
+
+func _get_yesterday_str() -> String:
+        var today_ts = Time.get_unix_time_from_system()
+        var yesterday_ts = today_ts - 86400  # 1 day ago
+        var dt = Time.get_datetime_dict_from_unix_time(int(yesterday_ts))
+        return "%04d-%02d-%02d" % [dt.year, dt.month, dt.day]
+
+## v2.2: Record match results để track stats
+func record_match_result(kills: int, won: bool):
+        total_matches += 1
+        total_kills += kills
+        if won:
+                total_wins += 1
         save_settings()
 
 func get_particle_multiplier() -> float:

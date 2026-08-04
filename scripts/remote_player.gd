@@ -108,6 +108,46 @@ func _update_hp_bar():
                 hp_bar.max_value = current_max_hp
                 hp_bar.value = current_hp
 
+## v2.2: Nhận damage từ dart/teleport của local player.
+## Client-side prediction: giảm HP và đánh dấu chết nếu HP <= 0.
+## Server vẫn là source-of-truth - state_sync sẽ override nếu cần.
+func take_damage_from(amount: float, attacker: Node2D):
+        if not is_alive:
+                return
+        current_hp -= amount
+        _update_hp_bar()
+        # Hit flash effect
+        if sprite:
+                var tween = create_tween()
+                tween.tween_property(sprite, "modulate", Color(1.0, 0.3, 0.3), 0.05)
+                tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0), 0.2)
+        if current_hp <= 0:
+                current_hp = 0
+                is_alive = false
+                sprite.visible = false
+                hp_bar.visible = false
+                name_label.visible = false
+                collision_shape.set_deferred("disabled", true)
+                # Particle death effect
+                if SettingsManager.get_particle_multiplier() > 0:
+                        var death_particles = CPUParticles2D.new()
+                        death_particles.emitting = true
+                        death_particles.one_shot = true
+                        death_particles.explosiveness = 0.9
+                        death_particles.amount = max(1, int(20 * SettingsManager.get_particle_multiplier()))
+                        death_particles.lifetime = 0.6
+                        death_particles.direction = Vector2(0,-1)
+                        death_particles.spread = 180
+                        death_particles.initial_velocity_min = 50
+                        death_particles.initial_velocity_max = 200
+                        death_particles.gravity = Vector2(0, 200)
+                        death_particles.scale_amount_min = 3
+                        death_particles.scale_amount_max = 6
+                        death_particles.color = Color(1.0, 0.3, 0.3, 0.95)
+                        get_parent().add_child(death_particles)
+                        death_particles.global_position = global_position
+                        get_tree().create_timer(1.5).timeout.connect(death_particles.queue_free)
+
 func _spawn_teleport_effect(pos: Vector2):
         if SettingsManager.get_particle_multiplier() <= 0:
                 return

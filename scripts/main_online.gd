@@ -230,8 +230,21 @@ func _on_match_end(data: Dictionary):
         _is_match_active = false
         var winner_name = data.get("winnerName", "Hòa")
         var leaderboard = data.get("leaderboard", [])
-        hud._show_results(winner_name, _convert_leaderboard(leaderboard))
+        var converted = _convert_leaderboard(leaderboard)
+        # v2.2: Record match stats + show results
+        var is_win = false
+        for entry in converted:
+                if entry.get("is_player", false) and entry.get("id", 0) == 1:
+                        is_win = true
+                        break
+        if SettingsManager:
+                SettingsManager.record_match_result(GameManager.player_kills, is_win)
+        hud._show_results(winner_name, converted)
+        # Mark GameManager as ended to stop tick processing
+        GameManager.game_ended = true
+        GameManager.game_active = false
         AudioManager.play_achievement()
+        AudioManager.play_music("victory" if is_win else "defeat")
 
 func _on_room_player_joined(data: Dictionary):
         var pid = str(data.get("playerId", ""))

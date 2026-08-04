@@ -822,6 +822,29 @@ func _check_teleport_kill(pos: Vector2):
                                 continue
                         ai.kill(self)
                         _register_kill_and_reward()
+        # v2.2 FIX: cũng check remote_players (online mode) - trước đây teleport không kill được remote
+        var remote_players = get_tree().get_nodes_in_group("remote_players")
+        for rp in remote_players:
+                if not is_instance_valid(rp):
+                        continue
+                if not ("is_alive" in rp) or not rp.is_alive:
+                        continue
+                var rp_size = rp.current_size if "current_size" in rp else 20.0
+                var dist = pos.distance_to(rp.global_position)
+                if dist < GameManager.teleport_kill_radius + rp_size:
+                        # Gọi take_damage_from với lượng lớn để chắc chắn kill
+                        if rp.has_method("take_damage_from"):
+                                rp.take_damage_from(99999.0, self)
+                        else:
+                                # Fallback: đánh dấu chết trực tiếp
+                                if "is_alive" in rp:
+                                        rp.is_alive = false
+                                        if rp.has_node("Sprite"):
+                                                rp.get_node("Sprite").visible = false
+                        _register_kill_and_reward()
+                        # Gửi kill report lên server
+                        if NetworkManager.is_in_match() and "player_id" in rp:
+                                NetworkManager.send_kill(rp.player_id, 100)
 
 func _register_kill_and_reward():
         # v2.1: Tách logic reward ra để dùng cho cả teleport kill và dart kill
@@ -844,6 +867,10 @@ func _register_kill_and_reward():
         AudioManager.play_kill()
         AudioManager.play_size_grow()
         _spawn_level_up_effect()
+        # v2.2: Notify HUD để track kill streak (Double/Triple/Quadra/Penta Kill)
+        var hud_node = get_tree().get_first_node_in_group("hud")
+        if hud_node and hud_node.has_method("register_player_kill"):
+                hud_node.register_player_kill()
         # v2.1: Check SMG reward
         _check_smg_reward()
 
@@ -862,6 +889,9 @@ func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
                 hit_player.take_damage_from(GameManager.dart_hit_damage, self)
                 if was_alive and "is_alive" in hit_player and not hit_player.is_alive:
                         _register_kill_and_reward()
+                        # v2.2: Gửi kill report lên server nếu là remote player (online mode)
+                        if NetworkManager.is_in_match() and hit_player.is_in_group("remote_players") and "player_id" in hit_player:
+                                NetworkManager.send_kill(hit_player.player_id, 100)
 
 func _die():
         is_alive = false
