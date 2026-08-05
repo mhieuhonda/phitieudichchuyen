@@ -126,12 +126,12 @@ func _refresh_ui():
         if quit_button:
                 quit_button.text = I18N.t("menu.quit")
         if version_label:
-                version_label.text = "v2.7 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v2.9 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#aa00ff][b]v2.7:[/b][/color] Nhân vật Ma Tôn + Fix 6 bugs + Zombie đẹp + UI sang trọng\n[color=#00ff88][b]Ma Tôn[/b][/color]: Nhập mã [color=#ffaa00]maton99[/color] → Mở khóa Ma Vương Siêu Cấp (khắc chế Classic!)\n[color=#ff4444][b]Zombie[/b][/color]: Đồ họa zombie đẹp hơn hẳn — wobble, glow, death dramatic\n[color=#44aaff][b]UI Premium[/b][/color]: Toàn bộ UI redesign cực đẹp, cực sang trọng"
+                        new_feature_label.text = "[color=#ffaa00][b]v2.9:[/b][/color] Fix nhân vật Ma Tôn (tách nền + đúng kích thước) + Sắp xếp lại Settings gọn gàng + Sửa lỗi không quay lại được từ Nhân Vật\n[color=#aa00ff][b]Ma Tôn[/b][/color]: Sprite đã được tách nền trong suốt, resize về 256×256 chuẩn như các nhân vật khác\n[color=#44aaff][b]Settings[/b][/color]: Tái cấu trúc theo thứ tự Đồ Họa → Âm Thanh → Ngôn Ngữ → Mã Quà Tặng → Giao Diện\n[color=#00ff88][b]ESC[/b][/color]: Phím ESC giờ cũng quay lại được ở mọi màn hình menu"
                 else:
-                        new_feature_label.text = "[color=#aa00ff][b]v2.7:[/b][/color] Ma Tôn character + 6 bug fixes + Zombie graphics + Premium UI\n[color=#00ff88][b]Ma Tôn[/b][/color]: Enter code [color=#ffaa00]maton99[/color] → Unlock the Demon King (hard counters Classic!)\n[color=#ff4444][b]Zombie[/b][/color]: Massively improved zombie graphics — wobble, glow, dramatic death\n[color=#44aaff][b]UI Premium[/b][/color]: Full UI redesign — luxurious dark theme with gold accents"
+                        new_feature_label.text = "[color=#ffaa00][b]v2.9:[/b][/color] Fix Ma Tôn character (transparent bg + correct size) + Cleaner Settings layout + Fix unable to go back from Characters screen\n[color=#aa00ff][b]Ma Tôn[/b][/color]: Sprite now has transparent background, resized to standard 256×256 like other characters\n[color=#44aaff][b]Settings[/b][/color]: Reorganized layout — Graphics → Audio → Language → Gift Code → Interface\n[color=#00ff88][b]ESC[/b][/color]: ESC key now also goes back on every menu screen"
 
 func _on_play_pressed():
         AudioManager.play_ui_click()

@@ -312,3 +312,12 @@ func _update_layout_status_label():
 func _on_back_pressed():
         AudioManager.play_ui_click()
         get_tree().change_scene_to_file("res://scenes/settings.tscn")
+
+## v2.9: ESC key also goes back to settings
+func _unhandled_input(event: InputEvent):
+        if event.is_action_pressed("menu_back"):
+                # Don't interfere with active drags
+                if _active_drag_name != "":
+                        return
+                get_viewport().set_input_as_handled()
+                _on_back_pressed()

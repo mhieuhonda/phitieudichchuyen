@@ -50,11 +50,11 @@ horizontal_alignment = 1
 layout_mode = 1
 offset_left = 15.0
 offset_top = 15.0
-offset_right = 135.0
-offset_bottom = 50.0
+offset_right = 165.0
+offset_bottom = 58.0
 text = "← QUAY LẠI"
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(0.65, 0.65, 0.75, 1.0)
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.85, 0.85, 0.95, 1.0)
 
 [node name="ScrollContainer" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -62,7 +62,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 15.0
-offset_top = 65.0
+offset_top = 70.0
 offset_right = -15.0
 offset_bottom = -15.0
 grow_horizontal = 2
@@ -120,46 +120,28 @@ text = "Cao"
 theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.6, 0.65, 0.75, 1.0)
 
-[node name="TogglesRow1" type="HBoxContainer" parent="ScrollContainer/VBox"]
+[node name="GraphicsToggles" type="HBoxContainer" parent="ScrollContainer/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="FpsToggle" type="CheckButton" parent="ScrollContainer/VBox/TogglesRow1"]
+[node name="FpsToggle" type="CheckButton" parent="ScrollContainer/VBox/GraphicsToggles"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Hiện FPS"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1.0)
 
-[node name="ShakeToggle" type="CheckButton" parent="ScrollContainer/VBox/TogglesRow1"]
+[node name="ShakeToggle" type="CheckButton" parent="ScrollContainer/VBox/GraphicsToggles"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Rung màn hình"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1.0)
 
-[node name="TogglesRow2" type="HBoxContainer" parent="ScrollContainer/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="JoystickToggle" type="CheckButton" parent="ScrollContainer/VBox/TogglesRow2"]
+[node name="JoystickToggle" type="CheckButton" parent="ScrollContainer/VBox/GraphicsToggles"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Hiện Joystick"
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1.0)
-
-[node name="SoundToggle" type="CheckButton" parent="ScrollContainer/VBox/TogglesRow2"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Âm thanh"
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1.0)
-
-[node name="MusicToggle" type="CheckButton" parent="ScrollContainer/VBox/TogglesRow2"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Nhạc nền"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1.0)
 
@@ -171,6 +153,24 @@ theme_override_colors/font_shadow_color = Color(0.4, 0.3, 0.0, 0.4)
 theme_override_constants/shadow_offset_y = 1
 theme_override_constants/shadow_outline_size = 3
 text = "🔊 ÂM THANH"
+
+[node name="AudioToggles" type="HBoxContainer" parent="ScrollContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SoundToggle" type="CheckButton" parent="ScrollContainer/VBox/AudioToggles"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Âm thanh"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1.0)
+
+[node name="MusicToggle" type="CheckButton" parent="ScrollContainer/VBox/AudioToggles"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Nhạc nền"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1.0)
 
 [node name="SoundLabel" type="Label" parent="ScrollContainer/VBox"]
 layout_mode = 2
@@ -200,15 +200,6 @@ max_value = 1.0
 step = 0.05
 value = 0.7
 
-[node name="GiftCodeSection" type="Label" parent="ScrollContainer/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
-theme_override_colors/font_color = Color(1.0, 0.82, 0.25, 1.0)
-theme_override_colors/font_shadow_color = Color(0.4, 0.3, 0.0, 0.4)
-theme_override_constants/shadow_offset_y = 1
-theme_override_constants/shadow_outline_size = 3
-text = "🎁 NHẬP MÃ QUÀ TẶNG"
-
 [node name="LanguageSection" type="Label" parent="ScrollContainer/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
@@ -237,6 +228,15 @@ custom_minimum_size = Vector2(0, 48)
 text = "🇬🇧 English"
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.6, 0.85, 1.0, 1.0)
+
+[node name="GiftCodeSection" type="Label" parent="ScrollContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1.0, 0.82, 0.25, 1.0)
+theme_override_colors/font_shadow_color = Color(0.4, 0.3, 0.0, 0.4)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 3
+text = "🎁 NHẬP MÃ QUÀ TẶNG"
 
 [node name="GiftCodeDesc" type="Label" parent="ScrollContainer/VBox"]
 layout_mode = 2

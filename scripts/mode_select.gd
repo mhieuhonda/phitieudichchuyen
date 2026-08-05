@@ -220,3 +220,9 @@ func _on_back_pressed():
 	if NetworkManager.is_server_connected():
 		NetworkManager.disconnect_from_server()
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
+## v2.9: ESC key also goes back to menu
+func _unhandled_input(event: InputEvent):
+	if event.is_action_pressed("menu_back"):
+		get_viewport().set_input_as_handled()
+		_on_back_pressed()

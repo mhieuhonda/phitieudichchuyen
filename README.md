@@ -1,15 +1,42 @@
-# 🎯 Phi Tiêu Dịch Chuyển v2.8
+# 🎯 Phi Tiêu Dịch Chuyển v2.9
 
 > **Ném phi tiêu - Dịch chuyển - Nuốt đối thủ!**
 >
 > Game 2D top-down arena được xây dựng bằng Godot Engine 4.7 — với **Online Multiplayer**, **14 Nhân Vật**, và **Premium UI**!
 
-![Version](https://img.shields.io/badge/version-2.8-blue)
+![Version](https://img.shields.io/badge/version-2.9-blue)
 ![Godot](https://img.shields.io/badge/Godot-4.7%20stable-blue)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20PC%20%7C%20Linux-green)
 ![Status](https://img.shields.io/badge/status-Stable-brightgreen)
 ![Multiplayer](https://img.shields.io/badge/multiplayer-Online%20%2B%20Offline-orange)
 ![Characters](https://img.shields.io/badge/characters-14-purple)
+
+---
+
+## 🆕 Tính Năng v2.9 — Bug Fixes + UX Improvements
+
+Bản phát hành này tập trung vào việc sửa các lỗi người dùng báo cáo và dọn dẹp trải nghiệm UI.
+
+### 🐛 3 Lỗi Nghiêm Trọng Đã Sửa
+
+| # | Lỗi | Nguyên nhân | Fix |
+|---|------|-------------|-----|
+| 1 | **Ma Tôn có nền xám, nhân vật quá to** | Sprite 1024×1024 với nền checkerboard gray baked-in (không trong suốt), lớn gấp 4× các sprite 256×256 khác | Tách nền theo flood-fill + feather edge, auto-crop, resize về 256×256 chuẩn |
+| 2 | **Không quay lại được từ màn hình Nhân Vật** | BackButton quá nhỏ (120×35) trên mobile, không có xử lý phím ESC | Tăng kích thước BackButton lên 150×43, thêm handler `_unhandled_input(menu_back)` cho ESC |
+| 3 | **Settings lộn xộn, section đan xen** | TogglesRow2 chứa cả JoystickToggle (UI) + SoundToggle + MusicToggle (Audio); GiftCodeSection bị LanguageSection cắt giữa chừng | Tách thành `GraphicsToggles` (FPS, Shake, Joystick) và `AudioToggles` (Sound, Music); đặt LanguageSection và GiftCodeSection đúng vị trí |
+
+### ✨ Cải Tiến UX
+
+1. **ESC key works everywhere** — Mọi màn hình menu con (Characters, Settings, Guide, UI Customize, Mode Select, Matchmaking) đều phản hồi phím ESC để quay lại, không chỉ nút bấm.
+2. **BackButton lớn hơn** — Tăng từ 120×35 (font 14) lên 150×43 (font 15), dễ tap hơn trên mobile.
+3. **Settings layout gọn gàng** — Thứ tự section rõ ràng: Đồ Họa → Âm Thanh → Ngôn Ngữ → Mã Quà Tặng → Giao Diện → Thông tin thiết bị.
+4. **Ma Tôn sprite chuẩn** — Sprite 256×256 với alpha transparency, hiển thị đúng kích thước trong Character Screen và trong game.
+
+### 📐 Chi Tiết Fix Ma Tôn Sprite
+
+**Trước**: `char_ma_ton.png` là file 1024×1024 RGBA nhưng mọi pixel đều có `alpha=255`. Nền là pattern checkerboard (hai sắc gray ~RGB(231,231,231) và ~RGB(177,177,177)) baked-in thay vì trong suốt thật. Khi hiển thị trong game với `BASE_SPRITE_SCALE=0.3`, nhân vật hiện thành khối vuông 307×307 px (4× lớn hơn các nhân vật khác 76×76 px) với nền xám che khuất toàn bộ.
+
+**Sau**: Dùng Python PIL + flood-fill từ các edge pixels để xác định vùng nền liên tục (chỉ remove background contiguous, không đụng vào character interior). Feather alpha 140 ở biên để edge mượt. Auto-crop bbox + padding 12px → resize 256×256 bằng LANCZOS. Kết quả: 38.2% opaque pixels (so với 48.8% trung bình các nhân vật khác) — đúng tỷ lệ cho một nhân vật có dáng dài mặc áo choàng.
 
 ---
 
@@ -295,6 +322,18 @@ node server.js
 
 ## 📜 Lịch Sử Phiên Bản
 
+### v2.9 (2026-08-05) — Bug Fixes + UX Polish
+- **FIX**: Ma Tôn sprite — tách nền checkerboard baked-in, resize 1024→256, alpha transparency chuẩn
+- **FIX**: Không quay lại được từ Characters screen — BackButton to hơn + ESC handler
+- **FIX**: Settings lộn xộn — tách GraphicsToggles/AudioToggles, đúng thứ tự section
+- **UX**: ESC key works trên mọi submenu (Characters, Settings, Guide, UI Customize, Mode Select, Matchmaking, Endless Game Over)
+- **UX**: BackButton tăng từ 120×35 → 150×43, font 14→15, color sáng hơn
+
+### v2.8 (2026-08-05) — 15 Bug Fixes + 5 Features
+- Floating Damage Numbers, Kill Combo Counter, Auto-Aim Assist
+- Pause Menu, Performance Stats Overlay
+- 4 CRITICAL crash guards + 5 SIGNIFICANT fixes + 6 MODERATE fixes
+
 ### v2.7 (2026-08-04) — Ma Tôn + Bug Fixes + Zombie Overhaul + Premium UI
 - **NEW**: Nhân vật Ma Tôn — Ma Vương Siêu Cấp (khắc chế Classic)
 - **NEW**: Gift code `maton99` mở khóa Ma Tôn
@@ -338,5 +377,5 @@ Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 ---
 
 <p align="center">
-  <b>Phi Tiêu Dịch Chuyển v2.8</b> — Ném phi tiêu, dịch chuyển, nuốt đối thủ!
+  <b>Phi Tiêu Dịch Chuyển v2.9</b> — Ném phi tiêu, dịch chuyển, nuốt đối thủ!
 </p>

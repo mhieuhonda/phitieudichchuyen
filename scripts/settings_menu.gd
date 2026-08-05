@@ -12,11 +12,11 @@ extends Control
 @onready var quality_low: Button = $ScrollContainer/VBox/QualityButtons/QualityLow
 @onready var quality_medium: Button = $ScrollContainer/VBox/QualityButtons/QualityMedium
 @onready var quality_high: Button = $ScrollContainer/VBox/QualityButtons/QualityHigh
-@onready var fps_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow1/FpsToggle
-@onready var shake_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow1/ShakeToggle
-@onready var joystick_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow2/JoystickToggle
-@onready var sound_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow2/SoundToggle
-@onready var music_toggle: CheckButton = $ScrollContainer/VBox/TogglesRow2/MusicToggle
+@onready var fps_toggle: CheckButton = $ScrollContainer/VBox/GraphicsToggles/FpsToggle
+@onready var shake_toggle: CheckButton = $ScrollContainer/VBox/GraphicsToggles/ShakeToggle
+@onready var joystick_toggle: CheckButton = $ScrollContainer/VBox/GraphicsToggles/JoystickToggle
+@onready var sound_toggle: CheckButton = $ScrollContainer/VBox/AudioToggles/SoundToggle
+@onready var music_toggle: CheckButton = $ScrollContainer/VBox/AudioToggles/MusicToggle
 @onready var sound_slider: HSlider = $ScrollContainer/VBox/SoundSlider
 @onready var music_slider: HSlider = $ScrollContainer/VBox/MusicSlider
 @onready var sound_label: Label = $ScrollContainer/VBox/SoundLabel
@@ -308,3 +308,9 @@ func _on_redeem_pressed():
 func _on_back_pressed():
         AudioManager.play_ui_click()
         get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
+## v2.9: ESC key also goes back to menu (in addition to the BackButton)
+func _unhandled_input(event: InputEvent):
+        if event.is_action_pressed("menu_back"):
+                get_viewport().set_input_as_handled()
+                _on_back_pressed()

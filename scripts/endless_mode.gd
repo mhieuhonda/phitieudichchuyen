@@ -384,6 +384,13 @@ func _on_menu():
                 NetworkManager.disconnect_from_server()
         get_tree().change_scene_to_file("res://scenes/mode_select.tscn")
 
+## v2.9: ESC key also returns to mode select (only when game is over,
+## NOT during active gameplay — during gameplay ESC opens the pause menu).
+func _unhandled_input(event: InputEvent):
+        if event.is_action_pressed("menu_back") and is_game_over:
+                get_viewport().set_input_as_handled()
+                _on_menu()
+
 # === SKILL DISPATCH ===
 
 func _on_skill_activated(skill_id: int, skill_key: String):

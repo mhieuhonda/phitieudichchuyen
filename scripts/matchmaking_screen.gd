@@ -175,6 +175,12 @@ func _on_cancel_pressed():
                 NetworkManager.leave_matchmaking()
         get_tree().change_scene_to_file("res://scenes/mode_select.tscn")
 
+## v2.9: ESC key also cancels matchmaking and goes back
+func _unhandled_input(event: InputEvent):
+        if event.is_action_pressed("menu_back"):
+                get_viewport().set_input_as_handled()
+                _on_cancel_pressed()
+
 func _on_matchmaking_update(queue_size: int, min_players: int, max_players: int):
         queue_label.text = "Người chơi: %d / %d (tối đa %d)" % [queue_size, min_players, max_players]
         status_label.text = "Đang tìm trận..."

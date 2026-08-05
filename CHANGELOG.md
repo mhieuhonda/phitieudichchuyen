@@ -1,5 +1,77 @@
 # Changelog
 
+## v2.9 - Phi Tiêu Dịch Chuyển (2026-08-05)
+
+### 🐛 FIX: 3 Lỗi Người Dùng Báo Cáo
+
+#### CRITICAL (2)
+1. **Ma Tôn sprite không tách nền + quá to**: `char_ma_ton.png` là 1024×1024 với nền checkerboard gray baked-in (alpha=255 everywhere), hiển thị thành khối vuông 307×307 px trong game (4× lớn hơn các nhân vật 256×256 khác). Fix: Python PIL script dùng flood-fill từ edge pixels để xác định background contiguous (không đụng character interior), feather alpha 140 ở biên, auto-crop bbox + padding 12px, resize 256×256 bằng LANCZOS. Kết quả: 38.2% opaque pixels (so với 100% trước fix, 48.8% trung bình các nhân vật khác).
+2. **Không quay lại được từ Characters screen**: BackButton 120×35 quá nhỏ trên mobile, không có ESC handler. Fix: tăng BackButton lên 150×43 (font 15), thêm `_unhandled_input(event)` handler cho action `menu_back` (ESC).
+
+#### SIGNIFICANT (1)
+3. **Settings lộn xộn, section đan xen**: `TogglesRow2` chứa cả JoystickToggle (UI) + SoundToggle + MusicToggle (Audio). `AudioSection` header xuất hiện SAU audio toggles. `GiftCodeSection` bị `LanguageSection` cắt giữa chừng rồi mới tiếp tục bằng `GiftCodeDesc`/`GiftCodeHBox`/`GiftCodeResultLabel`. Fix: tái cấu trúc `settings.tscn`:
+   - Tách `TogglesRow1/TogglesRow2` cũ thành `GraphicsToggles` (FPS, Shake, Joystick) và `AudioToggles` (Sound, Music)
+   - Đặt `AudioSection` TRƯỚC `AudioToggles` và các slider
+   - Gộp `GiftCodeSection` + `GiftCodeDesc` + `GiftCodeHBox` + `GiftCodeResultLabel` thành một block liên tục
+   - Đặt `LanguageSection` + `LanguageButtons` thành một block riêng
+   - Thứ tự mới: Đồ Họa → Âm Thanh → Ngôn Ngữ → Mã Quà Tặng → Giao Diện → Thông tin thiết bị
+
+### ✨ UX IMPROVEMENTS
+
+1. **ESC key works everywhere** — Thêm `_unhandled_input(event)` handler cho action `menu_back` trên mọi submenu screen:
+   - `character_screen.gd` → quay lại `menu.tscn`
+   - `settings_menu.gd` → quay lại `menu.tscn`
+   - `guide.gd` → quay lại `menu.tscn`
+   - `ui_customization.gd` → quay lại `settings.tscn` (có guard chống interfere khi đang drag)
+   - `mode_select.gd` → quay lại `menu.tscn` (kèm disconnect server)
+   - `matchmaking_screen.gd` → cancel matchmaking + quay lại `mode_select.tscn`
+   - `endless_mode.gd` → chỉ khi `is_game_over` (tránh conflict với pause menu)
+2. **BackButton lớn hơn trên mọi submenu** — Tăng từ 120×35 (font 14, color xám mờ) lên 150×43 (font 15, color sáng hơn) cho dễ tap trên mobile:
+   - `character_screen.tscn`, `settings.tscn`, `guide.tscn`, `ui_customization.tscn`
+   - Đẩy `LeftPanel` xuống `offset_top=70` để tránh overlap với BackButton mới
+
+### 📐 CHI TIẾT KỸ THUẬT
+
+#### Ma Tôn Sprite Fix Pipeline
+```
+1. Phát hiện 2 bg colors từ edge samples (median brightness bucketing)
+   - (231, 231, 231) — light gray (495 samples)
+   - (177, 177, 177) — dark gray (345 samples)
+
+2. is_bg_pixel(r, g, b):
+   - Gray check: max-min channel diff <= 14 (bảo vệ pixel màu của character)
+   - Brightness range: 140 <= (r+g+b)/3 <= 250 (catch cả 2 shade + transition)
+
+3. Flood-fill BFS 4-connectivity từ mọi edge pixels
+   - Chỉ remove background CONTIGUOUS — character interior không bị đụng
+   - 68.1% pixels marked as background
+
+4. Feather edge: opaque pixels có 4-neighbor transparent → alpha=140
+   - 4747 pixels softened cho outline mượt
+
+5. Auto-crop bbox: (242, 36) .. (838, 986) — character 596×950
+
+6. Pad to square (24px margin) → resize 256×256 LANCZOS
+```
+
+#### Files Modified
+- `assets/sprites/characters/char_ma_ton.png` — sprite 1024×1024 → 256×256 với alpha
+- `scenes/character_screen.tscn` — BackButton 150×43, LeftPanel/RightPanel offset_top=70
+- `scenes/settings.tscn` — Reorganize: GraphicsToggles, AudioToggles, đúng thứ tự section
+- `scenes/guide.tscn` — BackButton 150×43
+- `scenes/ui_customization.tscn` — BackButton 150×43, LeftPanel offset_top=70
+- `scripts/character_screen.gd` — _unhandled_input(menu_back)
+- `scripts/settings_menu.gd` — @onready paths cập nhật cho GraphicsToggles/AudioToggles + _unhandled_input
+- `scripts/guide.gd` — _unhandled_input(menu_back)
+- `scripts/ui_customization.gd` — _unhandled_input(menu_back) với drag guard
+- `scripts/mode_select.gd` — _unhandled_input(menu_back)
+- `scripts/matchmaking_screen.gd` — _unhandled_input(menu_back)
+- `scripts/endless_mode.gd` — _unhandled_input(menu_back) khi is_game_over
+- `scripts/menu.gd` — version_label "v2.9", new_feature_label mô tả v2.9
+- `project.godot` — config/version="2.9"
+- `README.md` — bump v2.9, thêm section v2.9
+- `CHANGELOG.md` — thêm entry v2.9
+
 ## v2.8 - Phi Tiêu Dịch Chuyển (2026-08-05)
 
 ### 🔧 FIX: 15 Bugs Tri5 Triệt Để
