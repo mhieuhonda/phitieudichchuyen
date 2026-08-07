@@ -9,13 +9,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. 1.9.0)'
+        description: 'Version (e.g. 3.1.0)'
         required: false
         default: ''
 
 permissions:
   contents: write
-  packages: write
 
 env:
   GODOT_VERSION: '4.7'
@@ -23,12 +22,8 @@ env:
 
 jobs:
   # ============================================
-  # JOB 1: Build Android APK (Parallel)
+  # JOB 1: Build Android APK
   # ============================================
-  # Uses prebuilt APK template (export_presets.cfg has use_gradle_build=false).
-  # Godot patches the prebuilt android_release.apk from export templates with the game's PCK.
-  # After export, we zipalign + sign with apksigner using a debug keystore (generated in CI)
-  # so the APK installs on Android devices without "package seems corrupted" error.
   build-android:
     name: 🤖 Build Android
     runs-on: ubuntu-latest
@@ -40,7 +35,6 @@ jobs:
       - name: Setup Godot & Export Templates
         run: |
           GV="${{ env.GODOT_VERSION }}"
-          # Download Godot editor
           EDITOR_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_linux.x86_64.zip"
           echo "Downloading Godot $GV editor..."
           wget -q "$EDITOR_URL" -O godot.zip
@@ -49,7 +43,6 @@ jobs:
           sudo mv Godot_v${GV}-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
-          # Download export templates (includes prebuilt android_release.apk)
           TPL_URL="https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_export_templates.tpz"
           echo "Downloading export templates..."
           wget -q "$TPL_URL" -O godot_templates.tpz
@@ -67,7 +60,6 @@ jobs:
 
       - name: Setup Android SDK (for build-tools apksigner + zipalign)
         run: |
-          # Install Android SDK command-line tools + build-tools 34.0.0 (provides apksigner + zipalign)
           export ANDROID_HOME=$HOME/android-sdk
           export ANDROID_SDK_ROOT=$ANDROID_HOME
           mkdir -p $ANDROID_HOME/cmdline-tools
@@ -80,21 +72,38 @@ jobs:
           ./cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platform-tools" "platforms;android-34" > /dev/null 2>&1
           echo "Build tools installed:"
           ls $ANDROID_HOME/build-tools/34.0.0/ | grep -E "apksigner|zipalign"
-          # Persist env for subsequent steps
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
 
       - name: Configure Godot editor settings (Android SDK path)
         run: |
-          # Godot 4.7 requires Android SDK path in Editor Settings even when
-          # use_gradle_build=false and package/signed=false. We use Godot's
-          # ConfigFile-style format for editor_settings.cfg.
           SETTINGS_DIR="$HOME/.config/godot"
           mkdir -p "$SETTINGS_DIR"
-          cat > "$SETTINGS_DIR/editor_settings.cfg" <<EOF
+          cat > "$SETTINGS_DIR/editor_settings-3.tscn" <<'GDEOF'
+          [application]
+
+          config/use_custom_user_dir=true
+          config/custom_user_dir_name="godot_ci"
+
+          [export]
+
+          android/android_sdk_path=""
+          android/debug_keystore=""
+          android/debug_keystore_user="androiddebugkey"
+          android/debug_keystore_pass="android"
+          android/release_keystore=""
+          android/release_keystore_user=""
+          android/release_keystore_pass=""
+          android/use_custom_build=false
+          android/timestamp_output_apk=false
+          android/force_system_user=false
+          android/shutdown_adb_on_exit=true
+          GDEOF
+          # Also write the ConfigFile format for Godot 4.x
+          cat > "$SETTINGS_DIR/editor_settings.cfg" <<'GDEOF2'
           [EditorSettings]
 
-          export/android/android_sdk_path="${ANDROID_HOME}"
+          export/android/android_sdk_path=""
           export/android/debug_keystore=""
           export/android/debug_keystore_user="androiddebugkey"
           export/android/debug_keystore_pass="android"
@@ -105,31 +114,27 @@ jobs:
           export/android/timestamp_output_apk=false
           export/android/force_system_user=false
           export/android/shutdown_adb_on_exit=true
-          EOF
-          echo "Godot editor settings written to $SETTINGS_DIR/editor_settings.cfg:"
-          cat "$SETTINGS_DIR/editor_settings.cfg"
+          GDEOF2
+          # Override the Android SDK path via environment
+          echo "export/android/android_sdk_path=\"${ANDROID_HOME}\"" >> "$SETTINGS_DIR/editor_settings.cfg"
+          echo "Godot editor settings written"
 
       - name: Import Project
         run: |
-          # --import is the Godot 4.x flag (NOT --import-project which was 3.x)
-          # It imports all resources and quits automatically.
           godot --headless --import 2>&1 | tee import.log || (echo "Import failed, see log above" && exit 1)
 
       - name: Export Android APK (unsigned, from Godot)
         run: |
           mkdir -p build/android
           echo "Godot version: $(godot --version)"
-          # Use --export-release (Godot 4.x). use_gradle_build=false means Godot uses the
-          # prebuilt android_release.apk template from export templates.
           godot --headless --export-release "Android" build/android/phitieudichchuyen.unsigned.apk 2>&1 | tee export.log
           echo "=== Build output ==="
           ls -la build/android/ || true
-          # Verify APK was created (don't silently succeed on failure)
           if [ ! -f build/android/phitieudichchuyen.unsigned.apk ]; then
-            echo "❌ APK was not created. Check export.log above."
+            echo "APK was not created. Check export.log above."
             exit 1
           fi
-          echo "✅ Unsigned APK created: $(du -h build/android/phitieudichchuyen.unsigned.apk | cut -f1)"
+          echo "Unsigned APK created: $(du -h build/android/phitieudichchuyen.unsigned.apk | cut -f1)"
 
       - name: Zipalign + Sign APK with apksigner
         env:
@@ -138,8 +143,6 @@ jobs:
         run: |
           export PATH="$ANDROID_HOME/build-tools/34.0.0:$PATH"
 
-          # Generate a debug keystore (self-signed, 10000-day validity).
-          # For production, replace with a stored release keystore via GitHub Secret.
           KEYSTORE_PATH="$HOME/phitieu-debug.keystore"
           keytool -genkey -v \
             -keystore "$KEYSTORE_PATH" \
@@ -151,11 +154,9 @@ jobs:
             -validity 10000 \
             -dname "CN=PhiTieuDichChuyen, OU=Dev, O=PhiTieuDichChuyen, L=Hanoi, ST=Hanoi, C=VN"
 
-          # Zipalign: -p 4 means page-align .so files to 4 KiB
           echo "Zipaligning APK..."
           zipalign -v -p 4 build/android/phitieudichchuyen.unsigned.apk build/android/phitieudichchuyen.aligned.apk > /dev/null
 
-          # apksigner: sign with v1 (JAR) + v2 (Android 7+) + v3 (Android 9+) schemes
           echo "Signing APK (v1+v2+v3)..."
           apksigner sign \
             --ks "$KEYSTORE_PATH" \
@@ -168,16 +169,14 @@ jobs:
             --out build/android/phitieudichchuyen.apk \
             build/android/phitieudichchuyen.aligned.apk
 
-          # Verify signature
           echo "Verifying APK signature..."
           apksigner verify --verbose --print-certs build/android/phitieudichchuyen.apk | head -20
 
-          # Clean up intermediate files
           rm -f build/android/phitieudichchuyen.unsigned.apk build/android/phitieudichchuyen.aligned.apk
 
           echo "=== Final APK ==="
           ls -la build/android/phitieudichchuyen.apk
-          echo "✅ Signed APK size: $(du -h build/android/phitieudichchuyen.apk | cut -f1)"
+          echo "Signed APK size: $(du -h build/android/phitieudichchuyen.apk | cut -f1)"
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
@@ -188,7 +187,7 @@ jobs:
           if-no-files-found: warn
 
   # ============================================
-  # JOB 2: Build Windows Desktop (Parallel)
+  # JOB 2: Build Windows Desktop
   # ============================================
   build-windows:
     name: 🪟 Build Windows
@@ -226,10 +225,10 @@ jobs:
           godot --headless --export-release "Windows Desktop" build/windows/phitieudichchuyen.exe 2>&1 | tee export.log
           ls -la build/windows/ || true
           if [ ! -f build/windows/phitieudichchuyen.exe ]; then
-            echo "❌ Windows .exe was not created."
+            echo "Windows .exe was not created."
             exit 1
           fi
-          echo "✅ Windows build created: $(du -h build/windows/phitieudichchuyen.exe | cut -f1)"
+          echo "Windows build created: $(du -h build/windows/phitieudichchuyen.exe | cut -f1)"
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -242,7 +241,7 @@ jobs:
           if-no-files-found: warn
 
   # ============================================
-  # JOB 3: Build Linux (Parallel)
+  # JOB 3: Build Linux
   # ============================================
   build-linux:
     name: 🐧 Build Linux
@@ -280,10 +279,10 @@ jobs:
           godot --headless --export-release "Linux/X11" build/linux/phitieudichchuyen.x86_64 2>&1 | tee export.log
           ls -la build/linux/ || true
           if [ ! -f build/linux/phitieudichchuyen.x86_64 ]; then
-            echo "❌ Linux binary was not created."
+            echo "Linux binary was not created."
             exit 1
           fi
-          echo "✅ Linux build created: $(du -h build/linux/phitieudichchuyen.x86_64 | cut -f1)"
+          echo "Linux build created: $(du -h build/linux/phitieudichchuyen.x86_64 | cut -f1)"
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
@@ -296,58 +295,17 @@ jobs:
           if-no-files-found: warn
 
   # ============================================
-  # JOB 4: Build & Push Relay Server Docker Image
+  # JOB 4: Create GitHub Release (after all builds)
   # ============================================
-  build-relay-server:
-    name: 🌐 Build Relay Server
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract tag name
-        id: tag
-        run: echo "TAG=${GITHUB_REF_NAME:-${GITHUB_SHA::7}}" >> $GITHUB_OUTPUT
-
-      - name: Build and Push Relay Server
-        uses: docker/build-push-action@v6
-        with:
-          context: ./relay-server
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/phitieu-relay:latest
-            ghcr.io/${{ github.repository_owner }}/phitieu-relay:${{ steps.tag.outputs.TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ============================================
-  # JOB 5: Create GitHub Release (after all builds)
-  # ============================================
+  # v3.1: Đã gỡ build-relay-server (game offline, không cần relay server)
   create-release:
     name: 📦 Create Release
-    needs: [build-android, build-windows, build-linux, build-relay-server]
-    # Trigger conditions:
-    #   - tag push (github.ref starts with refs/tags/v)
-    #   - OR release:published event (github.event_name == 'release')
-    #   - OR workflow_dispatch
-    # Build requirements:
-    #   - Windows + Linux + Relay MUST succeed (Android is optional due to SDK complexity)
+    needs: [build-android, build-windows, build-linux]
     if: |
       always() &&
       (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release' || github.event_name == 'workflow_dispatch') &&
       needs.build-windows.result == 'success' &&
-      needs.build-linux.result == 'success' &&
-      needs.build-relay-server.result == 'success'
+      needs.build-linux.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -356,9 +314,6 @@ jobs:
       - name: Determine release tag
         id: rel
         run: |
-          # For push (tag) events: use the pushed tag name (e.g. "v1.9")
-          # For release events: use the release's tag_name (e.g. "v1.9")
-          # For workflow_dispatch: use the input, but ensure it starts with "v"
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             TAG="${GITHUB_REF_NAME}"
           elif [ "${GITHUB_EVENT_NAME}" = "release" ]; then
@@ -366,11 +321,9 @@ jobs:
           else
             INPUT_VER="${{ inputs.version }}"
             if [ -z "$INPUT_VER" ]; then
-              # Read from project.godot as fallback
               PROJECT_VER=$(grep 'config/version' project.godot | sed 's/.*="\([^"]*\)".*/\1/')
               TAG="v${PROJECT_VER}"
             else
-              # Ensure it starts with "v"
               case "$INPUT_VER" in
                 v*) TAG="$INPUT_VER" ;;
                 *) TAG="v${INPUT_VER}" ;;
@@ -390,12 +343,9 @@ jobs:
       - name: Organize Release Files
         run: |
           mkdir -p release
-          # Android (signed APK)
           cp artifacts/android-build/*.apk release/ 2>/dev/null || echo "No Android APK (build may have failed - acceptable)"
-          # Windows
           cp artifacts/windows-build/*.exe release/ 2>/dev/null || true
           cp artifacts/windows-build/*.pck release/ 2>/dev/null || true
-          # Linux
           cp artifacts/linux-build/*.x86_64 release/ 2>/dev/null || true
           cp artifacts/linux-build/*.pck release/phitieudichchuyen-linux.pck 2>/dev/null || true
           echo "=== Release files ==="
@@ -409,38 +359,21 @@ jobs:
           files: release/*
           generate_release_notes: true
           body: |
-            ## 🎯 Phi Tiêu Dịch Chuyển ${{ steps.rel.outputs.tag }}
+            ## Phi Tiêu Dịch Chuyển ${{ steps.rel.outputs.tag }}
 
-            ### 🆕 Tính năng v2.3 — Xóa Hoàn Toàn Cấu Hình Server URL
+            ### v3.1 — Premium Custom UI
 
-            #### 🔥 BREAKING: Không Còn Phần Cấu Hình Server Trong Game
+            - Custom background image (AnhNen.png) for lobby and in-game map
+            - Custom game logo (TenGame.png) in lobby
+            - Custom Play button image (PlayButton.png) rotated horizontal
+            - Custom Settings button image (SettingButton.png)
+            - Win overlay image (Win.png) shown on victory, fades after leaderboard appears
+            - YouDie overlay image (YouDie.png) shown when player is eliminated
+            - Touch scale animation on all buttons (scale up on press, scale down on release)
+            - Removed relay server build (offline-only game)
+            - Fixed GitHub Actions workflow for reliable CI/CD
 
-            **Lý do**: Không có game thương mại nào bắt user tự cấu hình server URL. Relay server là thứ backend — dev cấu hình sẵn, user chỉ việc mở game và chơi.
-
-            **Đã xóa**:
-            - Mục **🌐 MẠNG (SERVER URL)** trong Settings
-            - Nút **⚙ ĐỔI SERVER URL** trong màn hình Mode Select
-            - Field `server_url` trong `SettingsManager`
-            - Hàm `SettingsManager.reset_server_url()`
-
-            **Đã thêm**:
-            - ✅ Relay server URL **hardcoded** trong `NetworkManager.DEFAULT_SERVER_URL` (const)
-            - ✅ Mọi client dùng chung **một VPS duy nhất** đã deploy sẵn (IP `163.44.96.79:25671`)
-            - ✅ User mở game → Chơi Ngay → Chơi Online → tự kết nối → vào trận ngay
-
-            #### 📦 Version Bump
-            - `project.godot`: `config/version` `2.2` → `2.3`
-            - `export_presets.cfg`: `version/code` `22` → `23`, `version/name` `"2.2"` → `"2.3"`
-            - `menu.gd`: version label `v2.2` → `v2.3`
-
-            ### 📦 Downloads
-            - **Android**: `.apk` file (đã ký với debug keystore, có thể cài trực tiếp)
+            ### Downloads
+            - **Android**: `.apk` file (signed with debug keystore)
             - **Windows**: `.exe` + `.pck` files
             - **Linux**: `.x86_64` + `.pck` files
-            - **Relay Server**: `ghcr.io/mhieuhonda/phitieu-relay:latest`
-
-            ### 🎮 Hướng dẫn
-            1. **Chơi Online**: Menu → Chơi Ngay → 🌐 Chơi Online → Đợi matchmaking → Bắt đầu!
-            2. **Mở khóa Hieu Louis**: Menu → ⚙ Cài Đặt → 🎁 Nhập Mã Quà Tặng → `hieulouis99` → Đổi Mã
-            3. **Crown Skill**: Khi chơi Hieu Louis, nút ♛ xuất hiện. Ấn để ghim 5 đối thủ + +50% điểm.
-            4. **SMG Reward**: Giết 50 mạng → tự động nhận tiểu liên vô hạn 20s.

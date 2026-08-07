@@ -7,7 +7,7 @@ extends Node2D
 
 @onready var zone_circle: Line2D = $ZoneCircle
 @onready var zone_fill: Polygon2D = $ZoneFill
-@onready var background: ColorRect = $Background
+@onready var background: TextureRect = $Background
 @onready var grid_layer: Node2D = $GridLayer
 @onready var decor_layer: Node2D = $DecorLayer
 
@@ -32,8 +32,9 @@ func _process(_delta):
 
 func _setup_background():
     if background:
-        background.color = Color(0.08, 0.10, 0.16, 1.0)
+        # v3.1: AnhNen.png as background, stretched to fill entire map
         background.size = GameManager.map_size
+        background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 
 func _create_grid():
     if not grid_layer:
