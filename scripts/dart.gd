@@ -105,19 +105,12 @@ func _on_body_entered(body: Node2D):
         if body.is_in_group("walls") or body.is_in_group("obstacles"):
                 _stick_to_position(global_position)
                 return
-        # v2.2 FIX: Thêm check remote_players để dart có thể va chạm remote player online
+        # v3.0: Va chạm với AI player hoặc Player (offline-only)
         if body.is_in_group("ai_players") and ("owner_player_id" in body) and body.owner_player_id != owner_player_id:
                 dart_hit_player.emit(self, body)
                 _stick_to_position(global_position)
                 return
         if body.is_in_group("players") and ("player_id" in body) and body.player_id != owner_player_id:
-                dart_hit_player.emit(self, body)
-                _stick_to_position(global_position)
-                return
-        if body.is_in_group("remote_players"):
-                # v2.2: dart hit remote player (online mode)
-                # Remote player ID là string, không so sánh trực tiếp với owner_player_id (int)
-                # Nhưng vẫn emit để client có thể xử lý visual + send kill report lên server
                 dart_hit_player.emit(self, body)
                 _stick_to_position(global_position)
                 return

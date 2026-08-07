@@ -193,13 +193,7 @@ func _show_character(id: int):
                         char_preview.texture = tex
                 char_preview.modulate = Color(0.2, 0.2, 0.2, 0.8)
                 lock_icon.visible = true
-                # v2.1: Hiển thị gợi ý mã quà tặng cho Classic
-                if char_data.has("file") and char_data["file"] == "char_hieu_louis_classic":
-                        lock_icon.text = "🔒 MỞ KHÓA BẰNG MÃ BÍ MẬT\n(Nhập trong Settings → Nhập Mã Quà Tặng)"
-                elif char_data.has("file") and char_data["file"] == "char_ma_ton":
-                        lock_icon.text = "🔒 MỞ KHÓA BẰNG MÃ BÍ MẬT\n(Nhập trong Settings → Nhập Mã Quà Tặng)"
-                else:
-                        lock_icon.text = "🔒 CHƯA MỞ KHÓA"
+                lock_icon.text = "🔒 CHƯA MỞ KHÓA"
 
         # Info
         char_name_label.text = char_data["name"]
@@ -218,13 +212,8 @@ func _show_character(id: int):
         speed_stat.text = "Tốc độ: %s%.0f" % [("+" if speed_bonus >= 0 else ""), speed_bonus]
         speed_stat.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3) if speed_bonus >= 0 else Color(1.0, 0.3, 0.3))
 
-        # v2.1: Classic mode hiển thị "VÔ HẠN" thay vì số
-        if char_data.has("file") and char_data["file"] == "char_hieu_louis_classic":
-                dart_stat.text = "Phi tiêu: VÔ HẠN"
-                dart_stat.add_theme_color_override("font_color", Color(0, 1, 0.5))
-        else:
-                dart_stat.text = "Phi tiêu: %s%d" % [("+" if dart_bonus >= 0 else ""), dart_bonus]
-                dart_stat.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3) if dart_bonus >= 0 else Color(1.0, 0.3, 0.3))
+        dart_stat.text = "Phi tiêu: %s%d" % [("+" if dart_bonus >= 0 else ""), dart_bonus]
+        dart_stat.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3) if dart_bonus >= 0 else Color(1.0, 0.3, 0.3))
 
         # Skill
         skill_name.text = "Kỹ năng: %s" % char_data["skill_bonus"].to_upper()

@@ -23,7 +23,3 @@ build/
 *.log
 
 *.uid
-
-# Node.js (relay-server)
-relay-server/node_modules/
-relay-server/data/

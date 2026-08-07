@@ -37,8 +37,6 @@ func _ready():
         mobile_controls.skill_dash_pressed.connect(_on_mobile_skill_dash)
         mobile_controls.skill_shield_pressed.connect(_on_mobile_skill_shield)
         mobile_controls.skill_multishot_pressed.connect(_on_mobile_skill_multishot)
-        if mobile_controls.has_signal("skill_crown_pressed"):
-            mobile_controls.skill_crown_pressed.connect(_on_mobile_skill_crown)
 
     hud.set_player(player)
     _spawn_ai_players()
@@ -107,12 +105,6 @@ func _on_mobile_skill_shield():
 
 func _on_mobile_skill_multishot():
     player.activate_skill(GameManager.Skill.MULTISHOT)
-
-func _on_mobile_skill_crown():
-    if player.has_method("activate_crown_skill"):
-        player.activate_crown_skill()
-        if NetworkManager.is_in_match():
-            NetworkManager.send_skill_use("crown")
 
 func _on_player_died(p: CharacterBody2D):
     var killer = p.get_killer_name()

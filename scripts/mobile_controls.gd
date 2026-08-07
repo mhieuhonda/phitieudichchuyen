@@ -1,11 +1,11 @@
 extends Control
 
-## MobileControls - Nút bấm ảo cho mobile (v2.1)
-## - Throw + Teleport + 3 nút kỹ năng (Dash, Shield, Multishot) + Crown Skill (v2.1)
+## MobileControls - Nút bấm ảo cho mobile (v3.0)
+## - Throw + Teleport + 3 nút kỹ năng (Dash, Shield, Multishot)
 ## - Multi-touch hoàn toàn
 ## - Touch & mouse mode tách biệt
-## - v2.1: Layout gọn, không chồng lấn. Crown skill chỉ hiện cho "Hieu Louis - Classic"
-## - v2.1: Teleport check TRƯỚC skill buttons để fix bug overlap
+## - v3.0: Đã xóa nút Crown skill (chỉ dùng cho nhân vật Classic đã bị gỡ)
+## - Teleport check TRƯỚC skill buttons để fix bug overlap
 
 signal teleport_pressed()
 signal throw_started()
@@ -14,14 +14,12 @@ signal throw_ended(direction: Vector2, power: float)
 signal skill_dash_pressed()
 signal skill_shield_pressed()
 signal skill_multishot_pressed()
-signal skill_crown_pressed()
 
 @onready var teleport_btn: TextureButton = $TeleportButton
 @onready var throw_btn: TextureButton = $ThrowButton
 @onready var skill_dash_btn: Button = $SkillDashButton
 @onready var skill_shield_btn: Button = $SkillShieldButton
 @onready var skill_multishot_btn: Button = $SkillMultishotButton
-@onready var skill_crown_btn: Button = $CrownSkillButton
 
 var is_aiming: bool = false
 var aim_touch_index: int = -1
@@ -31,7 +29,6 @@ var teleport_touch_index: int = -1
 var dash_touch_index: int = -1
 var shield_touch_index: int = -1
 var multishot_touch_index: int = -1
-var crown_touch_index: int = -1
 
 var is_mouse_aiming: bool = false
 var mouse_aim_pos: Vector2 = Vector2.ZERO
@@ -39,14 +36,12 @@ var is_mouse_on_teleport: bool = false
 var is_mouse_on_dash: bool = false
 var is_mouse_on_shield: bool = false
 var is_mouse_on_multishot: bool = false
-var is_mouse_on_crown: bool = false
 
 var _throw_rect: Rect2 = Rect2()
 var _teleport_rect: Rect2 = Rect2()
 var _dash_rect: Rect2 = Rect2()
 var _shield_rect: Rect2 = Rect2()
 var _multishot_rect: Rect2 = Rect2()
-var _crown_rect: Rect2 = Rect2()
 
 var _is_touch_device_cached: bool = false
 var _is_touch_device_init: bool = false
@@ -79,32 +74,11 @@ func _ready():
 			skill_multishot_pressed.emit()
 			AudioManager.play_ui_click()
 		)
-	if skill_crown_btn:
-		skill_crown_btn.pressed.connect(func():
-			skill_crown_pressed.emit()
-			AudioManager.play_ui_click()
-		)
 
 	visible = true
 
-	# v2.1: Ẩn/hiện Crown button tùy nhân vật
-	_update_crown_button_visibility()
-
 	# v1.3: áp dụng vị trí tùy chỉnh nếu user đã Lưu layout
 	call_deferred("_apply_custom_layout")
-
-func _update_crown_button_visibility():
-	# Chỉ hiện Crown skill nếu đang chơi Hieu Louis - Classic
-	if not skill_crown_btn:
-		return
-	if not CharacterData:
-		skill_crown_btn.visible = false
-		return
-	var char_data = CharacterData.get_selected()
-	if char_data.has("file") and char_data["file"] == "char_hieu_louis_classic":
-		skill_crown_btn.visible = _is_touch_device() or SettingsManager.show_joystick
-	else:
-		skill_crown_btn.visible = false
 
 ## v1.3: Áp dụng vị trí nút tùy chỉnh (đã lưu trong SettingsManager)
 ## Vị trí lưu dạng chuẩn hóa 0..1 theo viewport → chuyển sang pixel
@@ -118,24 +92,22 @@ func _apply_custom_layout():
 		# Viewport chưa có kích thước, thử lại frame kế
 		call_deferred("_apply_custom_layout")
 		return
-	# Vị trí mặc định chuẩn hóa cho mỗi nút (v2.1: layout gọn hơn, không chồng)
+	# Vị trí mặc định chuẩn hóa cho mỗi nút
 	var defaults := {
 		"teleport": Vector2(0.84, 0.83),
 		"throw": Vector2(0.95, 0.85),
 		"skill_dash": Vector2(0.55, 0.91),
-		"skill_shield": Vector2(0.63, 0.91),
-		"skill_multishot": Vector2(0.71, 0.91),
-		"skill_crown": Vector2(0.78, 0.91),
+		"skill_shield": Vector2(0.65, 0.91),
+		"skill_multishot": Vector2(0.75, 0.91),
 	}
 	_apply_node_position(teleport_btn, "teleport", defaults["teleport"], vp_size)
 	_apply_node_position(throw_btn, "throw", defaults["throw"], vp_size)
 	_apply_node_position(skill_dash_btn, "skill_dash", defaults["skill_dash"], vp_size)
 	_apply_node_position(skill_shield_btn, "skill_shield", defaults["skill_shield"], vp_size)
 	_apply_node_position(skill_multishot_btn, "skill_multishot", defaults["skill_multishot"], vp_size)
-	_apply_node_position(skill_crown_btn, "skill_crown", defaults["skill_crown"], vp_size)
 	# Áp dụng button_size scale
 	var bscale := SettingsManager.button_size
-	for n in [teleport_btn, throw_btn, skill_dash_btn, skill_shield_btn, skill_multishot_btn, skill_crown_btn]:
+	for n in [teleport_btn, throw_btn, skill_dash_btn, skill_shield_btn, skill_multishot_btn]:
 		if n and is_instance_valid(n):
 			n.scale = Vector2(bscale, bscale)
 	# Áp dụng opacity
@@ -143,7 +115,7 @@ func _apply_custom_layout():
 
 func _apply_size_and_opacity():
 	var bscale := SettingsManager.button_size
-	for n in [teleport_btn, throw_btn, skill_dash_btn, skill_shield_btn, skill_multishot_btn, skill_crown_btn]:
+	for n in [teleport_btn, throw_btn, skill_dash_btn, skill_shield_btn, skill_multishot_btn]:
 		if n and is_instance_valid(n):
 			n.scale = Vector2(bscale, bscale)
 	modulate.a = SettingsManager.ui_opacity
@@ -167,7 +139,6 @@ func _apply_node_position(node: Control, key: String, default_pos: Vector2, vp_s
 
 func _process(_delta):
 	_update_visibility()
-	_update_crown_button_visibility()
 	if throw_btn and is_instance_valid(throw_btn):
 		_throw_rect = throw_btn.get_global_rect().grow(20.0)
 	if teleport_btn and is_instance_valid(teleport_btn):
@@ -178,8 +149,6 @@ func _process(_delta):
 		_shield_rect = skill_shield_btn.get_global_rect().grow(8.0)
 	if skill_multishot_btn and is_instance_valid(skill_multishot_btn):
 		_multishot_rect = skill_multishot_btn.get_global_rect().grow(8.0)
-	if skill_crown_btn and is_instance_valid(skill_crown_btn):
-		_crown_rect = skill_crown_btn.get_global_rect().grow(8.0)
 
 func _update_visibility():
 	var is_touch = _is_touch_device()
@@ -191,7 +160,6 @@ func _update_visibility():
 	if skill_dash_btn: skill_dash_btn.visible = is_touch or SettingsManager.show_joystick
 	if skill_shield_btn: skill_shield_btn.visible = is_touch or SettingsManager.show_joystick
 	if skill_multishot_btn: skill_multishot_btn.visible = is_touch or SettingsManager.show_joystick
-	# Crown button visibility controlled by _update_crown_button_visibility
 
 func _is_touch_device() -> bool:
 	if _is_touch_device_init:
@@ -241,20 +209,12 @@ func _input(event: InputEvent):
 
 func _handle_touch_event(event: InputEventScreenTouch):
 	if event.pressed:
-		# v2.1 FIX: Teleport check TRƯỚC skill buttons để tránh overlap bug
-		# (trước đây multishot được check trước, ăn vùng touch của teleport)
+		# Teleport check TRƯỚC skill buttons để tránh overlap bug
 		if _teleport_rect.has_point(event.position) and teleport_touch_index == -1:
 			teleport_touch_index = event.index
 			_on_teleport_down()
 			# TELEPORT NGAY KHI PRESS - không đợi release
 			_on_teleport_pressed()
-			get_viewport().set_input_as_handled()
-			return
-		# Crown skill check (chỉ khi visible)
-		if skill_crown_btn and skill_crown_btn.visible and _crown_rect.has_point(event.position) and crown_touch_index == -1:
-			crown_touch_index = event.index
-			skill_crown_pressed.emit()
-			AudioManager.play_ui_click()
 			get_viewport().set_input_as_handled()
 			return
 		if _throw_rect.has_point(event.position) and aim_touch_index == -1 and not is_aiming:
@@ -304,8 +264,6 @@ func _handle_touch_event(event: InputEventScreenTouch):
 			shield_touch_index = -1
 		elif event.index == multishot_touch_index:
 			multishot_touch_index = -1
-		elif event.index == crown_touch_index:
-			crown_touch_index = -1
 
 func _handle_drag_event(event: InputEventScreenDrag):
 	if event.index == aim_touch_index and is_aiming:
@@ -316,17 +274,12 @@ func _handle_drag_event(event: InputEventScreenDrag):
 func _handle_mouse_event(event: InputEvent):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			# v2.1: Teleport check trước (priority)
+			# Teleport check trước (priority)
 			if _teleport_rect.has_point(event.position) and not is_mouse_on_teleport:
 				is_mouse_on_teleport = true
 				_on_teleport_down()
 				# TELEPORT NGAY KHI CLICK - không đợi release
 				_on_teleport_pressed()
-				get_viewport().set_input_as_handled()
-			elif skill_crown_btn and skill_crown_btn.visible and _crown_rect.has_point(event.position) and not is_mouse_on_crown:
-				is_mouse_on_crown = true
-				skill_crown_pressed.emit()
-				AudioManager.play_ui_click()
 				get_viewport().set_input_as_handled()
 			elif _throw_rect.has_point(event.position) and not is_mouse_aiming and not is_aiming:
 				is_mouse_aiming = true
@@ -357,8 +310,6 @@ func _handle_mouse_event(event: InputEvent):
 				_on_teleport_up()
 				# Không teleport lại khi release - đã teleport khi click rồi
 				get_viewport().set_input_as_handled()
-			elif is_mouse_on_crown:
-				is_mouse_on_crown = false
 			elif is_mouse_aiming:
 				mouse_aim_pos = event.position
 				is_mouse_aiming = false

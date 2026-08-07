@@ -1,0 +1,1124 @@
+================================================================================
+ BÁO CÁO CHI TIẾT GAME: PHI TIÊU DỊCH CHUYỂN v3.0
+================================================================================
+ Ngày phát hành: 2026-08-07
+ Engine: Godot 4.7 (Mobile profile)
+ Loại game: 2D top-down action - Offline PvP (Player vs 5 AI)
+ Tác giả: mhieuhonda
+ Repository: https://github.com/mhieuhonda/phitieudichchuyen
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  MỤC LỤC                                                                     ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  1. TỔNG QUAN GAME                                                          ║
+║  2. CẤU TRÚC DỰ ÁN                                                          ║
+║  3. CÁC AUTLOAD SINGLETON                                                   ║
+║  4. DANH SÁCH SCENES                                                        ║
+║  5. DANH SÁCH SCRIPTS                                                       ║
+║  6. CÁC MÀN HÌNH & NÚT BẤM (CHI TIẾT)                                       ║
+║     6.1 Menu chính                                                          ║
+║     6.2 Màn hình Nhân Vật                                                   ║
+║     6.3 Màn hình Cài Đặt                                                    ║
+║     6.4 Màn hình Chỉnh Sửa Giao Diện                                        ║
+║     6.5 Màn hình Chơi (In-Game HUD)                                         ║
+║     6.6 Pause Menu                                                          ║
+║     6.7 Death Recap                                                         ║
+║     6.8 Results Panel                                                       ║
+║  7. CƠ CHẾ CHƠI                                                             ║
+║  8. ĐIỀU KHIỂN                                                              ║
+║  9. DANH SÁCH NHÂN VẬT (12)                                                 ║
+║ 10. KỸ NĂNG                                                                 ║
+║ 11. PICKUP                                                                  ║
+║ 12. AI                                                                      ║
+║ 13. ÂM THANH & NHẠC                                                         ║
+║ 14. SPRITE & VISUAL ASSETS                                                  ║
+║ 15. SETTINGS & CONFIG                                                       ║
+║ 16. I18N (ĐA NGÔN NGỮ)                                                      ║
+║ 17. PHYSICS LAYERS                                                          ║
+║ 18. INPUT MAP                                                               ║
+║ 19. CÁC TÍNH NĂNG ĐÃ XÓA (so với v2.9)                                      ║
+║ 20. BUILD & EXPORT                                                          ║
+║ 21. CI/CD                                                                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+================================================================================
+ 1. TỔNG QUAN GAME
+================================================================================
+
+Tên game: Phi Tiêu Dịch Chuyển (Teleport Darts)
+Tagline: "Ném phi tiêu • Dịch chuyển • Nuốt đối thủ!"
+
+Mô tả ngắn:
+  Game 2D top-down action offline. Bạn điều khiển 1 trong 12 nhân vật, được thả
+  vào arena 2000×2000 cùng 5 AI. Mục tiêu: ném phi tiêu, dịch chuyển đến phi tiêu
+  để "ăn" đối thủ trong bán kính 50px, tích điểm, sống sót 5 phút và đứng đầu
+  leaderboard.
+
+Cơ chế độc đáo:
+  - Ném phi tiêu bay thẳng, cắm vào tường/đất.
+  - Bấm Space (hoặc nút Dịch Chuyển) để dịch chuyển TỨC THỜI đến phi tiêu gần nhất.
+  - Có thể dịch chuyển khi phi tiêu đang bay (mid-flight) hoặc đã cắm.
+  - Khi dịch chuyển đến gần đối thủ trong bán kính 50px → TIÊU DIỆT đối thủ ngay.
+  - Càng ăn nhiều đối thủ, kích thước càng to → HP max càng cao nhưng dễ bị bắn trúng.
+
+  v3.0 đặc trưng: PHIÊN BẢN OFFLINE HOÀN TOÀN.
+  - Không còn chế độ Online, không relay server, không WebSocket.
+  - Không còn chế độ Zombie (Vượt Ải 500 level).
+  - Không còn nhân vật Ma Tôn, Hieu Louis - Classic.
+  - Không còn hệ thống nhập mã quà tặng (gift code).
+  - Không còn màn hình Hướng Dẫn (Guide).
+  - 12 nhân vật đều mở khóa sẵn - người chơi tự do chọn.
+
+Phiên bản: 3.0
+Engine: Godot 4.7 stable
+Resolution: 1280×720 (canvas_items stretch mode, expand aspect)
+Hướng màn hình: Landscape (mobile)
+
+
+================================================================================
+ 2. CẤU TRÚC DỰ ÁN
+================================================================================
+
+phitieudichchuyen/
+├── project.godot                # Godot project file (autoloads, input map, layers)
+├── icon.svg                     # Game icon
+├── export_presets.cfg           # 3 export presets: Android, Windows, Linux
+├── README.md                    # Documentation
+├── CHANGELOG.md                 # History of changes (v1 → v3.0)
+├── LICENSE                      # License file
+├── BAO_CAO_GAME.txt             # THIS FILE - Detailed game report
+├── .gitignore
+│
+├── scenes/                      # 13 Godot scene files
+│   ├── menu.tscn                # Main menu (entry scene)
+│   ├── character_screen.tscn    # Character selection
+│   ├── settings.tscn            # Settings menu
+│   ├── ui_customization.tscn    # UI drag-drop customization
+│   ├── main.tscn                # In-game scene (offline PvP)
+│   ├── map.tscn                 # Map background + walls
+│   ├── player.tscn              # Player entity
+│   ├── ai_player.tscn           # AI entity
+│   ├── dart.tscn                # Dart projectile
+│   ├── pickup.tscn              # Pickup item (health/dart)
+│   ├── hud.tscn                 # In-game HUD overlay
+│   ├── mobile_controls.tscn     # Touch buttons (throw/teleport/skills)
+│   └── virtual_joystick.tscn    # Virtual joystick for movement
+│
+├── scripts/                     # 21 GDScript files
+│   ├── menu.gd                  # Menu logic
+│   ├── character_screen.gd      # Character selection logic
+│   ├── settings_menu.gd         # Settings logic
+│   ├── settings_manager.gd      # AUTOLOAD - persistent settings
+│   ├── ui_customization.gd      # UI drag-drop editor
+│   ├── main.gd                  # Main game controller (offline)
+│   ├── map.gd                   # Map rendering
+│   ├── player.gd                # Player controller
+│   ├── ai_player.gd             # AI behavior
+│   ├── dart.gd                  # Dart projectile logic
+│   ├── pickup.gd                # Pickup logic
+│   ├── hud.gd                   # HUD overlay logic
+│   ├── mobile_controls.gd       # Touch buttons logic
+│   ├── virtual_joystick.gd      # Virtual joystick logic
+│   ├── game_manager.gd          # AUTOLOAD - match state, score, zone
+│   ├── audio_manager.gd         # AUTOLOAD - SFX + music playback
+│   ├── character_data.gd        # AUTOLOAD - character database
+│   ├── i18n.gd                  # AUTOLOAD - VI/EN translations
+│   ├── damage_number.gd         # Floating damage number popup
+│   ├── death_recap.gd           # Death recap overlay
+│   └── pause_menu.gd            # Pause menu overlay
+│
+├── assets/
+│   ├── sprites/
+│   │   ├── characters/          # 12 character sprites (256×256 PNG, transparent)
+│   │   ├── dart.png             # Dart sprite
+│   │   ├── pickup_dart.png      # Dart pickup sprite
+│   │   ├── pickup_health.png    # Health pickup sprite
+│   │   ├── shield.png           # Shield effect sprite
+│   │   ├── teleport_effect.png  # Teleport effect sprite
+│   │   ├── joystick_base.png    # Virtual joystick base
+│   │   ├── joystick_stick.png   # Virtual joystick stick
+│   │   ├── btn_teleport.png     # Teleport button icon
+│   │   ├── btn_throw.png        # Throw button icon
+│   │   ├── player_blue.png      # Default player sprite (legacy)
+│   │   └── ai_*.png             # 10 AI color variants (legacy)
+│   │
+│   └── audio/
+│       ├── sfx/                 # ~150 sound effects (.wav)
+│       │   # Categories: throw, teleport, hit, kill, death, pickup,
+│       │   # ui_click, ui_hover, combo, zone_warning, zone_shrink,
+│       │   # dart_stick, dart_fly, respawn, footstep, damage, powerup,
+│       │   # notification, whoosh, zap, explosion, sparkle, chime,
+│       │   # drum_kick/snare/hihat/crash, alarm, heartbeat, countdown,
+│       │   # success, error, warning, info, spawn, size_grow, aim_start,
+│       │   # laser, magic, coin, bass, click_light/heavy, select,
+│       │   # confirm, cancel, achievement
+│       │
+│       └── music/
+│           ├── menu_music_01.wav     # Menu background music
+│           ├── game_music_01.wav     # In-game music (primary)
+│           ├── game_music_02.wav     # In-game music (alt)
+│           ├── victory_music_01.wav  # Win music
+│           └── defeat_music_01.wav   # Lose music
+│
+└── .github/
+    └── workflows/
+        └── build-release.yml    # GitHub Actions: build Android/Windows/Linux on tag push
+
+
+================================================================================
+ 3. CÁC AUTOLOAD SINGLETON
+================================================================================
+
+Đăng ký trong `project.godot` dưới section `[autoload]`. Tự động load khi game start.
+
+┌──────────────────┬───────────────────────────────────┬──────────────────────┐
+│ Singleton        │ Script                            │ Vai trò              │
+├──────────────────┼───────────────────────────────────┼──────────────────────┤
+│ SettingsManager  │ scripts/settings_manager.gd       │ Load/save settings,  │
+│                  │                                   │ device detection,    │
+│                  │                                   │ UI layout, language  │
+├──────────────────┼───────────────────────────────────┼──────────────────────┤
+│ GameManager      │ scripts/game_manager.gd           │ Match state, score,  │
+│                  │                                   │ HP, zone, leaderboard│
+├──────────────────┼───────────────────────────────────┼──────────────────────┤
+│ AudioManager     │ scripts/audio_manager.gd          │ 16-voice pool, music│
+│                  │                                   │ fade, variation SFX  │
+├──────────────────┼───────────────────────────────────┼──────────────────────┤
+│ CharacterData    │ scripts/character_data.gd         │ 12 characters DB,    │
+│                  │                                   │ selected character   │
+├──────────────────┼───────────────────────────────────┼──────────────────────┤
+│ I18N             │ scripts/i18n.gd                   │ VI/EN translations   │
+│                  │                                   │ + language_changed   │
+└──────────────────┴───────────────────────────────────┴──────────────────────┘
+
+Lưu ý: v3.0 đã xóa NetworkManager (online) khỏi autoload list.
+
+
+================================================================================
+ 4. DANH SÁCH SCENES
+================================================================================
+
+| #  | Scene                   │ Loại      │ Mô tả                                    |
+|----|-------------------------|-----------|------------------------------------------|
+| 1  | menu.tscn               │ Control   | Menu chính (entry scene)                 |
+| 2  | character_screen.tscn   │ Control   | Màn hình chọn nhân vật                   |
+| 3  | settings.tscn           │ Control   | Màn hình cài đặt                         |
+| 4  | ui_customization.tscn   │ Control   | Chỉnh sửa vị trí nút UI (drag-drop)      |
+| 5  | main.tscn               │ Node2D    | Scene chơi chính (offline PvP)           |
+| 6  | map.tscn                │ Node2D    | Background + walls                       |
+| 7  | player.tscn             │ CharBody2D| Player entity                            |
+| 8  | ai_player.tscn          │ CharBody2D| AI entity                                |
+| 9  | dart.tscn               │ Area2D    | Phi tiêu projectile                      |
+| 10 | pickup.tscn             │ Area2D    | Pickup (health/dart)                     |
+| 11 | hud.tscn                │ CanvasLayer| In-game HUD                             |
+| 12 | mobile_controls.tscn    │ Control   | Touch buttons overlay                    |
+| 13 | virtual_joystick.tscn   │ Control   | Virtual joystick                         |
+
+Total: 13 scenes.
+
+
+================================================================================
+ 5. DANH SÁCH SCRIPTS
+================================================================================
+
+| #  | Script                  │ Dòng │ Mô tả ngắn                                |
+|----|-------------------------|------|-------------------------------------------|
+| 1  | menu.gd                 │ 145  | Logic menu chính: 4 nút + version label   |
+| 2  | character_screen.gd     │ 259  | Hiển thị 12 nhân vật + trang bị           |
+| 3  | settings_menu.gd        │ 240  │ Settings UI logic                         |
+| 4  | settings_manager.gd     │ 395  | Singleton: load/save settings.cfg         |
+| 5  | ui_customization.gd     │ 320  | Drag-drop editor cho nút UI               |
+| 6  | main.gd                 │ 156  | Controller scene offline                  |
+| 7  | map.gd                  │ 320  | Render map, walls, zone circle            |
+| 8  | player.gd               │ 700+ | Player logic: move, throw, teleport, skill|
+| 9  | ai_player.gd            │ 515  | AI behavior: chase, dodge, throw          |
+| 10 | dart.gd                 │ 190  | Dart projectile logic                     |
+| 11 | pickup.gd               │ 90   | Pickup (health/dart)                      |
+| 12 | hud.gd                  │ 590  | HUD overlay: score, HP, dart, skill CD    |
+| 13 | mobile_controls.gd      │ 320  | Touch buttons (throw/teleport/3 skills)   |
+| 14 | virtual_joystick.gd     │ 200  | Virtual joystick (left side)              |
+| 15 | game_manager.gd         │ 340  | Singleton: match state, zone, leaderboard |
+| 16 | audio_manager.gd        │ 330  | Singleton: 16-voice pool + music          |
+| 17 | character_data.gd       │ 220  | Singleton: 12 characters DB               |
+| 18 | i18n.gd                 │ 130  | Singleton: VI/EN translations             |
+| 19 | damage_number.gd        │ 30   | Floating damage number popup              |
+| 20 | death_recap.gd          │ 80   | Death recap overlay                       |
+| 21 | pause_menu.gd           │ 115  | Pause menu overlay                        |
+
+Total: 21 scripts.
+
+
+================================================================================
+ 6. CÁC MÀN HÌNH & NÚT BẤM (CHI TIẾT)
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.1 MENU CHÍNH (menu.tscn + menu.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+Layout (từ trên xuống):
+  • TitleLabel    : "PHI TIÊU DỊCH CHUYỂN" (font 60, gold #FFD966, glow pulse)
+  • SubtitleLabel : "✦ Ném phi tiêu • Dịch chuyển • Nuốt đối thủ ✦"
+  • NewFeatureLabel (RichTextLabel): Bullet point tóm tắt v3.0 (offline, 12 chars...)
+
+Các nút bấm (Button):
+  ┌─────────────────┬──────────────────────┬──────────────────────────────────────┐
+  │ Node            │ Text (VI)            │ Hành động                            │
+  ├─────────────────┼──────────────────────┼──────────────────────────────────────┤
+  │ PlayButton      │ ⚔ CHƠI NGAY         │ → main.tscn (vào trận offline ngay)  │
+  │ CharactersButton│ 🥷 NHÂN VẬT         │ → character_screen.tscn              │
+  │ SettingsButton  │ ⚙ CÀI ĐẶT           │ → settings.tscn                      │
+  │ QuitButton      │ THOÁT                │ get_tree().quit() — thoát game       │
+  └─────────────────┴──────────────────────┴──────────────────────────────────────┘
+
+Thông tin khác:
+  • VersionLabel (góc dưới trái): "v3.0 - Phi Tiêu Dịch Chuyển"
+  • Hover effects: tween scale (1.04, 1.06) khi mouse enter, sound ui_hover
+  • Premium styling: StyleBoxFlat với border + shadow cho mỗi nút
+  • Mỗi nút có màu accent riêng (green/cyan/purple/red)
+  • Ngôn ngữ: text được dịch qua I18N.t() — VI/EN
+  • Phát nhạc: AudioManager.play_music("menu") khi scene ready
+
+  v3.0 CHANGE: Đã xóa nút "📖 HƯỚNG DẪN" (GuideButton) — không còn màn hình Guide.
+                Trước đây PlayButton → mode_select.tscn (chọn Online/Offline/Endless).
+                Giờ PlayButton → main.tscn trực tiếp (chỉ còn chế độ Offline).
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.2 MÀN HÌNH NHÂN VẬT (character_screen.tscn + character_screen.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+Layout 2 cột:
+  • LeftPanel  (15→200, 70→540): CharList (VBoxContainer) - 12 nút nhân vật
+  • RightPanel (215→770, 70→540): Preview + info + stats + skill + equip
+  • BackButton (góc trên trái): "← QUAY LẠI" → menu.tscn
+
+Các nút bấm:
+  ┌─────────────────┬─────────────────────────────────────────────────────────────┐
+  │ Node            │ Hành động                                                   │
+  ├─────────────────┼─────────────────────────────────────────────────────────────┤
+  │ BackButton      │ "← QUAY LẠI" → menu.tscn                                    │
+  │ CharList buttons│ 12 nút động (Button.new()) - mỗi nút = 1 nhân vật           │
+  │                 │ Click → hiển thị preview + info nhân vật đó                 │
+  │                 │ Màu chữ = màu sắc nhân vật                                 │
+  │ EquipButton     │ "TRANG BỊ" → select_character(id)                          │
+  │                 │ Khi đã đang trang bị: "✓ ĐANG TRANG BỊ" (disabled)         │
+  └─────────────────┴─────────────────────────────────────────────────────────────┘
+
+Thông tin hiển thị (RightPanel):
+  • CharPreview (TextureRect 200×200): Sprite nhân vật
+  • CharNameLabel  : Tên (vd: "Rồng Đỏ")
+  • CharTitleLabel : Tiêu đề (vd: "Chiến Binh Hỏa Diệm")
+  • CharTypeLabel  : Loại (Chiến Binh/Pháp Sư/Quyền Sư/Sát Thủ)
+  • CharLoreLabel  : Câu chuyện nhân vật (RichTextLabel, bbcode)
+  • HpStat         : HP bonus (vd: "+15")
+  • SpeedStat      : Speed bonus (vd: "+0")
+  • DartStat       : Dart bonus (vd: "+0")
+  • SkillName      : Tên skill bonus (vd: "Kỹ năng: DASH")
+  • SkillDesc      : Mô tả skill (vd: "Dash mạnh hơn 20%")
+  • LockIcon       : "🔒 CHƯA MỞ KHÓA" - v3.0 không bao giờ hiện (tất cả unlock)
+
+  v3.0 CHANGE: Đã xóa hiển thị "Phi tiêu: VÔ HẠN" cho Classic mode.
+                Đã xóa hint "MỞ KHÓA BẰNG MÃ BÍ MẬT" cho Ma Tôn / Hieu Louis.
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.3 MÀN HÌNH CÀI ĐẶT (settings.tscn + settings_menu.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+Layout (ScrollContainer + VBox):
+  • TitleLabel  (top center): "⚙ CÀI ĐẶT" (font 34, gold)
+  • BackButton  (top left)  : "← QUAY LẠI" → menu.tscn
+
+  ScrollContainer/VBox contents (top → bottom):
+
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ 🎨 ĐỒ HỌA (GraphicsSection)                                               │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ QualityLabel      : "Chất lượng đồ họa: Trung Bình"                       │
+  │ QualityButtons (HBox):                                                     │
+  │   • QualityVeryLow  : "Cực Thấp" → GraphicsQuality.VERY_LOW               │
+  │   • QualityLow      : "Thấp"     → GraphicsQuality.LOW                    │
+  │   • QualityMedium   : "Trung Bình"→ GraphicsQuality.MEDIUM                │
+  │   • QualityHigh     : "Cao"      → GraphicsQuality.HIGH                   │
+  │   (nút đang chọn có modulate xanh lá)                                      │
+  │                                                                             │
+  │ GraphicsToggles (HBox):                                                    │
+  │   • FpsToggle     (CheckButton): "Hiện FPS"                                │
+  │   • ShakeToggle   (CheckButton): "Rung màn hình"                           │
+  │   • JoystickToggle(CheckButton): "Hiện Joystick"                           │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ 🔊 ÂM THANH (AudioSection)                                                │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ AudioToggles (HBox):                                                       │
+  │   • SoundToggle (CheckButton): "Âm thanh" (bật/tắt SFX)                    │
+  │   • MusicToggle (CheckButton): "Nhạc nền" (bật/tắt music)                  │
+  │ SoundLabel : "Âm thanh: 100%"                                              │
+  │ SoundSlider (HSlider 0..1 step 0.05)                                       │
+  │ MusicLabel : "Nhạc: 70%"                                                   │
+  │ MusicSlider (HSlider 0..1 step 0.05)                                       │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ 🌐 NGÔN NGỮ (LanguageSection)                                             │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ LanguageButtons (HBox):                                                    │
+  │   • LangVi (Button): "🇻🇳 Tiếng Việt" → I18N.set_language("vi")            │
+  │   • LangEn (Button): "🇬🇧 English"  → I18N.set_language("en")              │
+  │   (nút đang chọn có modulate xanh lá)                                      │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ 🎛 GIAO DIỆN (UICustomizeSection)                                          │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │ UICustomizeButton: "🎨 CHỈNH SỬA GIAO DIỆN" → ui_customization.tscn        │
+  │ DeviceInfoLabel   : "Thiết bị: Trung Bình | CPU: 8 core | GPU: ... | OS: ..."│
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  v3.0 CHANGE: Đã xóa hoàn toàn phần "🎁 NHẬP MÃ QUÀ TẶNG" (GiftCodeSection):
+                - GiftCodeDesc, GiftCodeHBox, GiftCodeInput (LineEdit),
+                  RedeemButton, GiftCodeResultLabel.
+                - Logic redeem_gift_code() đã gỡ khỏi CharacterData.
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.4 MÀN HÌNH CHỈNH SỬA GIAO DIỆN (ui_customization.tscn + ui_customization.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+Cho phép drag-drop 6 nút UI:
+  • joystick       (joystick base + stick)
+  • throw          (nút ném phi tiêu)
+  • teleport       (nút dịch chuyển)
+  • skill_dash     (nút Dash)
+  • skill_shield   (nút Shield)
+  • skill_multishot(nút Multishot)
+
+  v3.0 CHANGE: Đã xóa "skill_crown" khỏi danh sách nút có thể tùy chỉnh.
+
+Buttons:
+  • SaveButton   : Lưu vị trí hiện tại vào SettingsManager
+  • ResetButton  : Reset về mặc định
+  • BackButton   : Quay lại settings.tscn
+
+Sliders:
+  • JoystickSizeSlider : Scale joystick (0.5x → 2.0x)
+  • ButtonSizeSlider   : Scale nút bấm (0.5x → 2.0x)
+  • OpacitySlider      : Độ mờ UI (0.3 → 1.0)
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.5 MÀN HÌNH CHƠI - IN-GAME HUD (hud.tscn + hud.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+HUD overlay (CanvasLayer) trên cùng. Các thành phần:
+
+  TopBar (Panel, top):
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ ScoreLabel     : "Điểm: 0"        (gold)                                   │
+  │ HpBar          : ProgressBar HP (green→red gradient)                       │
+  │ DartCountLabel : "🎯 3/3"         (số dart active/max)                     │
+  │ ZoneTimerLabel : "Vòng bo: 30s"  (đếm ngược đến lần thu nhỏ kế)           │
+  │ AliveLabel     : "Sống: 6/6"     (số người còn sống)                      │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  MatchTimerLabel  (top right): "05:00" - thời gian trận còn lại
+  ComboLabel       (center top): "COMBO x3!" - kill streak (tự ẩn sau 2s)
+  MidFlightHint    (center): "[Space] Dịch chuyển giữa đường bay!" (auto ẩn)
+  FPSLabel         (top left, optional): "FPS: 60" - chỉ hiện nếu show_fps=true
+
+  ZoneWarning (Panel, bottom center):
+    - Hiện khi player ngoài vòng bo
+    - Text: "⚠ NGOÀI VÒNG BO! Trở lại tâm an toàn!"
+
+  SkillPanel (bottom left):
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ SkillDashLabel     : "Dash\nSẴN SÀNG"  hoặc  "Dash\n8.0s" (cooldown)       │
+  │ SkillShieldLabel   : "Shield\nSẴN SÀNG" hoặc "Shield\n15.0s"               │
+  │ SkillMultishotLabel: "Multi\nSẴN SÀNG" hoặc "Multi\n12.0s"                 │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  KillFeed (VBoxContainer, right side):
+    - List tin nhắn kill (vd: "Bạn đã tiêu diệt AI Red!", "AI Blue bị AI Green tiêu diệt")
+    - Tự động fade out sau vài giây
+
+  GameOverPanel (center, chỉ hiện khi hết trận):
+    - GameOverLabel: "🎉 Hết trận!" hoặc "⏰ Hết giờ!"
+    - RestartLabel : "[R] Chơi lại  •  [ESC] Về menu"
+
+  ResultsPanel (center, hiện khi GameManager.game_over):
+    - ResultsTitle     : "🏆 Bạn thắng!" hoặc "💀 Hòa!" hoặc "😞 Bạn thua!"
+    - ResultsList (VBox): Leaderboard - top players (name, score, kills)
+    - ResultsRestartBtn: "🔄 Chơi lại" → main.tscn (restart)
+    - ResultsMenuBtn   : "← Menu" → menu.tscn
+
+  v3.0 CHANGE: Đã xóa hiển thị status Crown / SMG / Spawn Invul trong combo_label.
+                ComboLabel giờ chỉ dùng cho kill streak combo.
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.5.1 MOBILE CONTROLS (mobile_controls.tscn + mobile_controls.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+Overlay cho touch devices (hoặc khi SettingsManager.show_joystick=true).
+
+Buttons:
+  ┌─────────────────┬─────────────────────────────────────────────────────────────┐
+  │ Node            │ Hành động                                                   │
+  ├─────────────────┼─────────────────────────────────────────────────────────────┤
+  │ TeleportButton  │ TextureButton - dịch chuyển đến phi tiêu (emit signal       │
+  │ (TextureButton) │ teleport_pressed)                                           │
+  │ ThrowButton     │ TextureButton - giữ & kéo để nhắm, thả để ném               │
+  │ (TextureButton) │ (emit throw_started/aim_updated/ended)                      │
+  │ SkillDashButton │ "DASH\nQ" - kích hoạt Dash skill                            │
+  │ SkillShieldButton│ "SHIELD\nE" - kích hoạt Shield skill                       │
+  │ SkillMultishotButton│ "MULTI\nShift" - kích hoạt Multishot skill             │
+  └─────────────────┴─────────────────────────────────────────────────────────────┘
+
+  v3.0 CHANGE: Đã xóa CrownSkillButton (chỉ dùng cho Hieu Louis - Classic).
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.5.2 VIRTUAL JOYSTICK (virtual_joystick.tscn + virtual_joystick.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+Joystick ảo bên trái màn hình (touch/mouse).
+  - Joystick base (joystick_base.png) + stick (joystick_stick.png)
+  - Drag stick để di chuyển player
+  - Trả về direction Vector2 normalized qua get_direction()
+  - is_active() trả về true khi đang drag
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.6 PAUSE MENU (pause_menu.gd, node con của main.tscn)
+────────────────────────────────────────────────────────────────────────────────
+
+Hiện khi bấm ESC hoặc P trong game.
+
+Buttons:
+  ┌─────────────────┬─────────────────────────────────────────────────────────────┐
+  │ Node            │ Text & Hành động                                            │
+  ├─────────────────┼─────────────────────────────────────────────────────────────┤
+  │ ResumeButton    │ "▶ TIẾP TỤC" - hide_pause(), unpause                       │
+  │ SettingsButton  │ "⚙ CÀI ĐẶT" → settings.tscn                                │
+  │ MenuButton      │ "← MENU" → menu.tscn                                        │
+  └─────────────────┴─────────────────────────────────────────────────────────────┘
+
+  v3.0 CHANGE: MenuButton đã xóa NetworkManager.disconnect_from_server() call.
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.7 DEATH RECAP (death_recap.gd)
+────────────────────────────────────────────────────────────────────────────────
+
+Hiện khi player chết, trước khi respawn.
+
+Info displayed:
+  • KillerLabel  : "Bị AI Red tiêu diệt" (hoặc "Bị tiêu diệt" nếu không rõ)
+  • DamageLabel  : "Damage nhận: 250"
+  • SurvivalLabel: "Sống sót: 02:30"
+  • KillsLabel   : "Giết: 5"
+  • CloseButton  : Đóng death recap
+
+────────────────────────────────────────────────────────────────────────────────
+ 6.8 RESULTS PANEL (chi tiết)
+────────────────────────────────────────────────────────────────────────────────
+
+Hiện khi GameManager.game_over signal emit.
+
+Layout:
+  • ResultsTitle (Label lớn, center): 
+      - "🏆 Bạn thắng!" (xanh lá, nếu #1 leaderboard)
+      - "💀 Hòa!"       (vàng)
+      - "😞 Bạn thua!"  (đỏ, nếu không phải #1)
+  
+  • ResultsList (VBoxContainer):
+      - Mỗi entry: "[hạng] [name] — [score] pts • [kills] kills"
+      - Top 1 highlight màu vàng
+      - Player entry in đậm
+  
+  • ResultsRestartBtn: "🔄 Chơi lại" → get_tree().reload_current_scene()
+  • ResultsMenuBtn  : "← Menu" → menu.tscn
+
+
+================================================================================
+ 7. CƠ CHẾ CHƠI
+================================================================================
+
+Match configuration (GameManager, có thể @export trong Inspector):
+  • Match duration        : 300s (5 phút)
+  • Match end warning     : 30s cuối (phát sound warning)
+  • Map size              : 2000×2000 px
+  • Initial player radius : 20.0
+  • Max player size       : 60.0
+  • Size per kill         : +5.0
+  • Score per kill        : 100 (×combo multiplier)
+  • Respawn time          : 3.0s
+  • Combo window          : 2.0s (giết tiếp trong 2s = combo)
+  • Combo multiplier      : 1.0 + (combo_count × 0.5) — vd combo x3 = +150% điểm
+
+Phi tiêu (Dart):
+  • Max darts per player  : 3 (có thể +bonus từ nhân vật/pickup)
+  • Dart lifetime         : 5.0s
+  • Dart speed            : 800 px/s
+  • Dart hit damage       : 25.0
+  • Throw power range     : 0.2 → 1.0
+  • Mid-flight teleport   : BẬT (có thể dịch chuyển khi dart đang bay)
+  • Teleport cooldown     : 0.15s
+  • Teleport kill radius  : 50px (+size đối thủ)
+
+Vòng bo (Zone):
+  • Initial radius        : 900px (map_size.x × 0.45)
+  • Shrink interval       : 30s
+  • Shrink amount         : 50px (×acceleration mỗi lần)
+  • Shrink acceleration   : 1.1 (lần sau thu hẹp hơn lần trước)
+  • Min radius            : 200px
+  • Zone damage/sec       : 10 HP (khi đứng ngoài vòng bo)
+
+Player HP:
+  • Base HP               : 100 (+ char_hp_bonus)
+  • HP per size unit      : +4 HP per +1 size (over initial)
+  • Heal on kill          : +10% max HP
+  • Daily login reward    : +5% HP per streak day (max +30%)
+
+AI:
+  • num_ai_players        : 5
+  • ai_dodge_chance       : 40%
+  • ai_accuracy           : 70%
+  • ai_mid_flight_teleport_chance: 50%
+
+Kỹ năng chủ động:
+  • Dash       : cooldown 8s  - dash 200px trong 0.18s
+  • Shield     : cooldown 15s - miễn damage 3s
+  • Multishot  : cooldown 12s - bắn 3 dart cùng lúc (spread 0.3 rad)
+
+Pickup:
+  • Health pickup : +30 HP
+  • Dart pickup   : +2 dart bonus (10s)
+
+
+================================================================================
+ 8. ĐIỀU KHIỂN
+================================================================================
+
+┌──────────────────┬─────────────────────────────────────────────────────────────┐
+│ Phím/Nút         │ Hành động                                                   │
+├──────────────────┼─────────────────────────────────────────────────────────────┤
+│ W / ↑            │ Di chuyển lên                                               │
+│ S / ↓            │ Di chuyển xuống                                             │
+│ A / ←            │ Di chuyển trái                                              │
+│ D / →            │ Di chuyển phải                                              │
+│ Chuột phải       │ Nhắm & ném phi tiêu (kéo để tăng lực, thả để ném)          │
+│ Space            │ Dịch chuyển đến phi tiêu gần nhất                           │
+│ Q                │ Kích hoạt Dash                                              │
+│ E                │ Kích hoạt Shield                                            │
+│ Shift            │ Kích hoạt Multishot                                         │
+│ R                │ Khởi động lại trận (khi game over)                          │
+│ P / ESC          │ Pause menu (trong game)                                     │
+│ ESC              │ Quay lại (trong menu/settings/character_screen)             │
+└──────────────────┴─────────────────────────────────────────────────────────────┘
+
+Mobile:
+  • Joystick trái  : Di chuyển (drag stick)
+  • Nút Throw      : Kéo để nhắm, thả để ném
+  • Nút Teleport   : Dịch chuyển
+  • Nút Dash/Shield/Multishot : Kỹ năng
+
+  v3.0 CHANGE: Đã xóa phím C (Crown skill) — không còn dùng cho Classic mode.
+
+
+================================================================================
+ 9. DANH SÁCH NHÂN VẬT (12)
+================================================================================
+
+Tất cả nhân vật đều mở khóa sẵn. Mỗi nhân vật có:
+  - id, name, title, file (sprite filename), type (CharType enum)
+  - hp_bonus, speed_bonus, dart_bonus
+  - skill_bonus (dash/shield/multishot) + skill_desc
+  - lore (câu chuyện), color (màu đại diện)
+
+┌────┬──────────────┬────────────────────────┬───────────┬──────┬──────┬──────┬────────────┐
+│ ID │ Name         │ Title                  │ Type      │ HP   │ Speed│ Dart │ Skill      │
+├────┼──────────────┼────────────────────────┼───────────┼──────┼──────┼──────┼────────────┤
+│ 0  │ Rồng Đỏ     │ Chiến Binh Hỏa Diệm    │ WARRIOR   │ +15  │ +0   │ +0   │ dash       │
+│ 1  │ Phượng Xanh │ Pháp Sư Băng Giá       │ MAGE      │ +0   │ +10  │ +1   │ multishot  │
+│ 2  │ Hổ Vàng     │ Quyền Sư Hoàng Kim     │ BRAWLER   │ +25  │ +0   │ +0   │ shield     │
+│ 3  │ Báo Lục     │ Sát Thủ Lục Lâm        │ ASSASSIN  │ -10  │ +20  │ +0   │ dash       │
+│ 4  │ Sói Tím     │ Chiến Binh Hắc Ám      │ WARRIOR   │ +10  │ +5   │ +0   │ dash       │
+│ 5  │ Cáo Hồng    │ Pháp Sư Ảo Ảnh         │ MAGE      │ -5   │ +15  │ +1   │ multishot  │
+│ 6  │ Gấu Nâu     │ Quyền Sư Sắt Đá        │ BRAWLER   │ +30  │ -10  │ +0   │ shield     │
+│ 7  │ Diều Cam    │ Sát Thủ Chớp Nhoáng    │ ASSASSIN  │ -5   │ +15  │ +0   │ dash       │
+│ 8  │ Cọp Xanh    │ Chiến Binh Đại Dương   │ WARRIOR   │ +10  │ +10  │ +0   │ dash       │
+│ 9  │ Chồn Bạc    │ Sát Thủ Bóng Đêm       │ ASSASSIN  │ -10  │ +25  │ +0   │ dash       │
+│ 10 │ Thiên Long  │ Pháp Sư Thần Thánh     │ MAGE      │ +5   │ +5   │ +2   │ multishot  │
+│ 11 │ Hắc Vũ     │ Sát Thủ Tử Thần        │ ASSASSIN  │ -15  │ +30  │ +0   │ dash       │
+└────┴──────────────┴────────────────────────┴───────────┴──────┴──────┴──────┴────────────┘
+
+Skill bonus effects:
+  - dash       : Cooldown giảm 30% (assassin)
+  - shield     : Duration +50% (brawler)
+  - multishot  : Bắn 4 phi tiêu thay vì 3 (mage)
+  - WARRIOR dash: Dash mạnh hơn 20%
+  - ASSASSIN dash: Dash cooldown giảm 30%
+
+  v3.0 CHANGE: Đã xóa nhân vật id=12 (Hieu Louis - Classic) và id=13 (Ma Tôn).
+                CharType.CLASSIC và CharType.MATON đã gỡ khỏi enum.
+
+
+================================================================================
+ 10. KỸ NĂNG
+================================================================================
+
+3 kỹ năng chủ động (Active Skills):
+
+  ┌──────────┬───────────┬────────────────────────────────────────────────────────┐
+  │ Skill    │ Cooldown  │ Hiệu ứng                                               │
+  ├──────────┼───────────┼────────────────────────────────────────────────────────┤
+  │ DASH     │ 8s        │ Lao về phía trước với tốc độ cao trong 0.18s           │
+  │          │           │ Hữu ích né dart hoặc rút ngắn khoảng cách.            │
+  │          │           │ Hướng = input direction (WASD/joystick)                │
+  ├──────────┼───────────┼────────────────────────────────────────────────────────┤
+  │ SHIELD   │ 15s       │ Bọc khiên miễn damage trong 3 giây.                    │
+  │          │           │ Không thể bị dart hoặc teleport kill xuyên qua.        │
+  │          │           │ Visual: shield sprite xoay + pulse scale               │
+  ├──────────┼───────────┼────────────────────────────────────────────────────────┤
+  │ MULTISHOT│ 12s       │ Lần ném tiếp theo bắn 3 phi tiêu cùng lúc              │
+  │          │           │ theo hình quạt (spread 0.3 rad).                       │
+  │          │           │ Mage: 4 phi tiêu. Cáo Hồng/Thiên Long: bonus khác.     │
+  └──────────┴───────────┴────────────────────────────────────────────────────────┘
+
+  v3.0 CHANGE: Đã xóa CROWN SKILL (chỉ Classic mode có).
+
+Combo system:
+  - Giết liên tiếp trong 2s = combo
+  - Combo multiplier: 1.0 + (combo_count × 0.5)
+    vd: combo x3 = 1.0 + 1.5 = 2.5x score
+  - Combo >2 phát sound combo_n (âm thanh tăng dần theo combo count)
+  - HUD hiện "COMBO x3!" trong combo_label
+
+
+================================================================================
+ 11. PICKUP
+================================================================================
+
+2 loại pickup spawn random trên map:
+
+  ┌────────────────┬────────────────────────────────────────────────────────────┐
+  │ Pickup         │ Hiệu ứng                                                   │
+  ├────────────────┼────────────────────────────────────────────────────────────┤
+  │ Health pickup  │ +30 HP (pickup_health.png)                                │
+  │                │ Sound: play_pickup_health()                                │
+  │                │ Floating text "+30 HP"                                     │
+  ├────────────────┼────────────────────────────────────────────────────────────┤
+  │ Dart pickup    │ +2 dart bonus trong 10s (pickup_dart.png)                 │
+  │                │ Sound: play_pickup_dart()                                  │
+  └────────────────┴────────────────────────────────────────────────────────────┘
+
+Pickup logic: scripts/pickup.gd
+Pickup scene: scenes/pickup.tscn
+
+
+================================================================================
+ 12. AI
+================================================================================
+
+5 AI players spawn random quanh tâm map. Mỗi AI có:
+  - Tên random (vd: "AI Red", "AI Blue"...) - dựa trên màu sprite
+  - HP, size, dart, skill tương tự player
+  - Behavior:
+    * Di chuyển random trong zone
+    * Thấy player trong tầm → ném dart
+    * Có 40% chance dodge dart
+    * Có 50% chance mid-flight teleport (dịch chuyển đến dart đang bay)
+    * Accuracy 70%
+  - Khi chết → respawn sau 3s ở vị trí random trong zone
+
+AI scripts/scene:
+  - scripts/ai_player.gd (515 dòng)
+  - scenes/ai_player.tscn
+
+AI groups: "ai_players" (dùng cho get_nodes_in_group)
+
+
+================================================================================
+ 13. ÂM THANH & NHẠC
+================================================================================
+
+AudioManager (Singleton):
+  - Pool 16 AudioStreamPlayer (chơi đồng thời nhiều sound)
+  - Music player riêng (fade in/out 0.5s)
+  - Variation system: mỗi "category" có nhiều variations, random khi play
+  - Sound lazy-load (chỉ load khi cần) trừ 16 sound preload quan trọng
+  - Volume convert: linear 0..1 → dB (linear_to_db)
+
+Sound categories (~50 categories, ~150 files total):
+  - Gameplay: throw, teleport, hit, kill, death, pickup_health, pickup_dart,
+              dart_stick, dart_fly, respawn, damage, whoosh, zap, explosion,
+              sparkle, chime, magic, laser, coin, bass
+  - UI      : ui_click, ui_hover, combo, zone_warning, zone_shrink, success,
+              error, warning, info, notification, achievement, select, confirm,
+              cancel, click_light, click_heavy, countdown, spawn, size_grow,
+              aim_start
+  - Drums   : drum_kick, drum_snare, drum_hihat, drum_crash
+  - Misc    : alarm, heartbeat, powerup, footstep
+
+Music tracks (5 files):
+  - menu_music_01    : Menu background
+  - game_music_01    : In-game (primary)
+  - game_music_02    : In-game (alt)
+  - victory_music_01 : Win
+  - defeat_music_01  : Lose
+
+  v3.0 CHANGE: Đã xóa HORROR sounds (zombie_growl, zombie_scream, zombie_bite,
+                horror_drone, jump_scare, heartbeat_slow) khỏi VARIATIONS.
+                Đã xóa HORROR_SFX_PATH const và _load_sound fallback vào horror subfolder.
+                Đã xóa folder assets/audio/sfx/horror/ (~11 file .wav).
+                Đã xóa 5 helper methods: play_zombie_growl/scream/bite, play_horror_drone,
+                play_jump_scare, play_heartbeat_slow.
+
+
+================================================================================
+ 14. SPRITE & VISUAL ASSETS
+================================================================================
+
+Character sprites (256×256 PNG, transparent background):
+  - char_dragon_red, char_phoenix_blue, char_tiger_gold, char_leopard_green
+  - char_wolf_purple, char_fox_pink, char_bear_brown, char_kite_orange
+  - char_tiger_teal, char_marten_silver, char_dragon_divine, char_dark_feather
+  - player_blue (legacy default)
+  - 10 ai_*.png color variants (legacy)
+
+Other sprites:
+  - dart.png             : Dart projectile
+  - pickup_dart.png      : Dart pickup
+  - pickup_health.png    : Health pickup
+  - shield.png           : Shield effect
+  - teleport_effect.png  : Teleport visual
+  - joystick_base.png    : Virtual joystick base
+  - joystick_stick.png   : Virtual joystick stick
+  - btn_teleport.png     : Teleport button icon (mobile)
+  - btn_throw.png        : Throw button icon (mobile)
+
+Icon:
+  - icon.svg             : App icon (vector SVG, 192×192 + 432×432 adaptive)
+
+  v3.0 CHANGE: Đã xóa char_ma_ton.png và char_hieu_louis_classic.png.
+
+
+================================================================================
+ 15. SETTINGS & CONFIG
+================================================================================
+
+SettingsManager lưu settings tại: user://settings.cfg (ConfigFile)
+
+Config sections:
+  [graphics]
+    - quality         : 0..3 (VERY_LOW/LOW/MEDIUM/HIGH)
+    - show_fps        : bool
+    - screen_shake    : bool
+
+  [gameplay]
+    - show_joystick   : bool
+
+  [audio]
+    - sound_volume    : 0.0..1.0
+    - music_volume    : 0.0..1.0
+    - sound_enabled   : bool
+    - music_enabled   : bool
+
+  [device]
+    - auto_detected   : bool (true nếu quality được auto-detect lần đầu)
+
+  [ui_custom]
+    - joystick_size   : 0.5..2.0
+    - button_size     : 0.5..2.0
+    - ui_opacity      : 0.3..1.0
+    - skill_btn_layout, throw_btn_pos, teleport_btn_pos, hud_layout : int (legacy)
+    - custom_button_positions : Dictionary (drag-drop saved positions)
+    - use_custom_layout       : bool
+
+  [stats]
+    - last_play_date  : YYYY-MM-DD
+    - daily_streak    : int
+    - total_matches   : int
+    - total_wins      : int
+    - total_kills     : int
+
+  [i18n]
+    - language        : "vi" hoặc "en"
+
+CharacterData lưu tại: user://character_data.cfg
+  [characters]
+    - selected : int (id nhân vật đang chọn, default 0)
+
+  v3.0 CHANGE: Đã xóa section [endless] (endless_max_level).
+                Đã xóa [features] (unlocked_features) — không còn gift code system.
+                Đã xóa [characters] unlocked array — tất cả nhân vật đều mở khóa.
+
+Device tier detection:
+  - LOW_END   : score < 4.5  → VERY_LOW quality, shake OFF
+  - MID_RANGE : score 4.5-8.0 → MEDIUM quality, shake ON
+  - HIGH_END  : score >= 8.0  → HIGH quality, shake ON
+  Score = CPU cores + screen pixels + GPU keywords + RAM
+  Mobile score × 0.7 (penalty)
+
+Graphics quality effects:
+  - VERY_LOW : particles = 0 (off), glow OFF, trail OFF, predicted line OFF
+  - LOW      : particles × 0.3, glow OFF, trail ON, predicted line ON
+  - MEDIUM   : particles × 0.7, glow ON, trail ON, predicted line ON
+  - HIGH     : particles × 1.0, glow ON, trail ON, predicted line ON
+
+
+================================================================================
+ 16. I18N (ĐA NGÔN NGỮ)
+================================================================================
+
+Hỗ trợ 2 ngôn ngữ: Tiếng Việt (vi) và English (en).
+Default: vi (nếu chưa setting).
+
+API:
+  - I18N.t("key")            : Lấy chuỗi đã dịch
+  - I18N.t("key", [args])    : Format string với args (vd: "%d%%" → t("vol", [50]))
+  - I18N.set_language("vi")  : Đổi ngôn ngữ, lưu settings, emit signal
+  - I18N.toggle_language()   : Toggle VI ↔ EN
+  - I18N.is_vi() / is_en()   : Check ngôn ngữ hiện tại
+  - Signal: language_changed(new_lang) — UI connect để refresh
+
+Translation keys (29 keys, v3.0):
+  menu.title, menu.subtitle, menu.play, menu.characters, menu.settings, menu.quit
+  settings.title, settings.back, settings.graphics_section, settings.audio_section,
+    settings.language_section, settings.ui_section, settings.quality_label,
+    settings.quality_very_low/low/medium/high, settings.show_fps, settings.screen_shake,
+    settings.show_joystick, settings.sound, settings.music, settings.sound_volume,
+    settings.music_volume, settings.lang_vi, settings.lang_en, settings.ui_customize,
+    settings.device_info, settings.auto_detected
+  pause.title, pause.resume, pause.settings, pause.menu
+  death_recap.killed_by, death_recap.killed_unknown, death_recap.damage_taken,
+    death_recap.survival_time, death_recap.kills
+
+  v3.0 CHANGE: Đã xóa các key:
+    - menu.endless, mode.*, endless.* (15 keys liên quan Endless/Zombie mode)
+    - menu.guide (đã xóa nút Guide)
+    - settings.giftcode_section, settings.giftcode_desc, settings.giftcode_placeholder,
+      settings.redeem, settings.empty_code, settings.code_invalid, settings.code_valid
+      (7 keys liên quan Gift Code)
+
+
+================================================================================
+ 17. PHYSICS LAYERS
+================================================================================
+
+Đăng ký trong project.godot → [layer_names] → 2d_physics:
+
+  Layer 1: Player
+  Layer 2: Dart
+  Layer 3: Wall
+  Layer 4: AI
+  Layer 5: Obstacle
+  Layer 6: Pickup
+
+  v3.0 CHANGE: Đã xóa Layer 7: RemotePlayer (online mode đã gỡ).
+
+Player collision_mask: 4 | 8 | 16 = Wall | AI | Obstacle
+Player collision_layer: 1 (Player)
+
+
+================================================================================
+ 18. INPUT MAP
+================================================================================
+
+Đăng ký trong project.godot → [input]:
+
+  ┌─────────────────┬──────────────────────────────────────────────────────────┐
+  │ Action          │ Keys                                                     │
+  ├─────────────────┼──────────────────────────────────────────────────────────┤
+  │ move_up         │ W (physical_keycode 87) hoặc ↑ (4194320)                 │
+  │ move_down       │ S (83) hoặc ↓ (4194322)                                  │
+  │ move_left       │ A (65) hoặc ← (4194319)                                  │
+  │ move_right      │ D (68) hoặc → (4194321)                                  │
+  │ teleport        │ Space (32)                                               │
+  │ restart         │ R (82)                                                   │
+  │ menu_back       │ ESC (4194305)                                            │
+  │ skill_dash      │ Q (81)                                                   │
+  │ skill_shield    │ E (69)                                                   │
+  │ skill_multishot │ Shift (4194325)                                          │
+  │ pause           │ P (80)                                                   │
+  └─────────────────┴──────────────────────────────────────────────────────────┘
+
+  v3.0 CHANGE: Đã xóa action "skill_crown" (C key, 67) — không còn Crown skill.
+
+[input_devices]
+  pointing/emulate_touch_from_mouse = true  (cho phép test mobile trên PC)
+
+
+================================================================================
+ 19. CÁC TÍNH NĂNG ĐÃ XÓA (so với v2.9)
+================================================================================
+
+Danh sách đầy đủ những gì đã xóa trong v3.0:
+
+A. CHẾ ĐỘ ZOMBIE (Vượt Ải 500 level):
+   - scripts/endless_mode.gd        (559 dòng)
+   - scripts/endless_player.gd      (286 dòng)
+   - scripts/endless_dart.gd        (139 dòng)
+   - scripts/zombie.gd              (426 dòng)
+   - scripts/skills_hub.gd          (333 dòng - 15 skills UI)
+   - scenes/endless_mode.tscn
+   - scenes/endless_player.tscn
+   - scenes/endless_dart.tscn
+   - scenes/zombie.tscn
+
+B. CHẾ ĐỘ ONLINE (Multiplayer):
+   - scripts/network_manager.gd     (469 dòng - WebSocket client)
+   - scripts/main_online.gd         (371 dòng)
+   - scripts/matchmaking_screen.gd  (211 dòng)
+   - scripts/remote_player.gd       (170 dòng)
+   - scenes/main_online.tscn
+   - scenes/matchmaking.tscn
+   - scenes/remote_player.tscn
+   - scripts/loading_screen.gd + scenes/loading.tscn  (chỉ dùng cho online)
+   - relay-server/                  (toàn bộ folder Node.js + Docker)
+   - deploy-relay.sh
+   - docker-compose.yml
+   - .github/workflows/build-relay.yml
+   - NetworkManager autoload trong project.godot
+   - Layer 7 "RemotePlayer" trong physics layers
+
+C. NHÂN VẬT ĐẶC BIỆT:
+   - char_ma_ton.png (sprite)
+   - char_hieu_louis_classic.png (sprite)
+   - CharType.CLASSIC + CharType.MATON enum values
+   - Character id=12 (Hieu Louis - Classic) trong CHARACTERS array
+   - Character id=13 (Ma Tôn) trong CHARACTERS array
+   - Classic mode logic trong player.gd (~400 dòng):
+       spawn_invulnerable, glitch effect, code line effect, HP bar lớn hơn
+   - Crown skill logic trong player.gd (~100 dòng):
+       activate_crown_skill, _find_nearest_enemies, _update_crown,
+       _spawn_crown_pin_effect, pinned_targets, crown_score_multiplier
+   - SMG reward logic trong player.gd (~50 dòng):
+       _check_smg_reward, _activate_smg, _update_smg, _fire_smg
+   - Target highlight logic trong player.gd (~80 dòng):
+       _create_target_highlight, _update_target_highlight, highlighted_target
+   - scripts/target_highlight.gd (44 dòng)
+   - CrownSkillButton trong mobile_controls.tscn + logic trong mobile_controls.gd
+   - Hiển thị Crown/SMG/Spawn Invul status trong hud.gd combo_label
+   - skill_crown action trong input map (C key)
+   - _on_mobile_skill_crown() trong main.gd
+   - Character screen hint "MỞ KHÓA BẰNG MÃ BÍ MẬT" cho Classic/Ma Tôn
+
+D. HỆ THỐNG GIFTCODE:
+   - scripts/guide.gd               (470 dòng - cả player_guide + admin_guide)
+   - scenes/guide.tscn
+   - GuideButton trong menu.tscn + _on_guide_pressed() trong menu.gd
+   - GIFT_CODES dictionary trong character_data.gd (3 mã: hieulouis99,
+     hieulouisking, maton99)
+   - redeem_gift_code() + get_last_redeem_message() + unlock_feature() +
+     is_feature_unlocked() + _feature_display_name() trong character_data.gd
+   - unlocked_features array trong character_data.gd
+   - GiftCodeSection + GiftCodeDesc + GiftCodeHBox + GiftCodeInput (LineEdit) +
+     RedeemButton + GiftCodeResultLabel trong settings.tscn
+   - _on_redeem_pressed() + gift_code_input/redeem_button/gift_code_result_label
+     @onready vars trong settings_menu.gd
+   - 7 I18N keys: settings.giftcode_section, settings.giftcode_desc,
+     settings.giftcode_placeholder, settings.redeem, settings.empty_code,
+     settings.code_invalid, settings.code_valid
+   - menu.guide I18N key
+
+E. HORROR SOUNDS:
+   - assets/audio/sfx/horror/ folder (11 file .wav):
+       zombie_growl_01/02/03, zombie_scream_01/02, zombie_bite_01,
+       horror_drone_01, jump_scare_01, horror_ambient_01, heartbeat_slow_01
+   - 5 horror sound categories trong audio_manager.gd VARIATIONS:
+       zombie_growl, zombie_scream, zombie_bite, horror_drone, jump_scare
+   - HORROR_SFX_PATH const + horror subfolder fallback trong _load_sound()
+   - 5 helper methods: play_zombie_growl, play_zombie_scream, play_zombie_bite,
+       play_horror_drone, play_jump_scare, play_heartbeat_slow
+   - heartbeat_slow_01 trong _preload_common_sounds list
+
+F. ENDLESS MODE I18N:
+   - 13 I18N keys: menu.endless, mode.title, mode.online, mode.offline, mode.endless,
+     mode.back, mode.retry, mode.checking_server, mode.connecting, mode.server_online,
+     mode.server_offline, endless.title, endless.level, endless.kills, endless.hp,
+     endless.game_over, endless.victory, endless.next_level, endless.retry,
+     endless.menu, endless.kills_label, endless.skills
+
+G. ENDLESS MODE PROGRESS:
+   - endless_max_level var trong settings_manager.gd
+   - endless section trong settings.cfg save/load
+
+H. MODE_SELECT SCREEN:
+   - scripts/mode_select.gd (228 dòng)
+   - scenes/mode_select.tscn
+   - Menu "Chơi Ngay" giờ vào thẳng main.tscn (offline) thay vì qua mode_select
+
+  TỔNG: Đã xóa khoảng ~3500 dòng code + ~15 file scenes/scripts + 11 file audio
+          + folder relay-server (Node.js + Docker) + 2 sprite.
+
+
+================================================================================
+ 20. BUILD & EXPORT
+================================================================================
+
+Export presets (export_presets.cfg):
+
+  ┌─────────────────┬────────────────────────────────────────────────────────────┐
+  │ Preset          │ Output path                                                │
+  ├─────────────────┼────────────────────────────────────────────────────────────┤
+  │ Android         │ build/android/phitieudichchuyen.apk                        │
+  │ Windows Desktop │ build/windows/phitieudichchuyen.exe                        │
+  │ Linux/X11       │ build/linux/phitieudichchuyen.x86_64                       │
+  └─────────────────┴────────────────────────────────────────────────────────────┘
+
+Android config:
+  - Package: com.phitieudichchuyen.game
+  - Version code: 30 / Version name: "3.0"
+  - Architectures: armeabi-v7a + arm64-v8a
+  - Icons: res://icon.svg (192×192 main, 432×432 adaptive)
+
+Windows config:
+  - File version: 3.0.0.0
+  - Company: PhiTieuDichChuyen
+  - Product: Phi Tiêu Dịch Chuyển
+  - Icon: res://icon.svg
+  - Architecture: x86_64
+
+Linux config:
+  - Architecture: x86_64
+  - Same icon, embed_pck=true
+
+Build manual:
+  1. Mở project trong Godot 4.7
+  2. Project → Export → chọn preset
+  3. Export Project (.Save to file)
+
+
+================================================================================
+ 21. CI/CD
+================================================================================
+
+GitHub Actions workflow: .github/workflows/build-release.yml
+
+Trigger:
+  - Push tag v* (vd: v3.0)
+  - Release published
+  - Manual dispatch (workflow_dispatch với input version)
+
+Permissions: contents:write, packages:write
+
+Jobs (parallel):
+  - build-android   : Build APK + zipalign + sign with debug keystore
+  - build-windows   : Build .exe + embed PCK
+  - build-linux     : Build .x86_64 + embed PCK
+  - release         : Upload all artifacts to GitHub Release (chỉ khi push tag)
+
+Env:
+  - GODOT_VERSION: '4.7'
+  - PROJECT_NAME: 'phitieudichchuyen'
+
+  v3.0 CHANGE: Đã xóa .github/workflows/build-relay.yml (build Docker image cho
+                relay server — không còn cần vì online mode đã gỡ).
+
+
+================================================================================
+ HẾT BÁO CÁO
+================================================================================
+
+Phi Tiêu Dịch Chuyển v3.0 — Phiên bản Offline hoàn toàn.
+Mọi góp ý / bug report: tạo issue tại https://github.com/mhieuhonda/phitieudichchuyen/issues
+
+— Báo cáo được tạo ngày 2026-08-07 —

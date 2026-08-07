@@ -1,17 +1,14 @@
 extends Control
 
-## Menu - Menu chính (v2.4) - Premium UI Edition
-## v2.0: "Chơi Ngay" → Mode Selection (Online/Offline)
-## v2.2: Thêm nút "Hướng Dẫn" → mở Guide screen
-## v2.3: Xóa cấu hình Server URL - relay server đã hardcoded
-## v2.4: Thêm nút "Vượt Ải" + đa ngôn ngữ (VI/EN) + ẩn mã bí mật
+## Menu - Menu chính (v3.0) - Premium UI Edition
+## v3.0: Dọn dẹp - đã xóa nút Hướng Dẫn (Guide), xóa mọi tham chiếu online/zombie/gift code
+## v2.4: Thêm nút "Vượt Ải" + đa ngôn ngữ (VI/EN) + ẩn mã bí mật (đã xóa v3.0)
 
 @onready var title_label: Label = $TitleLabel
 @onready var subtitle_label: Label = $SubtitleLabel
 @onready var play_button: Button = $PlayButton
 @onready var characters_button: Button = $CharactersButton
 @onready var settings_button: Button = $SettingsButton
-@onready var guide_button: Button = $GuideButton
 @onready var quit_button: Button = $QuitButton
 @onready var version_label: Label = $VersionLabel
 @onready var new_feature_label: RichTextLabel = $NewFeatureLabel
@@ -28,12 +25,10 @@ func _ready():
         play_button.pressed.connect(_on_play_pressed)
         characters_button.pressed.connect(_on_characters_pressed)
         settings_button.pressed.connect(_on_settings_pressed)
-        if guide_button:
-                guide_button.pressed.connect(_on_guide_pressed)
         quit_button.pressed.connect(_on_quit_pressed)
 
         # Premium hover effects with tweens
-        for btn in [play_button, characters_button, settings_button, guide_button, quit_button]:
+        for btn in [play_button, characters_button, settings_button, quit_button]:
                 if btn:
                         btn.mouse_entered.connect(_on_btn_hover.bind(btn, true))
                         btn.mouse_exited.connect(_on_btn_hover.bind(btn, false))
@@ -56,7 +51,6 @@ func _apply_premium_styling():
         # Style buttons with hover color modulate
         _style_button(play_button, Color(0.05, 0.15, 0.1, 0.9), GREEN)
         _style_button(characters_button, Color(0.08, 0.1, 0.2, 0.85), Color(0.6, 0.75, 1.0))
-        _style_button(guide_button, Color(0.15, 0.12, 0.04, 0.85), Color(1.0, 0.82, 0.25))
         _style_button(settings_button, Color(0.12, 0.08, 0.2, 0.85), PURPLE)
         _style_button(quit_button, Color(0.15, 0.06, 0.06, 0.8), RED_SOFT)
 
@@ -119,25 +113,23 @@ func _refresh_ui():
                 play_button.text = I18N.t("menu.play")
         if characters_button:
                 characters_button.text = I18N.t("menu.characters")
-        if guide_button:
-                guide_button.text = I18N.t("menu.guide")
         if settings_button:
                 settings_button.text = I18N.t("menu.settings")
         if quit_button:
                 quit_button.text = I18N.t("menu.quit")
         if version_label:
-                version_label.text = "v2.9 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v3.0 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#ffaa00][b]v2.9:[/b][/color] Fix nhân vật Ma Tôn (tách nền + đúng kích thước) + Sắp xếp lại Settings gọn gàng + Sửa lỗi không quay lại được từ Nhân Vật\n[color=#aa00ff][b]Ma Tôn[/b][/color]: Sprite đã được tách nền trong suốt, resize về 256×256 chuẩn như các nhân vật khác\n[color=#44aaff][b]Settings[/b][/color]: Tái cấu trúc theo thứ tự Đồ Họa → Âm Thanh → Ngôn Ngữ → Mã Quà Tặng → Giao Diện\n[color=#00ff88][b]ESC[/b][/color]: Phím ESC giờ cũng quay lại được ở mọi màn hình menu"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.0:[/b][/color] Phiên bản Offline hoàn toàn - Đã xóa Zombie mode, Online mode, Guide, Gift Code và nhân vật Ma Tôn / Hieu Louis.\n[color=#44aaff][b]12 Nhân Vật[/b][/color]: Tất cả nhân vật đều mở khóa sẵn - tự do chọn lựa\n[color=#00ff88][b]Offline PvP[/b][/color]: Chơi với 5 AI trên bản đồ 2000x2000 - vòng bo thu nhỏ, leaderboard đầy đủ\n[color=#aa00ff][b]Premium UI[/b][/color]: Hover effects, glow pulse, dark theme vàng-tím nhất quán"
                 else:
-                        new_feature_label.text = "[color=#ffaa00][b]v2.9:[/b][/color] Fix Ma Tôn character (transparent bg + correct size) + Cleaner Settings layout + Fix unable to go back from Characters screen\n[color=#aa00ff][b]Ma Tôn[/b][/color]: Sprite now has transparent background, resized to standard 256×256 like other characters\n[color=#44aaff][b]Settings[/b][/color]: Reorganized layout — Graphics → Audio → Language → Gift Code → Interface\n[color=#00ff88][b]ESC[/b][/color]: ESC key now also goes back on every menu screen"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.0:[/b][/color] Fully Offline version - Removed Zombie mode, Online mode, Guide, Gift Code and Ma Tôn / Hieu Louis characters.\n[color=#44aaff][b]12 Characters[/b][/color]: All characters unlocked - freely choose\n[color=#00ff88][b]Offline PvP[/b][/color]: Play vs 5 AI on a 2000x2000 map - shrinking zone, full leaderboard\n[color=#aa00ff][b]Premium UI[/b][/color]: Hover effects, glow pulse, consistent gold-purple dark theme"
 
 func _on_play_pressed():
         AudioManager.play_ui_click()
         AudioManager.play_confirm()
-        # v2.0: Chuyển sang Mode Selection để chọn Online/Offline/Endless
-        get_tree().change_scene_to_file("res://scenes/mode_select.tscn")
+        # v3.0: Vào thẳng trận Offline (chỉ còn 1 chế độ chơi)
+        get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 func _on_characters_pressed():
         AudioManager.play_ui_click()
@@ -146,11 +138,6 @@ func _on_characters_pressed():
 func _on_settings_pressed():
         AudioManager.play_ui_click()
         get_tree().change_scene_to_file("res://scenes/settings.tscn")
-
-func _on_guide_pressed():
-        AudioManager.play_ui_click()
-        AudioManager.play_confirm()
-        get_tree().change_scene_to_file("res://scenes/guide.tscn")
 
 func _on_quit_pressed():
         AudioManager.play_cancel()

@@ -62,25 +62,6 @@ text = "MULTI
 Shift"
 theme_override_font_sizes/font_size = 12
 
-[node name="CrownSkillButton" type="Button" parent="."]
-visible = false
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -340.0
-offset_top = -85.0
-offset_right = -240.0
-offset_bottom = -25.0
-grow_horizontal = 0
-grow_vertical = 0
-text = "♛
-CROWN"
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(1.0, 0.85, 0.2, 1.0)
-
 [node name="TeleportButton" type="TextureButton" parent="."]
 layout_mode = 1
 anchors_preset = 3
