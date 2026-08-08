@@ -1,10 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://hud002"]
+[gd_scene load_steps=2 format=3 uid="uid://hud002"]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/Win.png" id="2"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/YouDie.png" id="3"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnRestart.png" id="4"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnMenuHome.png" id="5"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -307,7 +303,7 @@ horizontal_alignment = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.5, 0.55, 0.65, 0.8)
 
-[node name="YouDieOverlay" type="TextureRect" parent="."]
+[node name="BigBanner" type="Label" parent="."]
 visible = false
 anchors_preset = 15
 anchor_right = 1.0
@@ -318,22 +314,14 @@ offset_right = 0.0
 offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("3")
-stretch_mode = 5
-
-[node name="WinOverlay" type="TextureRect" parent="."]
-visible = false
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 0.0
-offset_bottom = 0.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("2")
-stretch_mode = 5
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 80
+theme_override_colors/font_color = Color(1.0, 0.3, 0.3, 1.0)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/shadow_outline_size = 14
+text = ""
 
 [node name="ResultsPanel" type="Panel" parent="."]
 visible = false
@@ -378,7 +366,7 @@ offset_bottom = 440.0
 grow_horizontal = 2
 alignment = 1
 
-[node name="ResultsRestartBtn" type="TextureButton" parent="ResultsPanel"]
+[node name="ResultsRestartBtn" type="Button" parent="ResultsPanel"]
 layout_mode = 1
 anchors_preset = 6
 anchor_left = 0.5
@@ -391,10 +379,11 @@ offset_right = -12.0
 offset_bottom = -7.0
 grow_horizontal = 2
 grow_vertical = 0
-texture_normal = ExtResource("4")
-stretch_mode = 5
+custom_minimum_size = Vector2(216, 71)
+theme_override_font_sizes/font_size = 22
+text = "CHƠI LẠI"
 
-[node name="ResultsMenuBtn" type="TextureButton" parent="ResultsPanel"]
+[node name="ResultsMenuBtn" type="Button" parent="ResultsPanel"]
 layout_mode = 1
 anchors_preset = 6
 anchor_left = 0.5
@@ -407,5 +396,6 @@ offset_right = 228.0
 offset_bottom = -7.0
 grow_horizontal = 2
 grow_vertical = 0
-texture_normal = ExtResource("5")
-stretch_mode = 5
+custom_minimum_size = Vector2(216, 71)
+theme_override_font_sizes/font_size = 22
+text = "VỀ MENU"

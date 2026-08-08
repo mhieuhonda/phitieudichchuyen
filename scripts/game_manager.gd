@@ -54,12 +54,6 @@ signal daily_reward_granted(streak: int, hp_bonus_percent: float)
 @export var zone_damage_per_second: float = 10.0
 @export var zone_shrink_acceleration: float = 1.1
 
-@export_group("AI")
-@export var num_ai_players: int = 5
-@export var ai_dodge_chance: float = 0.4
-@export var ai_accuracy: float = 0.7
-@export var ai_mid_flight_teleport_chance: float = 0.5
-
 @export_group("Map")
 @export var map_size: Vector2 = Vector2(2000, 2000)
 
@@ -76,6 +70,30 @@ signal daily_reward_granted(streak: int, hp_bonus_percent: float)
 @export var skill_multishot_cooldown: float = 12.0
 @export var skill_multishot_dart_count: int = 3
 @export var skill_multishot_spread: float = 0.3  # radians spread
+
+# === v3.3: VẬT LÝ GAME MỚI ===
+@export_group("Vật Lý (v3.3)")
+@export var dart_ricochet_enabled: bool = true  # Phi tiêu nảy khi chạm tường
+@export var dart_max_ricochets: int = 1  # Số lần nảy tối đa
+@export var dart_ricochet_speed_loss: float = 0.85  # Mất 15% tốc độ sau mỗi lần nảy
+@export var dart_knockback_force: float = 80.0  # Lực đẩy lùi khi bị trúng phi tiêu
+@export var teleport_knockback_radius: float = 120.0  # Bán kính knockback khi dịch chuyển tới
+@export var teleport_knockback_force: float = 250.0  # Lực đẩy lùi AI xung quanh điểm dịch chuyển
+@export var dash_invincibility_frames: float = 0.1  # Bất tử ngắn khi dash
+@export var hit_slow_duration: float = 0.4  # Làm chậm 30% khi bị trúng dart
+@export var hit_slow_factor: float = 0.7  # Hệ số tốc độ khi bị slow
+
+@export_group("AI (v3.3)")
+@export var num_ai_players: int = 5
+@export var ai_dodge_chance: float = 0.6  # v3.3: tăng từ 0.4 → 0.6
+@export var ai_accuracy: float = 0.85  # v3.3: tăng từ 0.7 → 0.85 (1.0 = perfect)
+@export var ai_mid_flight_teleport_chance: float = 0.65  # v3.3: tăng từ 0.5 → 0.65
+@export var ai_predict_lead_factor: float = 1.1  # Hệ số dự đoán trước mục tiêu
+@export var ai_kite_distance: float = 280.0  # Khoảng cách lý tưởng để kiting
+@export var ai_flee_hp_threshold: float = 0.35  # Bỏ chạy khi HP dưới 35%
+@export var ai_pursuit_speed_mult: float = 1.15  # Nhanh hơn khi truy đuổi
+@export var ai_pickup_seeking: bool = true  # AI chủ động nhặt pickup
+@export var ai_pickup_seek_range: float = 400.0  # Phạm vi tìm pickup
 
 ## Enum skills - define ở GameManager để truy cập mọi nơi
 enum Skill { DASH, SHIELD, MULTISHOT }

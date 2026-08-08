@@ -1,9 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://uicustom001"]
+[gd_scene load_steps=2 format=3 uid="uid://uicustom001"]
+
 [ext_resource type="Script" path="res://scripts/ui_customization.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnBack.png" id="2"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnSave.png" id="3"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnClearLayout.png" id="4"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnResetAll.png" id="5"]
 
 [node name="UICustomization" type="Control"]
 layout_mode = 3
@@ -50,14 +47,14 @@ theme_override_constants/shadow_outline_size = 4
 text = "CHỈNH SỬA GIAO DIỆN - KÉO THẢ NÚT"
 horizontal_alignment = 1
 
-[node name="BackButton" type="TextureButton" parent="."]
+[node name="BackButton" type="Button" parent="."]
 layout_mode = 1
 offset_left = 15.0
 offset_top = 15.0
-offset_right = 231.0
-offset_bottom = 81.0
-texture_normal = ExtResource("2")
-stretch_mode = 5
+offset_right = 175.0
+offset_bottom = 55.0
+theme_override_font_sizes/font_size = 16
+text = "← QUAY LẠI"
 
 [node name="LeftPanel" type="Panel" parent="."]
 layout_mode = 1
@@ -117,17 +114,20 @@ theme_override_colors/font_color = Color(0.5, 0.52, 0.6, 1)
 [node name="SpacerA" type="Control" parent="LeftPanel/VBox"]
 custom_minimum_size = Vector2(0, 10)
 
-[node name="SaveLayoutButton" type="TextureButton" parent="LeftPanel/VBox"]
-texture_normal = ExtResource("3")
-stretch_mode = 5
+[node name="SaveLayoutButton" type="Button" parent="LeftPanel/VBox"]
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "💾 LƯU VỊ TRÍ"
 
-[node name="ClearLayoutButton" type="TextureButton" parent="LeftPanel/VBox"]
-texture_normal = ExtResource("4")
-stretch_mode = 5
+[node name="ClearLayoutButton" type="Button" parent="LeftPanel/VBox"]
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "ĐẶT LẠI MẶC ĐỊNH"
 
-[node name="ResetButton" type="TextureButton" parent="LeftPanel/VBox"]
-texture_normal = ExtResource("5")
-stretch_mode = 5
+[node name="ResetButton" type="Button" parent="LeftPanel/VBox"]
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "RESET TOÀN BỘ"
 
 [node name="PreviewArea" type="Panel" parent="."]
 layout_mode = 1

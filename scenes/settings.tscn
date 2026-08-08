@@ -1,13 +1,6 @@
-[gd_scene load_steps=10 format=3 uid="uid://settings001"]
+[gd_scene load_steps=2 format=3 uid="uid://settings001"]
+
 [ext_resource type="Script" path="res://scripts/settings_menu.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnBack.png" id="2"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnUICustomize.png" id="3"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnLangVi.png" id="4"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnLangEn.png" id="5"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnQualityVL.png" id="6"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnQualityL.png" id="7"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnQualityM.png" id="8"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnQualityH.png" id="9"]
 
 [node name="Settings" type="Control"]
 layout_mode = 3
@@ -54,14 +47,14 @@ theme_override_constants/shadow_outline_size = 8
 text = "CÀI ĐẶT"
 horizontal_alignment = 1
 
-[node name="BackButton" type="TextureButton" parent="."]
+[node name="BackButton" type="Button" parent="."]
 layout_mode = 1
 offset_left = 15.0
 offset_top = 15.0
-offset_right = 231.0
-offset_bottom = 81.0
-texture_normal = ExtResource("2")
-stretch_mode = 5
+offset_right = 175.0
+offset_bottom = 55.0
+theme_override_font_sizes/font_size = 16
+text = "← QUAY LẠI"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -99,29 +92,33 @@ text = "Chất lượng đồ họa: Trung Bình"
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="QualityVeryLow" type="TextureButton" parent="ScrollContainer/VBox/QualityButtons"]
+[node name="QualityVeryLow" type="Button" parent="ScrollContainer/VBox/QualityButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
-texture_normal = ExtResource("6")
-stretch_mode = 5
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 14
+text = "Cực Thấp"
 
-[node name="QualityLow" type="TextureButton" parent="ScrollContainer/VBox/QualityButtons"]
+[node name="QualityLow" type="Button" parent="ScrollContainer/VBox/QualityButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
-texture_normal = ExtResource("7")
-stretch_mode = 5
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 14
+text = "Thấp"
 
-[node name="QualityMedium" type="TextureButton" parent="ScrollContainer/VBox/QualityButtons"]
+[node name="QualityMedium" type="Button" parent="ScrollContainer/VBox/QualityButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
-texture_normal = ExtResource("8")
-stretch_mode = 5
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 14
+text = "Trung Bình"
 
-[node name="QualityHigh" type="TextureButton" parent="ScrollContainer/VBox/QualityButtons"]
+[node name="QualityHigh" type="Button" parent="ScrollContainer/VBox/QualityButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
-texture_normal = ExtResource("9")
-stretch_mode = 5
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 14
+text = "Cao"
 
 [node name="GraphicsToggles" type="HBoxContainer" parent="ScrollContainer/VBox"]
 layout_mode = 2
@@ -216,17 +213,19 @@ text = "NGÔN NGỮ"
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LangVi" type="TextureButton" parent="ScrollContainer/VBox/LanguageButtons"]
+[node name="LangVi" type="Button" parent="ScrollContainer/VBox/LanguageButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
-texture_normal = ExtResource("4")
-stretch_mode = 5
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 14
+text = "Tiếng Việt"
 
-[node name="LangEn" type="TextureButton" parent="ScrollContainer/VBox/LanguageButtons"]
+[node name="LangEn" type="Button" parent="ScrollContainer/VBox/LanguageButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
-texture_normal = ExtResource("5")
-stretch_mode = 5
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 14
+text = "English"
 
 [node name="UICustomizeSection" type="Label" parent="ScrollContainer/VBox"]
 layout_mode = 2
@@ -237,10 +236,11 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_constants/shadow_outline_size = 3
 text = "GIAO DIỆN"
 
-[node name="UICustomizeButton" type="TextureButton" parent="ScrollContainer/VBox"]
+[node name="UICustomizeButton" type="Button" parent="ScrollContainer/VBox"]
 layout_mode = 2
-texture_normal = ExtResource("3")
-stretch_mode = 5
+custom_minimum_size = Vector2(0, 48)
+theme_override_font_sizes/font_size = 16
+text = "CHỈNH SỬA GIAO DIỆN"
 
 [node name="DeviceInfoLabel" type="Label" parent="ScrollContainer/VBox"]
 layout_mode = 2

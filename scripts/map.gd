@@ -7,7 +7,7 @@ extends Node2D
 
 @onready var zone_circle: Line2D = $ZoneCircle
 @onready var zone_fill: Polygon2D = $ZoneFill
-@onready var background: TextureRect = $Background
+@onready var background: ColorRect = $Background
 @onready var grid_layer: Node2D = $GridLayer
 @onready var decor_layer: Node2D = $DecorLayer
 
@@ -32,9 +32,24 @@ func _process(_delta):
 
 func _setup_background():
     if background:
-        # v3.1: AnhNen.png as background, stretched to fill entire map
+        # v3.3: Code-based background (AnhNen.png đã bị xóa)
         background.size = GameManager.map_size
-        background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+        background.color = Color(0.04, 0.05, 0.09, 1.0)
+        # Vẽ các mảng sáng/tối ngẫu nhiên tạo chiều sâu
+        for i in 12:
+            var blob = Polygon2D.new()
+            var segments = 24
+            var pts = PackedVector2Array()
+            var center = Vector2(rng.randf_range(0, GameManager.map_size.x),
+                                  rng.randf_range(0, GameManager.map_size.y))
+            var radius = rng.randf_range(150, 350)
+            for j in segments:
+                var angle = (j / float(segments)) * TAU
+                var r = radius * (0.7 + 0.3 * sin(angle * 3 + i))
+                pts.append(center + Vector2(cos(angle), sin(angle)) * r)
+            blob.polygon = pts
+            blob.color = Color(0.08, 0.07, 0.14, 0.4) if i % 2 == 0 else Color(0.05, 0.06, 0.10, 0.3)
+            background.add_child(blob)
 
 func _create_grid():
     if not grid_layer:

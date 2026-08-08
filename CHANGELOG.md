@@ -1,5 +1,81 @@
 # Changelog
 
+## v3.3 - Phi Tiêu Dịch Chuyển (2026-08-08)
+
+### Code-based UI + Smarter AI + New Game Physics
+
+#### UI Overhaul (Code-based, không còn PNG buttons)
+- **Xóa hoàn toàn toàn bộ PNG buttons**: 26 file PNG trong `assets/sprites/ui/` đã bị xóa (BtnBack, BtnEquip, BtnSave, BtnClearLayout, BtnResetAll, BtnDash, BtnShield, BtnMulti, BtnLangVi, BtnLangEn, BtnQualityVL/L/M/H, BtnQuit, BtnRestart, BtnResume, BtnMenuHome, BtnPauseMenu, BtnPauseSettings, BtnUICustomize, BtnCharacters, PlayButton, SettingButton, AnhNen). Cũng xóa `Win.png`, `YouDie.png`, `btn_throw.png`, `btn_teleport.png`.
+- **Tất cả nút bấm đổi sang `Button` (Godot Control) + `StyleBoxFlat`**: Menu, Settings, Character Screen, HUD Results, UI Customization, Mobile Controls — tất cả đều dùng Button với:
+  - Dark theme (background `0.07,0.07,0.14,0.95`)
+  - Border accent color theo loại nút (gold/cyan/purple/green/red)
+  - Hover state sáng hơn (`0.13,0.11,0.22,0.98`)
+  - Pressed state đậm hơn
+  - Shadow + corner radius 8-12px
+  - Touch scale effect (1.06x khi chạm, 1.0 khi thả)
+- **Sắp xếp gọn gàng với Container**: Menu dùng `CenterContainer` + `VBoxContainer`, Settings dùng `ScrollContainer` + `VBoxContainer` + `HBoxContainer` cho các nút chất lượng và ngôn ngữ. Tự động căn giữa, responsive.
+- **BigBanner thay Win/YouDie overlays**: Khi player thắng → "CHIẾN THẮNG!" pop-in scale + fade. Khi player chết → "BẠN CHẾT!" đỏ. Đều vẽ bằng Label + Tween, không còn PNG.
+
+#### Vật Lý Game Mới (v3.3)
+- **Ricochet (nảy phi tiêu)**: Phi tiêu nảy 1 lần khi chạm tường biên hoặc obstacle (rock/tree/crate). Mất 15% tốc độ sau mỗi lần nảy. Trail đổi sang màu cyan khi đã nảy. Tia spark phát ra tại điểm nảy.
+- **Knockback khi trúng dart**: Player/AI bị trúng dart sẽ bị đẩy lùi theo hướng bay của dart (80 * power).
+- **Hit slow effect**: Khi bị trúng dart, tốc độ di chuyển giảm 30% trong 0.4 giây.
+- **Dash i-frames (bất tử ngắn)**: Khi dash, player có 0.1s bất tử sau khi dash kết thúc. Hiện floating text "EVADE!" khi né thành công.
+- **Teleport knockback**: Khi player dịch chuyển tới phi tiêu, AI trong bán kính 120px bị đẩy lùi (250 lực, giảm theo khoảng cách) + slow effect.
+
+#### AI Thông Minh Hơn (v3.3)
+- **Kiting state mới**: AI giữ khoảng cách lý tưởng (280px) với target, strafe ngang, throw dart khi có cơ hội. Đổi hướng strafe định kỳ.
+- **Prediction tốt hơn**: Dùng `ai_predict_lead_factor` (1.1) để dự đoán trước vị trí target. Power scale theo distance (gần → yếu, xa → mạnh).
+- **Dodge chủ động**: Khi phát hiện dart bay tới, AI ưu tiên né về hướng center zone. Dash né ngay nếu time-to-impact < 0.6s.
+- **Flee khi HP thấp**: HP < 35% → AI bỏ chạy. Nếu gần edge zone thì chạy dọc theo edge (tangent) thay vì thẳng ra ngoài.
+- **Pursuit speed boost**: Khi truy đuổi, AI nhanh hơn 1.15x bình thường.
+- **Pickup seeking**: AI chủ động tìm pickup gần nhất (trong 400px) khi HP thấp để hồi máu.
+- **Teleport thông minh**: AI chỉ dịch chuyển khi có lợi (gần target hơn sau khi teleport). Cooldown ngắn hơn (1.5s thay vì vô hạn).
+- **Stuck detection**: Nếu AI không di chuyển sau 1s (kẹt corner), tự đổi state.
+- **Threat score**: AI tính threat score cho mỗi dart (dot * (1 - dist/400)) để ưu tiên né dart nguy hiểm nhất.
+- **Phản ứng khi bị bắn**: AI chuyển sang kiting hoặc flee tùy HP ratio khi bị trúng dart.
+
+#### Technical Changes
+- `project.godot`: version 3.2 → 3.3
+- `assets/sprites/ui/` (toàn bộ folder) — DELETED
+- `assets/sprites/btn_throw.png`, `btn_teleport.png` — DELETED
+- `scenes/menu.tscn`: Viết lại hoàn toàn — CenterContainer + VBoxContainer, 4 Buttons
+- `scripts/menu.gd`: Button-based, _style_button() + _style_primary_button()
+- `scenes/settings.tscn`: Viết lại — Buttons cho Quality/Lang/UICustomize/Back
+- `scripts/settings_menu.gd`: Button-based, _style_button() helper
+- `scenes/character_screen.tscn`: Back/Equip đổi sang Button
+- `scripts/character_screen.gd`: Button-based, _style_button()
+- `scenes/ui_customization.tscn`: Back/Save/Clear/Reset đổi sang Button
+- `scripts/ui_customization.gd`: Button-based, _style_button()
+- `scenes/hud.tscn`: Xóa YouDieOverlay + WinOverlay TextureRect, ResultsRestart/MenuBtn đổi sang Button, thêm BigBanner Label
+- `scripts/hud.gd`: Xóa you_die_overlay + win_overlay, thêm _show_big_banner() / _show_win_banner() với pop-in Tween
+- `scenes/mobile_controls.tscn`: 5 nút (Dash/Shield/Multi/Teleport/Throw) đổi sang Button
+- `scripts/mobile_controls.gd`: Button-based, _style_skill_button() với accent color cho từng nút
+- `scenes/map.tscn`: Background đổi từ TextureRect (AnhNen) → ColorRect
+- `scripts/map.gd`: _setup_background() vẽ 12 mảng polygon ngẫu nhiên tạo chiều sâu
+- `scenes/pickup.tscn`: Thêm group "pickups" để AI có thể tìm thấy
+- `scripts/dart.gd`: Thêm ricochet (1 lần), knockback khi trúng, hit slow, spark effect
+- `scripts/player.gd`: Thêm dash_invincibility_timer, hit_slow_timer/factor, apply_hit_slow(), teleport knockback
+- `scripts/ai_player.gd`: Rewrite hoàn toàn — thêm KITING/SEEKING_PICKUP states, prediction, dodge thông minh, flee, pursuit boost, stuck detection, threat score
+- `scripts/game_manager.gd`: Thêm "Vật Lý (v3.3)" + "AI (v3.3)" export groups với 12 thông số mới
+
+#### Cấu hình mặc định v3.3
+- AI dodge chance: 0.4 → 0.6
+- AI accuracy: 0.7 → 0.85
+- AI mid-flight teleport: 0.5 → 0.65
+- AI predict lead factor: 1.1
+- AI kite distance: 280px
+- AI flee HP threshold: 35%
+- AI pursuit speed mult: 1.15x
+- AI pickup seek range: 400px
+- Dart ricochet: 1 lần, mất 15% tốc độ
+- Dart knockback: 80 * power
+- Teleport knockback: 250 lực, 120px radius
+- Dash i-frames: 0.1s sau dash
+- Hit slow: 30% trong 0.4s
+
+---
+
 ## v3.2 - Phi Tiêu Dịch Chuyển (2026-08-08)
 
 ### Premium PNG UI - Tất cả nút bấm đều dùng custom PNG images

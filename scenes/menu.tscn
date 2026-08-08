@@ -1,10 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://menu001"]
+[gd_scene load_steps=2 format=3 uid="uid://menu001"]
 
 [ext_resource type="Script" path="res://scripts/menu.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/PlayButton.png" id="4"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/SettingButton.png" id="5"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnCharacters.png" id="6"]
-[ext_resource type="Texture2D" path="res://assets/sprites/ui/BtnQuit.png" id="7"]
 
 [node name="Menu" type="Control"]
 layout_mode = 3
@@ -24,90 +20,62 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.03, 0.03, 0.08, 1.0)
 
-[node name="GameTitle" type="Label" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -300.0
-offset_top = 50.0
-offset_right = 300.0
-offset_bottom = 140.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 48
+grow_vertical = 2
+
+[node name="MenuVBox" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="GameTitle" type="Label" parent="CenterContainer/MenuVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 56
 theme_override_colors/font_color = Color(1.0, 0.85, 0.3, 1.0)
 theme_override_colors/font_shadow_color = Color(0.6, 0.4, 0.0, 0.7)
 theme_override_constants/shadow_offset_y = 4
-theme_override_constants/shadow_outline_size = 10
-text = "PHI TIÊU
-DỊCH CHUYỂN"
+theme_override_constants/shadow_outline_size = 12
+text = "PHI TIÊU DỊCH CHUYỂN"
 horizontal_alignment = 1
 
-[node name="NewFeatureLabel" type="RichTextLabel" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -340.0
-offset_top = 155.0
-offset_right = 340.0
-offset_bottom = 215.0
-grow_horizontal = 2
+[node name="NewFeatureLabel" type="RichTextLabel" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(700, 110)
+layout_mode = 2
 bbcode_enabled = true
-text = "[color=#ffaa00][b]v3.2:[/b][/color] Premium PNG UI - Tất cả nút đều là ảnh custom"
+text = "[color=#ffaa00][b]v3.3:[/b][/color] Code-based UI - gọn gàng, không dùng PNG"
 
-[node name="PlayButton" type="TextureButton" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -120.0
-offset_top = 240.0
-offset_right = 120.0
-offset_bottom = 340.0
-grow_horizontal = 2
-texture_normal = ExtResource("4")
-stretch_mode = 5
-rotation = -1.5708
+[node name="Spacer1" type="Control" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
 
-[node name="CharactersButton" type="TextureButton" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -168.0
-offset_top = 360.0
-offset_right = 168.0
-offset_bottom = 446.0
-grow_horizontal = 2
-texture_normal = ExtResource("6")
-stretch_mode = 5
+[node name="PlayButton" type="Button" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(360, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(1.0, 0.95, 0.4, 1.0)
+text = "CHƠI NGAY"
 
-[node name="SettingsButton" type="TextureButton" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -100.0
-offset_top = 460.0
-offset_right = 100.0
-offset_bottom = 560.0
-grow_horizontal = 2
-texture_normal = ExtResource("5")
-stretch_mode = 5
+[node name="CharactersButton" type="Button" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(360, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "NHÂN VẬT"
 
-[node name="QuitButton" type="TextureButton" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -148.0
-offset_top = 575.0
-offset_right = 148.0
-offset_bottom = 651.0
-grow_horizontal = 2
-texture_normal = ExtResource("7")
-stretch_mode = 5
+[node name="SettingsButton" type="Button" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(360, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "CÀI ĐẶT"
+
+[node name="QuitButton" type="Button" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(360, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "THOÁT"
 
 [node name="VersionLabel" type="Label" parent="."]
 layout_mode = 1
@@ -124,4 +92,4 @@ theme_override_colors/font_color = Color(0.4, 0.55, 0.75, 0.7)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
 theme_override_constants/shadow_offset_y = 1
 theme_override_constants/shadow_outline_size = 2
-text = "v3.2 - Phi Tiêu Dịch Chuyển"
+text = "v3.3 - Phi Tiêu Dịch Chuyển"
