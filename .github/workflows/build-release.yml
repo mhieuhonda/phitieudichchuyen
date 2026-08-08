@@ -361,17 +361,14 @@ jobs:
           body: |
             ## Phi Tiêu Dịch Chuyển ${{ steps.rel.outputs.tag }}
 
-            ### v3.1 — Premium Custom UI
+            ### v3.2 — Premium PNG UI
 
-            - Custom background image (AnhNen.png) for lobby and in-game map
-            - Custom game logo (TenGame.png) in lobby
-            - Custom Play button image (PlayButton.png) rotated horizontal
-            - Custom Settings button image (SettingButton.png)
-            - Win overlay image (Win.png) shown on victory, fades after leaderboard appears
-            - YouDie overlay image (YouDie.png) shown when player is eliminated
-            - Touch scale animation on all buttons (scale up on press, scale down on release)
-            - Removed relay server build (offline-only game)
-            - Fixed GitHub Actions workflow for reliable CI/CD
+            - All buttons now use custom PNG images (TextureButton)
+            - Removed AnhNen.png and TenGame.png from lobby (kept AnhNen.png in-game)
+            - Fixed PlayButton too large + misaligned upward
+            - Fixed SettingsButton being obscured by PlayButton
+            - Fixed all UI bugs - consistent dark premium theme
+            - 22 new custom button PNG images
 
             ### Downloads
             - **Android**: `.apk` file (signed with debug keystore)

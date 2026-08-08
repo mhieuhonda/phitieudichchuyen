@@ -4,16 +4,16 @@ extends Control
 ## - V1.2: Slider thay đổi kích thước, opacity, layout option
 ## - V1.3: Kéo thả nút bấm vào vị trí mong muốn + bấm Lưu để áp dụng
 
-@onready var back_btn: Button = $BackButton
+@onready var back_btn: TextureButton = $BackButton
 @onready var joystick_size_slider: HSlider = $LeftPanel/VBox/JoystickSizeSlider
 @onready var joystick_size_label: Label = $LeftPanel/VBox/JoystickSizeLabel
 @onready var button_size_slider: HSlider = $LeftPanel/VBox/ButtonSizeSlider
 @onready var button_size_label: Label = $LeftPanel/VBox/ButtonSizeLabel
 @onready var ui_opacity_slider: HSlider = $LeftPanel/VBox/UIOpacitySlider
 @onready var ui_opacity_label: Label = $LeftPanel/VBox/UIOpacityLabel
-@onready var reset_btn: Button = $LeftPanel/VBox/ResetButton
-@onready var save_layout_btn: Button = $LeftPanel/VBox/SaveLayoutButton
-@onready var clear_layout_btn: Button = $LeftPanel/VBox/ClearLayoutButton
+@onready var reset_btn: TextureButton = $LeftPanel/VBox/ResetButton
+@onready var save_layout_btn: TextureButton = $LeftPanel/VBox/SaveLayoutButton
+@onready var clear_layout_btn: TextureButton = $LeftPanel/VBox/ClearLayoutButton
 @onready var layout_status_label: Label = $LeftPanel/VBox/LayoutStatusLabel
 
 ## Preview area (kéo thả nút ở đây)
@@ -54,9 +54,10 @@ func _ready():
         button_size_slider.value_changed.connect(_on_button_size_changed)
         ui_opacity_slider.value_changed.connect(_on_ui_opacity_changed)
 
-        # Hover sounds
+        # Hover sounds for TextureButtons
         for btn in [back_btn, reset_btn, save_layout_btn, clear_layout_btn]:
-                btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+                if btn:
+                        btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
         _load_settings()
         _build_preview_widgets()

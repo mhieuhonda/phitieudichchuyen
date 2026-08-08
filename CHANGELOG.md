@@ -1,5 +1,45 @@
 # Changelog
 
+## v3.2 - Phi Tiêu Dịch Chuyển (2026-08-08)
+
+### Premium PNG UI - Tất cả nút bấm đều dùng custom PNG images
+
+#### UI Overhaul
+- **Tất cả nút bấm chuyển sang TextureButton (PNG images)**: Không còn nút vẽ bằng code (StyleBoxFlat). Mỗi nút đều có PNG riêng với hiệu ứng shadow, border, glow, gradient.
+  - Menu: BtnCharacters.png, BtnQuit.png (thay Button code-drawn)
+  - Settings: BtnBack.png, BtnQualityVL/L/M/H.png, BtnLangVi/En.png, BtnUICustomize.png
+  - Character Screen: BtnBack.png, BtnEquip.png
+  - HUD Results: BtnRestart.png, BtnMenuHome.png
+  - UI Customization: BtnBack.png, BtnSave.png, BtnClearLayout.png, BtnResetAll.png
+  - Mobile Skills: BtnDash.png, BtnShield.png, BtnMulti.png
+  - Pause Menu: BtnResume.png, BtnPauseSettings.png, BtnPauseMenu.png
+
+#### Bug Fixes
+- **Xóa AnhNen.png và TenGame.png khỏi sảnh chờ (menu)**: Background ảnh nền và logo game bị trùng với giao diện, gây rối mắt. Đã xóa, thay bằng DarkOverlay + GameTitle (Label) với hiệu ứng glow pulse.
+- **Giữ AnhNen.png trong trận (map.tscn)**: Ảnh nền vẫn dùng cho bản đồ trong game.
+- **Fix PlayButton.png quá to + lệch lên trên**: PlayButton (1440×2912) có offset (-160,330)→(160,430) với rotation=-90°, khiến nút hiển thị quá lớn và tràn lên trên. Đã thu nhỏ offset về (-120,240)→(120,340) và thêm stretch_mode=5.
+- **Fix SettingsButton.png bị lấp**: SettingsButton ở offset_top=520 bị PlayButton (khi rotation) che lấp. Đã điều chỉnh lại vị trí: Play→240, Characters→360, Settings→460, Quit→575, không còn overlap.
+- **Fix mọi lỗi UI**: Hover effects, touch scale, dark theme nhất quán trên toàn bộ app.
+
+#### Technical Changes
+- `menu.tscn`: Xóa node AnhNen, TenGame; CharactersButton/QuitButton đổi từ Button→TextureButton
+- `menu.gd`: Bỏ @onready cho anh_nen, ten_game; đổi type cho characters_button, quit_button
+- `settings.tscn`: BackButton, QualityButtons (4), LangVi/En, UICustomizeButton đổi từ Button→TextureButton
+- `settings_menu.gd`: Cập nhật type, bỏ _style_button(), thêm _on_tex_hover/unhover
+- `character_screen.tscn`: BackButton, EquipButton đổi từ Button→TextureButton
+- `character_screen.gd`: Cập nhật type, thêm equip_status_label overlay
+- `hud.tscn`: ResultsRestartBtn, ResultsMenuBtn đổi từ Button→TextureButton
+- `hud.gd`: Cập nhật type cho results buttons
+- `ui_customization.tscn`: BackButton, SaveLayoutButton, ClearLayoutButton, ResetButton đổi từ Button→TextureButton
+- `ui_customization.gd`: Cập nhật type
+- `mobile_controls.tscn`: SkillDashButton, SkillShieldButton, SkillMultishotButton đổi từ Button→TextureButton
+- `mobile_controls.gd`: Cập nhật type
+- `project.godot`: version 3.1→3.2
+- `export_presets.cfg`: version/code 31→32, version/name 3.1→3.2, file_version/product_version 3.1.0.0→3.2.0.0
+- 22 new PNG button images in `assets/sprites/ui/`
+
+---
+
 ## v2.9 - Phi Tiêu Dịch Chuyển (2026-08-05)
 
 ### 🐛 FIX: 3 Lỗi Người Dùng Báo Cáo

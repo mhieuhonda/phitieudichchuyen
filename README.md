@@ -1,17 +1,17 @@
-# 🎯 Phi Tiêu Dịch Chuyển
+# Phi Tiêu Dịch Chuyển
 
 > **Ném phi tiêu — Dịch chuyển — Nuốt đối thủ!**
 >
 > Game 2D top-down action offline. Godot 4.7.
 
-[![Version](https://img.shields.io/badge/version-3.0-gold.svg)]()
+[![Version](https://img.shields.io/badge/version-3.2-gold.svg)]()
 [![Engine](https://img.shields.io/badge/Godot-4.7-blue.svg)](https://godotengine.org)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
-## 📖 Giới thiệu
+## Giới thiệu
 
 **Phi Tiêu Dịch Chuyển** là game 2D top-down offline, kết hợp cơ chế ném phi tiêu +
 dịch chuyển tức thời để "ăn" đối thủ. Bạn được thả vào arena 2000×2000 cùng 5 AI, mục
@@ -31,25 +31,25 @@ tiêu: tích điểm cao nhất và đứng đầu leaderboard khi trận đấu
 
 ---
 
-## ✨ Tính năng chính (v3.0)
+## Tính năng chính (v3.2)
 
-- 🎮 **Offline PvP hoàn toàn** — Chơi với 5 AI, không cần Internet, không server.
-- 🥷 **12 nhân vật** — 4 loại (Chiến Binh / Pháp Sư / Quyền Sư / Sát Thủ), mỗi nhân
+- **Offline PvP hoàn toàn** — Chơi với 5 AI, không cần Internet, không server.
+- **12 nhân vật** — 4 loại (Chiến Binh / Pháp Sư / Quyền Sư / Sát Thủ), mỗi nhân
   vật có bonus chỉ số + skill bonus riêng. Tất cả đều mở khóa sẵn.
-- ⚔ **3 kỹ năng chủ động** — Dash, Shield, Multishot (cooldown 8s / 15s / 12s).
-- 🎯 **Arena 2000×2000** — Vòng bo thu nhỏ dần, kích hoạt combat giữa những người sống sót.
-- 🏆 **Leaderboard đầy đủ** — Xếp hạng theo điểm + kill count, có kill feed realtime.
-- 🌐 **Đa ngôn ngữ** — Tiếng Việt / English, chuyển đổi tức thời trong Settings.
-- 📱 **Hỗ trợ mobile** — Joystick ảo + nút bấm cảm ứng, drag-drop tùy chỉnh vị trí.
-- 🎨 **Premium UI** — Hover effects, glow pulse, dark theme vàng-tím nhất quán.
-- 🔊 **~150 sound effects** + 5 nhạc nền, variation system tránh lặp âm.
-- ⚙ **4 mức chất lượng đồ họa** — Tự phát hiện thiết bị, tối ưu cho máy yếu đến máy mạnh.
-- 📊 **Daily login reward** — Streak ngày liên tiếp = +HP bonus (tối đa +30%).
-- 🎮 **Pause menu + Death recap** — Tạm dừng khi cần, xem chi tiết khi chết.
+- **3 kỹ năng chủ động** — Dash, Shield, Multishot (cooldown 8s / 15s / 12s).
+- **Arena 2000×2000** — Vòng bo thu nhỏ dần, kích hoạt combat giữa những người sống sót.
+- **Leaderboard đầy đủ** — Xếp hạng theo điểm + kill count, có kill feed realtime.
+- **Đa ngôn ngữ** — Tiếng Việt / English, chuyển đổi tức thời trong Settings.
+- **Hỗ trợ mobile** — Joystick ảo + nút bấm cảm ứng, drag-drop tùy chỉnh vị trí.
+- **Premium PNG UI (v3.2)** — Tất cả nút bấm đều dùng PNG custom images với hiệu ứng
+  hover scale, dark theme vàng-tím nhất quán. Không còn nút vẽ bằng code.
+- **~150 sound effects** + 5 nhạc nền, variation system tránh lặp âm.
+- **4 mức chất lượng đồ họa** — Tự phát hiện thiết bị, tối ưu cho máy yếu đến máy mạnh.
+- **Pause menu + Death recap** — Tạm dừng khi cần, xem chi tiết khi chết.
 
 ---
 
-## 🎮 Điều khiển
+## Điều khiển
 
 ### PC
 
@@ -74,7 +74,7 @@ tiêu: tích điểm cao nhất và đứng đầu leaderboard khi trận đấu
 
 ---
 
-## 🥷 Nhân vật (12)
+## Nhân vật (12)
 
 Tất cả nhân vật đều mở khóa sẵn. Mỗi nhân vật có bonus HP / Speed / Dart + 1 skill bonus.
 
@@ -95,7 +95,7 @@ Tất cả nhân vật đều mở khóa sẵn. Mỗi nhân vật có bonus HP /
 
 ---
 
-## 🛠 Cài đặt & chạy
+## Cài đặt & chạy
 
 ### Yêu cầu
 
@@ -123,7 +123,7 @@ Linux binary). Android preset sử dụng prebuilt APK template (no gradle build
 
 ---
 
-## 📁 Cấu trúc dự án
+## Cấu trúc dự án
 
 ```
 phitieudichchuyen/
@@ -131,7 +131,6 @@ phitieudichchuyen/
 ├── export_presets.cfg         # 3 export presets (Android/Windows/Linux)
 ├── icon.svg                   # App icon
 ├── README.md                  # This file
-├── BAO_CAO_GAME.txt           # Detailed game report (Vietnamese)
 ├── CHANGELOG.md               # History of changes
 ├── LICENSE
 │
@@ -139,6 +138,7 @@ phitieudichchuyen/
 ├── scripts/                   # 21 GDScript files (.gd)
 ├── assets/
 │   ├── sprites/               # Character + UI sprites (PNG)
+│   │   ├── ui/                # 22+ UI button images (custom PNG)
 │   │   └── characters/        # 12 character sprites (256×256)
 │   └── audio/
 │       ├── sfx/               # ~150 sound effects (.wav)
@@ -160,28 +160,30 @@ phitieudichchuyen/
 
 ---
 
-## 🌐 Đa ngôn ngữ
+## Đa ngôn ngữ
 
 Game hỗ trợ **Tiếng Việt** (mặc định) và **English**. Đổi ngôn ngữ trong
-**Settings → 🌐 NGÔN NGỮ**. Thay đổi áp dụng tức thời trên toàn UI.
+**Settings → NGÔN NGỮ**. Thay đổi áp dụng tức thời trên toàn UI.
 
 ---
 
-## ⚙ Cài đặt (Settings)
+## Cài đặt (Settings)
 
 | Section | Tùy chọn |
 |---|---|
-| **🎨 Đồ Họa** | Chất lượng (Cực Thấp / Thấp / Trung Bình / Cao), Hiện FPS, Rung màn hình, Hiện Joystick |
-| **🔊 Âm Thanh** | Bật/tắt SFX + Music, Slider âm lượng SFX + Music |
-| **🌐 Ngôn Ngữ** | Tiếng Việt / English |
-| **🎛 Giao Diện** | Chỉnh sửa vị trí nút (drag-drop), Info thiết bị |
+| **Đồ Họa** | Chất lượng (Cực Thấp / Thấp / Trung Bình / Cao), Hiện FPS, Rung màn hình, Hiện Joystick |
+| **Âm Thanh** | Bật/tắt SFX + Music, Slider âm lượng SFX + Music |
+| **Ngôn Ngữ** | Tiếng Việt / English |
+| **Giao Diện** | Chỉnh sửa vị trí nút (drag-drop), Info thiết bị |
 
 ---
 
-## 🔄 Lịch sử phiên bản
+## Lịch sử phiên bản
 
 | Version | Ngày | Tóm tắt |
 |---|---|---|
+| **3.2** | 2026-08-08 | Premium PNG UI — Tất cả nút bấm đều dùng custom PNG images, bỏ nút vẽ code. Xóa AnhNen + TenGame khỏi sảnh chờ. Fix PlayButton quá to + lệch, Fix SettingsButton bị lấp. Fix mọi lỗi UI. |
+| **3.1** | 2026-08-07 | Premium UI với ảnh nền + nút custom, Win/YouDie overlay |
 | **3.0** | 2026-08-07 | Phiên bản Offline hoàn toàn — xóa Zombie mode, Online mode, Guide, Gift Code, nhân vật Ma Tôn / Hieu Louis. 12 nhân vật đều mở khóa. |
 | 2.9 | 2026-08 | Fix sprite Ma Tôn + sắp xếp lại Settings + sửa lỗi ESC |
 | 2.8 | 2026-08 | Fix 15 bugs + thêm 5 features (combo, perf overlay, pause menu, death recap) |
@@ -194,25 +196,26 @@ Xem chi tiết tại [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## 🛠 Công nghệ
+## Công nghệ
 
 - **Engine**: Godot 4.7 (stable, Mobile profile)
 - **Ngôn ngữ**: GDScript 2.0
 - **Physics**: 2D, 6 layers (Player/Dart/Wall/AI/Obstacle/Pickup)
 - **Audio**: 16-voice pool, WAV format, lazy-loading
-- **Đồ họa**: 2D CanvasLayer, CPUParticles2D, StyleBoxFlat premium UI
+- **Đồ họa**: 2D CanvasLayer, CPUParticles2D, Premium PNG UI with custom button images
 - **CI/CD**: GitHub Actions (build Android + Windows + Linux song song)
+![](https://img.shields.io/badge/CI-GitHub_Actions-green)
 - **Localization**: Custom I18N system (VI/EN)
 
 ---
 
-## 📜 License
+## License
 
 Xem [LICENSE](LICENSE).
 
 ---
 
-## 🤝 Đóng góp
+## Đóng góp
 
 Mọi góp ý / bug report / feature request — tạo issue tại:
 <https://github.com/mhieuhonda/phitieudichchuyen/issues>
@@ -220,6 +223,6 @@ Mọi góp ý / bug report / feature request — tạo issue tại:
 ---
 
 <p align="center">
-  <strong>Phi Tiêu Dịch Chuyển v3.0</strong><br>
-  <em>"Ném phi tiêu • Dịch chuyển • Nuốt đối thủ"</em>
+  <strong>Phi Tiêu Dịch Chuyển v3.2</strong><br>
+  <em>"Ném phi tiêu · Dịch chuyển · Nuốt đối thủ"</em>
 </p>

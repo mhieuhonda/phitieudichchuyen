@@ -1,16 +1,16 @@
 extends Control
 
-## SettingsMenu - Menu cài đặt (v3.0) - Premium UI
-## Đồ họa, âm thanh, joystick, device info, UI customization, ngôn ngữ
+## SettingsMenu - Menu cài đặt (v3.2) - Premium PNG UI
+## v3.2: Tất cả nút đổi sang TextureButton (PNG images)
 ## v3.0: Đã xóa hoàn toàn phần "Nhập Mã Quà Tặng" (gift code redeem)
 ## v2.4: Thêm language selector (VI/EN) + áp dụng I18N cho UI strings
 
-@onready var back_button: Button = $BackButton
+@onready var back_button: TextureButton = $BackButton
 @onready var quality_label: Label = $ScrollContainer/VBox/QualityLabel
-@onready var quality_very_low: Button = $ScrollContainer/VBox/QualityButtons/QualityVeryLow
-@onready var quality_low: Button = $ScrollContainer/VBox/QualityButtons/QualityLow
-@onready var quality_medium: Button = $ScrollContainer/VBox/QualityButtons/QualityMedium
-@onready var quality_high: Button = $ScrollContainer/VBox/QualityButtons/QualityHigh
+@onready var quality_very_low: TextureButton = $ScrollContainer/VBox/QualityButtons/QualityVeryLow
+@onready var quality_low: TextureButton = $ScrollContainer/VBox/QualityButtons/QualityLow
+@onready var quality_medium: TextureButton = $ScrollContainer/VBox/QualityButtons/QualityMedium
+@onready var quality_high: TextureButton = $ScrollContainer/VBox/QualityButtons/QualityHigh
 @onready var fps_toggle: CheckButton = $ScrollContainer/VBox/GraphicsToggles/FpsToggle
 @onready var shake_toggle: CheckButton = $ScrollContainer/VBox/GraphicsToggles/ShakeToggle
 @onready var joystick_toggle: CheckButton = $ScrollContainer/VBox/GraphicsToggles/JoystickToggle
@@ -21,21 +21,18 @@ extends Control
 @onready var sound_label: Label = $ScrollContainer/VBox/SoundLabel
 @onready var music_label: Label = $ScrollContainer/VBox/MusicLabel
 @onready var device_info_label: Label = $ScrollContainer/VBox/DeviceInfoLabel
-@onready var ui_customize_button: Button = $ScrollContainer/VBox/UICustomizeButton
-# v2.4: Language selector
-@onready var lang_vi_button: Button = $ScrollContainer/VBox/LanguageButtons/LangVi
-@onready var lang_en_button: Button = $ScrollContainer/VBox/LanguageButtons/LangEn
-# v2.4: Section labels (need @onready so we can translate them)
+@onready var ui_customize_button: TextureButton = $ScrollContainer/VBox/UICustomizeButton
+@onready var lang_vi_button: TextureButton = $ScrollContainer/VBox/LanguageButtons/LangVi
+@onready var lang_en_button: TextureButton = $ScrollContainer/VBox/LanguageButtons/LangEn
 @onready var title_label: Label = $TitleLabel
 @onready var graphics_section: Label = $ScrollContainer/VBox/GraphicsSection
 @onready var audio_section: Label = $ScrollContainer/VBox/AudioSection
 @onready var language_section: Label = $ScrollContainer/VBox/LanguageSection
 @onready var ui_section: Label = $ScrollContainer/VBox/UICustomizeSection
 
-const GOLD := Color(1.0, 0.85, 0.3)
-const CYAN := Color(0.4, 0.9, 1.0)
-const PURPLE := Color(0.7, 0.6, 1.0)
-const TEXT_DIM := Color(0.75, 0.78, 0.85)
+# Scale animation
+const SCALE_UP := Vector2(1.06, 1.06)
+const SCALE_NORMAL := Vector2(1.0, 1.0)
 
 func _ready():
 	back_button.pressed.connect(_on_back_pressed)
@@ -51,25 +48,26 @@ func _ready():
 	sound_slider.value_changed.connect(func(v): SettingsManager.set_sound_volume(v); _update_sound_labels())
 	music_slider.value_changed.connect(func(v): SettingsManager.set_music_volume(v); _update_sound_labels())
 
-	# v2.4: Language buttons
+	# Language buttons
 	if lang_vi_button:
 		lang_vi_button.pressed.connect(func(): I18N.set_language(I18N.LANG_VI); _refresh_ui(); AudioManager.play_ui_click())
 	if lang_en_button:
 		lang_en_button.pressed.connect(func(): I18N.set_language(I18N.LANG_EN); _refresh_ui(); AudioManager.play_ui_click())
 
-	# v1.2: UI Customization button
+	# UI Customization button
 	if ui_customize_button:
 		ui_customize_button.pressed.connect(_on_ui_customize_pressed)
 
-	# UI hover sounds + premium hover effects
-	for btn in [quality_very_low, quality_low, quality_medium, quality_high, back_button, ui_customize_button, lang_vi_button, lang_en_button]:
+	# Hover sounds + scale effects for TextureButtons
+	for btn in [back_button, quality_very_low, quality_low, quality_medium, quality_high, ui_customize_button, lang_vi_button, lang_en_button]:
 		if btn:
-			btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+			btn.mouse_entered.connect(_on_tex_hover.bind(btn))
+			btn.mouse_exited.connect(_on_tex_unhover.bind(btn))
 	for tog in [fps_toggle, shake_toggle, joystick_toggle, sound_toggle, music_toggle]:
 		if tog:
 			tog.mouse_entered.connect(func(): AudioManager.play_ui_hover())
 
-	# v2.4: Listen for language changes (in case changed elsewhere)
+	# Listen for language changes
 	if I18N:
 		I18N.language_changed.connect(func(_l): _refresh_ui())
 
@@ -77,21 +75,20 @@ func _ready():
 	_load_current_settings()
 	_refresh_ui()
 
+func _on_tex_hover(btn: TextureButton):
+	if not btn or not is_instance_valid(btn):
+		return
+	AudioManager.play_ui_hover()
+	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(btn, "scale", SCALE_UP, 0.1)
+
+func _on_tex_unhover(btn: TextureButton):
+	if not btn or not is_instance_valid(btn):
+		return
+	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(btn, "scale", SCALE_NORMAL, 0.15)
+
 func _apply_premium_styling():
-	# Style back button
-	_style_button(back_button, Color(0.08, 0.08, 0.1, 0.8), Color(0.65, 0.65, 0.75))
-
-	# Style quality buttons
-	for btn in [quality_very_low, quality_low, quality_medium, quality_high]:
-		_style_button(btn, Color(0.06, 0.06, 0.1, 0.85), TEXT_DIM, 6)
-
-	# Style language buttons
-	_style_button(lang_vi_button, Color(0.04, 0.08, 0.15, 0.9), CYAN, 8)
-	_style_button(lang_en_button, Color(0.04, 0.08, 0.15, 0.9), CYAN, 8)
-
-	# Style UI customize button
-	_style_button(ui_customize_button, Color(0.1, 0.06, 0.18, 0.9), PURPLE, 8)
-
 	# Style sliders
 	for slider in [sound_slider, music_slider]:
 		if slider:
@@ -107,42 +104,11 @@ func _make_slider_bg(color: Color) -> StyleBoxFlat:
 	s.corner_radius_bottom_right = 4
 	return s
 
-func _style_button(btn: Button, bg_color: Color, accent_color: Color, radius: int = 8):
-	if not btn:
-		return
-	var style_normal = StyleBoxFlat.new()
-	style_normal.bg_color = bg_color
-	style_normal.corner_radius_top_left = radius
-	style_normal.corner_radius_top_right = radius
-	style_normal.corner_radius_bottom_left = radius
-	style_normal.corner_radius_bottom_right = radius
-	style_normal.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.25)
-	style_normal.border_width_top = 1
-	style_normal.border_width_bottom = 1
-	style_normal.border_width_left = 1
-	style_normal.border_width_right = 1
-	style_normal.content_margin_top = 5
-	style_normal.content_margin_bottom = 5
-	style_normal.content_margin_left = 12
-	style_normal.content_margin_right = 12
-
-	var style_hover = style_normal.duplicate()
-	style_hover.bg_color = Color(bg_color.r + 0.04, bg_color.g + 0.04, bg_color.b + 0.06, bg_color.a)
-	style_hover.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.5)
-
-	var style_pressed = style_normal.duplicate()
-	style_pressed.bg_color = Color(bg_color.r * 0.8, bg_color.g * 0.8, bg_color.b * 0.8, bg_color.a)
-
-	btn.add_theme_stylebox_override("normal", style_normal)
-	btn.add_theme_stylebox_override("hover", style_hover)
-	btn.add_theme_stylebox_override("pressed", style_pressed)
-
 func _refresh_ui():
-	# Translate all UI strings based on current language
 	if title_label:
 		title_label.text = I18N.t("settings.title")
 	if back_button:
-		back_button.text = I18N.t("settings.back")
+		pass  # TextureButton - text is in the PNG
 	if graphics_section:
 		graphics_section.text = I18N.t("settings.graphics_section")
 	if audio_section:
@@ -151,8 +117,6 @@ func _refresh_ui():
 		language_section.text = I18N.t("settings.language_section")
 	if ui_section:
 		ui_section.text = I18N.t("settings.ui_section")
-	if ui_customize_button:
-		ui_customize_button.text = I18N.t("settings.ui_customize")
 	if fps_toggle:
 		fps_toggle.text = I18N.t("settings.show_fps")
 	if shake_toggle:
@@ -163,10 +127,6 @@ func _refresh_ui():
 		sound_toggle.text = I18N.t("settings.sound")
 	if music_toggle:
 		music_toggle.text = I18N.t("settings.music")
-	if lang_vi_button:
-		lang_vi_button.text = I18N.t("settings.lang_vi")
-	if lang_en_button:
-		lang_en_button.text = I18N.t("settings.lang_en")
 	# Highlight current language button
 	if lang_vi_button and lang_en_button:
 		lang_vi_button.modulate = Color(0.5, 1.0, 0.5) if I18N.is_vi() else Color(1, 1, 1)
@@ -190,11 +150,8 @@ func _update_quality_buttons():
 	if quality_label:
 		quality_label.text = I18N.t("settings.quality_label", [_get_quality_name()])
 	for btn in [quality_very_low, quality_low, quality_medium, quality_high]:
-		btn.modulate = Color(1, 1, 1, 1)
-	if quality_very_low: quality_very_low.text = I18N.t("settings.quality_very_low")
-	if quality_low: quality_low.text = I18N.t("settings.quality_low")
-	if quality_medium: quality_medium.text = I18N.t("settings.quality_medium")
-	if quality_high: quality_high.text = I18N.t("settings.quality_high")
+		if btn:
+			btn.modulate = Color(1, 1, 1, 1)
 	match SettingsManager.graphics_quality:
 		SettingsManager.GraphicsQuality.VERY_LOW: if quality_very_low: quality_very_low.modulate = Color(0.5, 1.0, 0.5)
 		SettingsManager.GraphicsQuality.LOW: if quality_low: quality_low.modulate = Color(0.5, 1.0, 0.5)
@@ -234,7 +191,6 @@ func _on_back_pressed():
 	AudioManager.play_ui_click()
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")
 
-## v2.9: ESC key also goes back to menu (in addition to the BackButton)
 func _unhandled_input(event: InputEvent):
 	if event.is_action_pressed("menu_back"):
 		get_viewport().set_input_as_handled()
