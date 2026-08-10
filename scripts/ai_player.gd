@@ -684,6 +684,13 @@ func take_damage_from(amount: float, attacker: Node2D):
         tween.tween_property(sprite, "modulate", Color(1.0, 0.3, 0.3), 0.05)
         tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0), 0.2)
         AudioManager.play_hit()
+        # v3.8: Scale punch effect khi bị hit — visual feedback rõ hơn
+        var scale_tween = create_tween()
+        var orig_scale = sprite.scale
+        scale_tween.tween_property(sprite, "scale", orig_scale * 1.15, 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+        scale_tween.tween_property(sprite, "scale", orig_scale, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+        # v3.8: Spawn hit spark particle
+        _spawn_hit_spark()
         # v3.3: Khi bị bắn → có thể flee (phản ứng smart)
         if current_ai_state in [AIState.WANDERING, AIState.IDLE, AIState.HUNTING, AIState.KITING]:
                 if attacker and is_instance_valid(attacker):
@@ -701,6 +708,28 @@ func take_damage_from(amount: float, attacker: Node2D):
         if current_hp <= 0:
                 current_hp = 0
                 kill(attacker)
+
+## v3.8: Spawn hit spark khi AI bị dart trúng — visual feedback rõ hơn
+func _spawn_hit_spark():
+        if SettingsManager.get_particle_multiplier() <= 0:
+                return
+        var spark = CPUParticles2D.new()
+        spark.emitting = true
+        spark.one_shot = true
+        spark.explosiveness = 0.95
+        spark.amount = max(1, int(8 * SettingsManager.get_particle_multiplier()))
+        spark.lifetime = 0.25
+        spark.direction = Vector2(0, 0)
+        spark.spread = 180.0
+        spark.initial_velocity_min = 80
+        spark.initial_velocity_max = 180
+        spark.gravity = Vector2.ZERO
+        spark.scale_amount_min = 2
+        spark.scale_amount_max = 4
+        spark.color = Color(1.0, 0.85, 0.2, 0.95)  # vàng sáng
+        get_parent().add_child(spark)
+        spark.global_position = global_position
+        get_tree().create_timer(0.5).timeout.connect(spark.queue_free)
 
 func _spawn_damage_number(amount: float):
         var label = Label.new()
