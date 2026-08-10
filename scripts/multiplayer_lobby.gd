@@ -1,15 +1,20 @@
 extends Control
 
-## MultiplayerLobby - Sảnh chờ multiplayer (v4.0)
+## MultiplayerLobby - Sảnh chờ multiplayer (v4.1)
 ## Scene: scenes/multiplayer_lobby.tscn
 ## - Nhập tên, kết nối server
 ## - Tạo phòng / Vào phòng
 ## - Xem danh sách phòng
 ## - Chat chung (trước khi vào game)
+## - v4.1: Hiển thị trạng thái đăng nhập + nút đăng nhập/đăng ký
+##         Hiển thị level/title của người chơi
+##         UI compact hơn
 
 @onready var name_edit: LineEdit = $CenterContainer/VBox/TopHBox/NameEdit
 @onready var connect_button: Button = $CenterContainer/VBox/TopHBox/ConnectButton
 @onready var status_label: Label = $CenterContainer/VBox/StatusLabel
+@onready var account_label: Label = $CenterContainer/VBox/AccountHBox/AccountLabel
+@onready var account_button: Button = $CenterContainer/VBox/AccountHBox/AccountButton
 @onready var room_name_edit: LineEdit = $CenterContainer/VBox/RoomHBox/RoomNameEdit
 @onready var create_button: Button = $CenterContainer/VBox/RoomHBox/CreateButton
 @onready var refresh_button: Button = $CenterContainer/VBox/RoomHBox/RefreshButton
@@ -17,8 +22,8 @@ extends Control
 @onready var chat_display: RichTextLabel = $CenterContainer/VBox/ChatHBox/ChatDisplay
 @onready var chat_input: LineEdit = $CenterContainer/VBox/ChatHBox/ChatInput
 @onready var chat_send: Button = $CenterContainer/VBox/ChatHBox/ChatSend
-@onready var back_button: Button = $CenterContainer/VBox/BackButton
-@onready var start_button: Button = $CenterContainer/VBox/StartButton
+@onready var back_button: Button = $CenterContainer/VBox/BottomHBox/BackButton
+@onready var start_button: Button = $CenterContainer/VBox/BottomHBox/StartButton
 
 const COL_BG := Color(0.07, 0.07, 0.14, 0.95)
 const COL_BG_HOVER := Color(0.15, 0.13, 0.25, 0.98)
@@ -32,10 +37,12 @@ func _ready():
 	chat_input.text_submitted.connect(func(_t): _on_chat_send())
 	start_button.pressed.connect(_on_start)
 	start_button.visible = false
+	account_button.pressed.connect(_on_account_button)
 	# Hook signals
 	MultiplayerManager.connected.connect(_on_connected)
 	MultiplayerManager.disconnected.connect(_on_disconnected)
 	MultiplayerManager.connection_error.connect(_on_error)
+	MultiplayerManager.auth_failed.connect(_on_auth_failed)
 	MultiplayerManager.room_joined.connect(_on_room_joined)
 	MultiplayerManager.room_left.connect(_on_room_left)
 	MultiplayerManager.room_list_updated.connect(_on_room_list)
@@ -43,20 +50,31 @@ func _ready():
 	MultiplayerManager.player_joined.connect(_on_player_joined)
 	MultiplayerManager.player_left.connect(_on_player_left)
 	MultiplayerManager.game_started.connect(_on_game_started)
-	# Default name from previous session
+	MultiplayerManager.level_up.connect(_on_level_up)
+	MultiplayerManager.exp_gained.connect(_on_exp_gained)
+	# Hook account signals
+	AccountManager.logged_in.connect(_on_account_changed)
+	AccountManager.logged_out.connect(_on_account_changed)
+	AccountManager.profile_updated.connect(_on_account_changed)
+	# Default name from previous session or use account display_name
 	var saved_name = SettingsManager.get_value("multiplayer_name", "Player%d" % randi_range(100, 999))
+	if AccountManager.is_logged_in():
+		saved_name = AccountManager.get_display_name()
 	name_edit.text = saved_name
+	name_edit.editable = not AccountManager.is_logged_in()
 	_status("Chưa kết nối. Ấn [Kết nối] để vào server.")
 	_style_all()
+	_refresh_account_label()
 	AudioManager.play_music("menu")
 
 func _style_all():
-	for btn in [connect_button, create_button, refresh_button, chat_send, back_button, start_button]:
+	for btn in [connect_button, create_button, refresh_button, chat_send, back_button, start_button, account_button]:
 		_style_button(btn, Color(0.4, 0.9, 1.0))
 	_style_button(connect_button, Color(0.4, 0.9, 0.5))
 	_style_button(create_button, Color(0.4, 0.9, 0.5))
 	_style_button(start_button, Color(1.0, 0.85, 0.3))
 	_style_button(back_button, Color(1.0, 0.4, 0.3))
+	_style_button(account_button, Color(0.7, 0.65, 1.0))
 
 func _style_button(btn: Button, accent: Color):
 	var normal = StyleBoxFlat.new()
@@ -70,10 +88,10 @@ func _style_button(btn: Button, accent: Color):
 	normal.border_width_top = 2
 	normal.border_width_bottom = 2
 	normal.border_color = Color(accent.r, accent.g, accent.b, 0.5)
-	normal.content_margin_top = 8
-	normal.content_margin_bottom = 8
-	normal.content_margin_left = 16
-	normal.content_margin_right = 16
+	normal.content_margin_top = 6
+	normal.content_margin_bottom = 6
+	normal.content_margin_left = 14
+	normal.content_margin_right = 14
 	var hover = normal.duplicate()
 	hover.bg_color = COL_BG_HOVER
 	hover.border_color = Color(accent.r, accent.g, accent.b, 0.9)
@@ -85,23 +103,45 @@ func _status(text: String, color: Color = Color(0.7, 0.8, 0.9)):
 	status_label.text = text
 	status_label.modulate = color
 
+func _refresh_account_label():
+	if AccountManager.is_logged_in():
+		var level = AccountManager.get_level()
+		var title = AccountManager.get_title()
+		var display = AccountManager.get_display_name()
+		account_label.text = "👤 %s  •  %s  •  Lv %d" % [display, title, level]
+		account_label.modulate = Color(0.5, 1.0, 0.7)
+		account_button.text = "Hồ sơ"
+		name_edit.editable = false
+		name_edit.text = display
+	else:
+		account_label.text = "Chưa đăng nhập — chơi guest sẽ không nhận EXP"
+		account_label.modulate = Color(0.8, 0.6, 0.4)
+		account_button.text = "Đăng nhập"
+		name_edit.editable = true
+
+func _on_account_changed(_user = null):
+	_refresh_account_label()
+
+func _on_account_button():
+	AudioManager.play_ui_click()
+	get_tree().change_scene_to_file("res://scenes/login.tscn")
+
 func _on_connect():
 	var pname = name_edit.text.strip_edges()
 	if pname.is_empty():
 		_status("⚠ Nhập tên trước khi kết nối", Color(1.0, 0.5, 0.3))
 		return
 	SettingsManager.set_value("multiplayer_name", pname)
-	_status("Đang kết nối tới server wss://phitieu.louis.vangioitutien.com/ws ...", Color(1.0, 0.85, 0.3))
+	_status("Đang kết nối tới server...", Color(1.0, 0.85, 0.3))
 	connect_button.disabled = true
 	MultiplayerManager.connect_to_server(pname)
 
 func _on_connected():
-	_status("✓ Đã kết nối! Player ID: %d" % MultiplayerManager.player_id, Color(0.5, 1.0, 0.5))
+	var auth_str = " (guest)" if not MultiplayerManager.authenticated else " (đã đăng nhập)"
+	_status("✓ Đã kết nối! Player ID: %d%s" % [MultiplayerManager.player_id, auth_str], Color(0.5, 1.0, 0.5))
 	connect_button.text = "Đã kết nối"
-	# Auto-list rooms
 	MultiplayerManager.list_rooms()
-	# Chat system message
-	_chat_system("→ Bạn đã vào sảnh chờ với tên [b]%s[/b]" % MultiplayerManager.player_name)
+	_chat_system("→ Bạn đã vào sảnh chờ với tên [b]%s[/b]%s" % [MultiplayerManager.player_name, auth_str])
 
 func _on_disconnected():
 	_status("✗ Mất kết nối. Đang thử lại...", Color(1.0, 0.5, 0.3))
@@ -112,6 +152,9 @@ func _on_error(reason: String):
 	_status("✗ Lỗi: %s" % reason, Color(1.0, 0.5, 0.3))
 	connect_button.disabled = false
 	connect_button.text = "Thử lại"
+
+func _on_auth_failed(message: String):
+	_status("⚠ Auth: %s (vẫn chơi được nhưng không nhận EXP)" % message, Color(0.9, 0.7, 0.3))
 
 func _on_refresh():
 	if not MultiplayerManager.is_connected:
@@ -132,7 +175,7 @@ func _on_room_list(rooms: Array):
 		return
 	for room in rooms:
 		var panel = PanelContainer.new()
-		panel.custom_minimum_size = Vector2(700, 0)
+		panel.custom_minimum_size = Vector2(640, 0)
 		var style = StyleBoxFlat.new()
 		style.bg_color = Color(0.10, 0.10, 0.18, 0.95)
 		style.corner_radius_top_left = 8
@@ -144,32 +187,33 @@ func _on_room_list(rooms: Array):
 		style.border_width_top = 2
 		style.border_width_bottom = 2
 		style.border_color = Color(0.45, 0.4, 0.65, 0.5)
-		style.content_margin_top = 10
-		style.content_margin_bottom = 10
-		style.content_margin_left = 14
-		style.content_margin_right = 14
+		style.content_margin_top = 8
+		style.content_margin_bottom = 8
+		style.content_margin_left = 12
+		style.content_margin_right = 12
 		panel.add_theme_stylebox_override("panel", style)
 		var hbox = HBoxContainer.new()
-		hbox.add_theme_constant_override("separation", 14)
+		hbox.add_theme_constant_override("separation", 10)
 		var vbox = VBoxContainer.new()
 		vbox.size_flags_horizontal = 3
 		var name_lbl = Label.new()
 		name_lbl.text = "🏠 %s" % String(room.get("name", "Phòng không tên"))
-		name_lbl.add_theme_font_size_override("font_size", 18)
+		name_lbl.add_theme_font_size_override("font_size", 16)
 		name_lbl.modulate = Color(1.0, 0.85, 0.3)
 		vbox.add_child(name_lbl)
 		var info = Label.new()
-		info.text = "ID: %s  •  Players: %d/4  •  Status: %s" % [
+		info.text = "ID: %s  •  Players: %d/4  •  %s" % [
 			String(room.get("id", "")),
 			int(room.get("player_count", 0)),
 			String(room.get("status", "lobby"))
 		]
 		info.modulate = Color(0.7, 0.8, 0.9)
+		info.add_theme_font_size_override("font_size", 13)
 		vbox.add_child(info)
 		hbox.add_child(vbox)
 		var join_btn = Button.new()
 		join_btn.text = "Vào phòng"
-		join_btn.custom_minimum_size = Vector2(120, 50)
+		join_btn.custom_minimum_size = Vector2(100, 44)
 		_style_button(join_btn, Color(0.4, 0.9, 0.5))
 		var room_id = String(room.get("id", ""))
 		join_btn.pressed.connect(func(): MultiplayerManager.join_room(room_id))
@@ -190,7 +234,7 @@ func _on_create():
 
 func _on_room_joined(room_id: String, players: Array):
 	_status("✓ Đã vào phòng %s (%d người)" % [room_id, players.size()], Color(0.5, 1.0, 0.5))
-	start_button.visible = true  # host có thể start (server sẽ check)
+	start_button.visible = true
 	_chat_system("→ Đã vào phòng [b]%s[/b]" % room_id)
 
 func _on_room_left():
@@ -205,10 +249,11 @@ func _on_player_left(pid: int):
 
 func _on_chat(sender_id: int, sender_name: String, message: String):
 	if sender_id == -1:
-		# System message
 		_chat_system(message)
 	else:
-		chat_display.append_text("\n[color=#aaffaa]%s:[/color] %s" % [sender_name.replace("[", "[").replace("]", "]"), message.replace("[", "[").replace("]", "]")])
+		var safe_name = sender_name.replace("[", "").replace("]", "")
+		var safe_msg = message.replace("[", "").replace("]", "")
+		chat_display.append_text("\n[color=#aaffaa]%s:[/color] %s" % [safe_name, safe_msg])
 
 func _chat_system(text: String):
 	chat_display.append_text("\n[color=#888888]%s[/color]" % text)
@@ -221,8 +266,8 @@ func _on_chat_send():
 		_status("⚠ Chưa kết nối server", Color(1.0, 0.5, 0.3))
 		return
 	MultiplayerManager.send_chat(text)
-	# Show local
-	chat_display.append_text("\n[color=#aaffff]%s (bạn):[/color] %s" % [MultiplayerManager.player_name, text.replace("[", "[").replace("]", "]")])
+	var safe = text.replace("[", "").replace("]", "")
+	chat_display.append_text("\n[color=#aaffff]%s (bạn):[/color] %s" % [MultiplayerManager.player_name, safe])
 	chat_input.text = ""
 
 func _on_start():
@@ -233,8 +278,15 @@ func _on_start():
 	_status("Đang bắt đầu game...", Color(1.0, 0.85, 0.3))
 
 func _on_game_started(_players: Array):
-	# Server đã start game — chuyển sang arena scene
 	get_tree().change_scene_to_file("res://scenes/multiplayer_arena.tscn")
+
+func _on_level_up(old_level: int, new_level: int, new_title: String):
+	_chat_system("🎉 [b]LÊN LEVEL %d[/b] — Danh hiệu mới: [b]%s[/b]" % [new_level, new_title])
+	_refresh_account_label()
+
+func _on_exp_gained(amount: int, _total: int):
+	_chat_system("✨ Nhận %d EXP" % amount)
+	_refresh_account_label()
 
 func _on_back():
 	AudioManager.play_cancel()

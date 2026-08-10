@@ -1,9 +1,10 @@
 extends Node2D
 
-## MultiplayerArena - Arena deathmatch online (v4.0)
+## MultiplayerArena - Arena deathmatch online (v4.1)
 ## Scene: scenes/multiplayer_arena.tscn
 ## Top-down 2D arena, 2-4 players, throw darts at each other.
 ## Server-authoritative: positions, hits, scores.
+## v4.1: Submit match result + handle level_up/exp_gained events.
 
 @onready var players_container: Node2D = $PlayersContainer
 @onready var darts_container: Node2D = $DartsContainer
@@ -17,6 +18,7 @@ extends Node2D
 @onready var chat_input: LineEdit = $HUD/ChatInput
 @onready var leave_button: Button = $HUD/LeaveButton
 @onready var message_label: Label = $HUD/MessageLabel
+@onready var exp_label: Label = $HUD/ExpLabel
 
 const ARENA_WIDTH := 1280.0
 const ARENA_HEIGHT := 720.0
@@ -33,6 +35,7 @@ const GAME_DURATION := 180.0  # 3 minutes
 var local_pos: Vector2 = Vector2(200, 360)
 var local_hp: int = 100
 var local_score: int = 0
+var local_kills: int = 0
 var local_alive: bool = true
 var local_respawn_timer: float = 0.0
 var local_dart_id_counter: int = 0
@@ -46,6 +49,7 @@ var local_darts: Dictionary = {}
 # Game state
 var game_time_left: float = GAME_DURATION
 var game_active: bool = false
+var game_ended: bool = false  # v4.1: prevent double-submit
 
 # Colors for each player slot
 const PLAYER_COLORS = [
@@ -68,42 +72,50 @@ func _ready():
 	MultiplayerManager.chat_received.connect(_on_chat)
 	MultiplayerManager.game_ended.connect(_on_game_end)
 	MultiplayerManager.disconnected.connect(_on_disconnect)
-	
+	MultiplayerManager.level_up.connect(_on_level_up)
+	MultiplayerManager.exp_gained.connect(_on_exp_gained)
+
 	# Init local player at random spawn
 	local_pos = Vector2(randf_range(100, ARENA_WIDTH - 100), randf_range(100, ARENA_HEIGHT - 100))
-	
+
 	leave_button.pressed.connect(_on_leave)
 	chat_input.text_submitted.connect(func(_t): _on_chat_send())
-	
+
 	# Start game
 	game_active = true
 	message_label.text = ""
 	message_label.modulate = Color(1, 1, 1, 0)
-	
+	exp_label.text = ""
+	exp_label.modulate = Color(1, 1, 1, 0)
+
 	AudioManager.play_music("boss")
-	
+
 	# Build existing remote players from MultiplayerManager state
 	for pid in MultiplayerManager.get_players():
 		if pid != MultiplayerManager.get_local_player_id():
 			_ensure_remote_player(pid)
-	
+
 	_welcome_chat()
 
 func _welcome_chat():
 	_chat_system("— Arena bắt đầu! 3 phút, ghi điểm cao nhất thắng —")
 	_chat_system("WASD di chuyển, Space ném phi tiêu, Rời phòng để thoát")
+	if AccountManager.is_logged_in():
+		_chat_system("✓ Đã đăng nhập — sẽ nhận EXP sau match")
+	else:
+		_chat_system("⚠ Chưa đăng nhập — sẽ không nhận EXP. Quay lại để đăng nhập.")
 
 func _process(delta):
 	if not game_active:
 		return
-	
+
 	# Game timer
 	game_time_left -= delta
 	if game_time_left <= 0:
 		game_time_left = 0
 		_end_game()
 	timer_label.text = "⏱ %d:%02d" % [int(game_time_left) / 60, int(game_time_left) % 60]
-	
+
 	# Local player movement
 	if local_alive:
 		var input_vec = Vector2.ZERO
@@ -120,11 +132,11 @@ func _process(delta):
 			local_pos += input_vec * PLAYER_SPEED * delta
 			local_pos.x = clamp(local_pos.x, PLAYER_RADIUS, ARENA_WIDTH - PLAYER_RADIUS)
 			local_pos.y = clamp(local_pos.y, PLAYER_RADIUS, ARENA_HEIGHT - PLAYER_RADIUS)
-		
+
 		# Throw dart on Space
 		if Input.is_action_just_pressed("teleport"):
 			_throw_dart()
-	
+
 	# Update local darts
 	var to_remove = []
 	for dart_id in local_darts.keys():
@@ -150,16 +162,15 @@ func _process(delta):
 				to_remove.append(dart_id)
 				MultiplayerManager.send_dart_remove(dart_id)
 				break
-		# Check collision with self (other players' darts handled by their owners)
 	for dart_id in to_remove:
 		_remove_dart(dart_id)
-	
+
 	# Update dart visuals
 	for dart_id in local_darts.keys():
 		var d = local_darts[dart_id]
 		if d.has("node") and is_instance_valid(d.node):
 			d.node.position = d.pos
-	
+
 	# Respawn timer
 	if not local_alive:
 		local_respawn_timer -= delta
@@ -168,18 +179,18 @@ func _process(delta):
 			local_hp = 100
 			local_pos = Vector2(randf_range(100, ARENA_WIDTH - 100), randf_range(100, ARENA_HEIGHT - 100))
 			MultiplayerManager.send_respawn()
-	
+
 	# Send local state to server (10 Hz)
 	if Engine.get_frames_drawn() % 6 == 0:
 		MultiplayerManager.send_player_state(local_pos, local_hp, local_score, local_alive)
-	
+
 	# Update HUD
-	score_label.text = "Score: %d  •  HP: %d" % [local_score, local_hp]
+	score_label.text = "Score: %d  •  HP: %d  •  Kills: %d" % [local_score, local_hp, local_kills]
 	players_label.text = "Phòng: %d người" % (remote_players.size() + 1)
-	
+
 	# Update local player visual
 	_update_local_player_visual()
-	
+
 	# Update remote player visuals
 	for pid in remote_players.keys():
 		_update_remote_player_visual(pid)
@@ -194,7 +205,6 @@ func _update_local_player_visual():
 		players_container.add_child(_local_player_visual)
 	else:
 		_local_player_visual.position = local_pos
-		# Update color/hp bar based on state
 		var sprite = _local_player_visual.get_node_or_null("Sprite")
 		if sprite:
 			sprite.modulate = Color(1, 1, 1, 1) if local_alive else Color(0.4, 0.4, 0.4, 0.5)
@@ -227,6 +237,15 @@ func _update_remote_player_visual(pid: int):
 	var hp_bar = node.get_node_or_null("HpBar")
 	if hp_bar:
 		hp_bar.value = int(info.get("hp", 100))
+	# Update name label to show level/title
+	var name_lbl = node.get_node_or_null("NameLabel")
+	if name_lbl:
+		var lvl = int(info.get("level", 0))
+		var title = String(info.get("title", ""))
+		if lvl > 0 and not title.is_empty():
+			name_lbl.text = "%s [Lv%d %s]" % [info.get("name", "?"), lvl, title]
+		else:
+			name_lbl.text = info.get("name", "?")
 
 func _create_player_visual(pid: int, pname: String) -> Node2D:
 	var node = Node2D.new()
@@ -255,8 +274,8 @@ func _create_player_visual(pid: int, pname: String) -> Node2D:
 	name_lbl.text = pname
 	name_lbl.add_theme_font_size_override("font_size", 12)
 	name_lbl.add_theme_color_override("font_color", color.lightened(0.3))
-	name_lbl.position = Vector2(-50, -PLAYER_RADIUS - 32)
-	name_lbl.custom_minimum_size = Vector2(100, 16)
+	name_lbl.position = Vector2(-60, -PLAYER_RADIUS - 32)
+	name_lbl.custom_minimum_size = Vector2(120, 16)
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.z_index = 2
 	node.add_child(name_lbl)
@@ -359,32 +378,67 @@ func _on_player_hit(victim_id: int, killer_id: int, damage: int):
 		if local_hp <= 0 and local_alive:
 			local_alive = false
 			local_respawn_timer = RESPAWN_TIME
-			# Server will broadcast player_died
 	if killer_id == MultiplayerManager.get_local_player_id() and victim_id != killer_id:
 		local_score += 1
+		local_kills += 1
 
 func _on_chat(sender_id: int, sender_name: String, message: String):
 	if sender_id == -1:
 		_chat_system(message)
 	else:
-		chat_display.append_text("\n[color=#aaffaa]%s:[/color] %s" % [sender_name, message])
+		var safe_name = sender_name.replace("[", "").replace("]", "")
+		var safe_msg = message.replace("[", "").replace("]", "")
+		chat_display.append_text("\n[color=#aaffaa]%s:[/color] %s" % [safe_name, safe_msg])
 
-func _on_game_end(scores: Dictionary):
+func _on_game_end(scores: Dictionary, kills: Dictionary):
 	game_active = false
+	# Determine if local player won
 	var winner_id = -1
 	var winner_score = -1
 	for pid in scores.keys():
 		if int(scores[pid]) > winner_score:
 			winner_score = int(scores[pid])
 			winner_id = int(pid)
+	# Update local kills from server (more authoritative)
+	if kills.has(MultiplayerManager.get_local_player_id()):
+		local_kills = int(kills[MultiplayerManager.get_local_player_id()])
+	# Display result
 	if winner_id == MultiplayerManager.get_local_player_id():
-		message_label.text = "🏆 BẠN THẮNG! Score: %d" % winner_score
+		message_label.text = "🏆 BẠN THẮNG! Score: %d  •  Kills: %d" % [winner_score, local_kills]
 		message_label.modulate = Color(1.0, 0.85, 0.3)
 	else:
 		var wname = MultiplayerManager.get_player_info(winner_id).get("name", "?")
-		message_label.text = "🏆 Người thắng: %s (%d điểm)\nBạn: %d điểm" % [wname, winner_score, local_score]
+		message_label.text = "🏆 Người thắng: %s (%d điểm)\nBạn: %d điểm • %d kills" % [wname, winner_score, local_score, local_kills]
 		message_label.modulate = Color(0.7, 0.85, 1.0)
 	AudioManager.play_variation("chime", 1.0, 1.1)
+	# v4.1: Submit match result to backend for EXP
+	_submit_match_result(winner_id == MultiplayerManager.get_local_player_id())
+
+func _submit_match_result(won: bool):
+	if game_ended:
+		return
+	game_ended = true
+	if not AccountManager.is_logged_in():
+		_show_exp_msg("⚠ Chưa đăng nhập — không nhận EXP", Color(0.9, 0.7, 0.3))
+		return
+	_show_exp_msg("Đang nộp kết quả match...", Color(0.7, 0.85, 1.0))
+	AccountManager.submit_match_result(local_kills, local_score, won)
+
+func _on_level_up(old_level: int, new_level: int, new_title: String):
+	_show_exp_msg("🎉 LÊN LEVEL %d → %d! Danh hiệu: %s" % [old_level, new_level, new_title], Color(1.0, 0.85, 0.3))
+	_kill_feed_add("🎉 [b]LEVEL UP[/b] %d → %d — %s" % [old_level, new_level, new_title])
+
+func _on_exp_gained(amount: int, _total: int):
+	_show_exp_msg("✨ Nhận %d EXP" % amount, Color(0.5, 1.0, 0.5))
+	_kill_feed_add("✨ +%d EXP" % amount)
+
+func _show_exp_msg(text: String, color: Color):
+	exp_label.text = text
+	exp_label.modulate = color
+	# Fade out after 4 seconds
+	var tween = create_tween()
+	tween.tween_interval(4.0)
+	tween.tween_property(exp_label, "modulate:a", 0.0, 1.5)
 
 func _on_disconnect():
 	message_label.text = "⚠ Mất kết nối server"
@@ -395,7 +449,6 @@ func _end_game():
 	if not game_active:
 		return
 	game_active = false
-	# Server sẽ emit game_end với scores
 	message_label.text = "Hết giờ! Đang chờ kết quả..."
 	message_label.modulate = Color(0.7, 0.85, 1.0)
 
@@ -408,7 +461,8 @@ func _on_chat_send():
 	if text.is_empty():
 		return
 	MultiplayerManager.send_chat(text)
-	chat_display.append_text("\n[color=#aaffff]%s (bạn):[/color] %s" % [MultiplayerManager.player_name, text])
+	var safe = text.replace("[", "").replace("]", "")
+	chat_display.append_text("\n[color=#aaffff]%s (bạn):[/color] %s" % [MultiplayerManager.player_name, safe])
 	chat_input.text = ""
 
 func _kill_feed_add(text: String):
@@ -421,6 +475,7 @@ func _kill_feed_add(text: String):
 func _on_leave():
 	AudioManager.play_cancel()
 	MultiplayerManager.leave_room()
+	# Stay connected to server, go back to lobby
 	get_tree().change_scene_to_file("res://scenes/multiplayer_lobby.tscn")
 
 func _unhandled_input(event: InputEvent):

@@ -20,110 +20,133 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.03, 0.03, 0.08, 1.0)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
 
 [node name="VBox" type="VBoxContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(1080, 660)
+custom_minimum_size = Vector2(1080, 0)
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(1.0, 0.85, 0.3, 1.0)
-text = "🌐 MULTIPLAYER — Sảnh chờ"
+text = "🌐 MULTIPLAYER — Sảnh chờ v4.1"
 horizontal_alignment = 1
 
-[node name="TopHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
+[node name="AccountHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="NameLabel" type="Label" parent="CenterContainer/VBox/TopHBox"]
-custom_minimum_size = Vector2(80, 30)
+[node name="AccountLabel" type="Label" parent="CenterContainer/VBox/AccountHBox"]
+custom_minimum_size = Vector2(700, 24)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.6, 0.4, 1)
+text = "Chưa đăng nhập"
+
+[node name="AccountButton" type="Button" parent="CenterContainer/VBox/AccountHBox"]
+custom_minimum_size = Vector2(140, 32)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Đăng nhập"
+
+[node name="TopHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameLabel" type="Label" parent="CenterContainer/VBox/TopHBox"]
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
 text = "Tên:"
 
 [node name="NameEdit" type="LineEdit" parent="CenterContainer/VBox/TopHBox"]
-custom_minimum_size = Vector2(300, 36)
+custom_minimum_size = Vector2(420, 32)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Nhập tên hiển thị"
 max_length = 16
 
 [node name="ConnectButton" type="Button" parent="CenterContainer/VBox/TopHBox"]
-custom_minimum_size = Vector2(160, 36)
+custom_minimum_size = Vector2(140, 32)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "Kết nối"
 
 [node name="StatusLabel" type="Label" parent="CenterContainer/VBox"]
-custom_minimum_size = Vector2(0, 24)
+custom_minimum_size = Vector2(0, 22)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.7, 0.8, 0.9, 1)
 text = "Chưa kết nối."
 
 [node name="RoomHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="RoomNameEdit" type="LineEdit" parent="CenterContainer/VBox/RoomHBox"]
-custom_minimum_size = Vector2(420, 36)
+custom_minimum_size = Vector2(560, 32)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Tên phòng mới (để trống = tự đặt)"
 max_length = 32
 
 [node name="CreateButton" type="Button" parent="CenterContainer/VBox/RoomHBox"]
-custom_minimum_size = Vector2(140, 36)
+custom_minimum_size = Vector2(120, 32)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "🏠 Tạo phòng"
 
 [node name="RefreshButton" type="Button" parent="CenterContainer/VBox/RoomHBox"]
-custom_minimum_size = Vector2(120, 36)
+custom_minimum_size = Vector2(100, 32)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "🔄 Làm mới"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="CenterContainer/VBox"]
-custom_minimum_size = Vector2(0, 240)
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_vertical = 3
 
 [node name="RoomListContainer" type="VBoxContainer" parent="CenterContainer/VBox/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="ChatHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
-custom_minimum_size = Vector2(0, 140)
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="ChatDisplay" type="RichTextLabel" parent="CenterContainer/VBox/ChatHBox"]
-custom_minimum_size = Vector2(800, 140)
+custom_minimum_size = Vector2(720, 120)
 layout_mode = 2
 size_flags_horizontal = 3
 bbcode_enabled = true
-text = "Chat sảnh chờ:\n"
+text = "Chat sảnh chờ:
+"
 scroll_following = true
 
 [node name="ChatInput" type="LineEdit" parent="CenterContainer/VBox/ChatHBox"]
-custom_minimum_size = Vector2(180, 36)
+custom_minimum_size = Vector2(160, 32)
 layout_mode = 2
 placeholder_text = "Nhập chat..."
 max_length = 200
 
 [node name="ChatSend" type="Button" parent="CenterContainer/VBox/ChatHBox"]
-custom_minimum_size = Vector2(80, 36)
+custom_minimum_size = Vector2(80, 32)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Gửi"
@@ -131,16 +154,16 @@ text = "Gửi"
 [node name="BottomHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 20
+theme_override_constants/separation = 16
 
 [node name="BackButton" type="Button" parent="CenterContainer/VBox/BottomHBox"]
-custom_minimum_size = Vector2(180, 44)
+custom_minimum_size = Vector2(160, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 text = "← Quay lại"
 
 [node name="StartButton" type="Button" parent="CenterContainer/VBox/BottomHBox"]
-custom_minimum_size = Vector2(220, 44)
+custom_minimum_size = Vector2(220, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 17
 text = "⚔ Bắt đầu game"

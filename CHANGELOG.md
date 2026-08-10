@@ -1,5 +1,146 @@
 # Changelog
 
+## v4.1 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### Server Backend Mới + Auth + Profile + Leaderboard + EXP + UI Fix
+
+Bản v4.1 là bản nâng cấp backend lớn: mở rộng relay-server thành backend đầy đủ với auth/profile/leaderboard, sửa bug crash multiplayer và fix UI tràn.
+
+#### 1. Sửa bug crash khi vào Multiplayer
+
+**Bug:** Khi ấn "🌐 MULTIPLAYER" từ menu → game văng (crash).
+
+**Nguyên nhân:** `multiplayer_lobby.gd` có 2 `@onready var` sai node path:
+- `back_button = $CenterContainer/VBox/BackButton` (path thực: `$CenterContainer/VBox/BottomHBox/BackButton`)
+- `start_button = $CenterContainer/VBox/StartButton` (path thực: `$CenterContainer/VBox/BottomHBox/StartButton`)
+
+Khi `_ready()` chạy `back_button.pressed.connect(...)`, `back_button` là `null` → crash.
+
+**Fix v4.1:** Sửa path đúng + thêm bảo vệ `is_instance_valid()` cho tất cả node refs.
+
+#### 2. Server backend mới (Python + PostgreSQL + Redis)
+
+Mở rộng `relay-server/server.py` từ aiohttp đơn thuần → backend đầy đủ:
+
+- **PostgreSQL 16** (`louistruyen-db`): lưu users, sessions, match history
+- **Redis 7.2** (`louistruyen-redis`): track online presence theo user
+- **bcrypt** (cost 12): hash password
+- **Token auth**: token random 48 bytes, TTL 30 ngày, stored trong DB
+- **REST API**:
+  - `POST /api/register` — đăng ký tài khoản mới
+  - `POST /api/login` — đăng nhập
+  - `GET /api/me` — profile bản thân (cần Bearer token)
+  - `POST /api/logout` — đăng xuất, xóa session
+  - `GET /api/profile/{username}` — profile công khai
+  - `GET /api/leaderboard?limit=100` — top 100 theo level
+  - `POST /api/match_result` — nộp kết quả match, nhận EXP (cần Bearer token)
+- **WebSocket auth**: `wss://.../ws?token=TOKEN` — server validate token, attach user vào Client
+- **EXP curve**: `level N cần 50*(N-1)*N EXP` (level 1→2: 100, 2→3: 200, ...) — **không giới hạn level**
+- **Match end → auto EXP**: khi room game kết thúc, server tự award EXP cho mọi user đã đăng nhập trong room
+- **Online presence**: server push `online_count` qua leaderboard endpoint
+- **CORS middleware**: cho phép cross-origin requests từ client
+
+#### 3. Hệ thống đăng ký / đăng nhập
+
+- **Scene mới** `scenes/login.tscn` + `scripts/login.gd`:
+  - Toggle giữa 2 mode: Đăng nhập / Đăng ký
+  - Validate input (username 3-32 ký tự alphanumeric, password ≥ 6 ký tự)
+  - Hiển thị lỗi cụ thể từ server
+  - Auto-return menu sau khi đăng nhập thành công
+- **AccountManager autoload** (`scripts/account_manager.gd`):
+  - Singleton quản lý auth state + REST API calls
+  - Lưu token trong `user://account.cfg` (persistent)
+  - Auto-validate token khi khởi động game
+  - Signals: `logged_in`, `logged_out`, `login_failed`, `register_failed`, `profile_updated`, `level_up`, `exp_gained`, `leaderboard_loaded`
+- Tích hợp vào `MultiplayerManager`: tự thêm `?token=` vào URL WebSocket khi đã đăng nhập
+
+#### 4. Hồ sơ người chơi (Profile)
+
+- **Scene mới** `scenes/profile.tscn` + `scripts/profile.gd`:
+  - Avatar (chữ cái đầu tên hiển thị)
+  - Display name + @username + danh hiệu + online status
+  - **Level** + **EXP progress bar** (hiển thị EXP hiện tại / EXP cần cho level kế)
+  - **Chuỗi online** (số ngày đăng nhập liên tiếp, có icon 🔥)
+  - Tổng số trận / Số trận thắng / Tổng số kills / Win rate (6 stat boxes)
+  - Nút Refresh (gọi `/api/me`), Đăng xuất, Quay lại
+
+#### 5. Bảng xếp hạng (Leaderboard)
+
+- **Scene mới** `scenes/leaderboard.tscn` + `scripts/leaderboard.gd`:
+  - Top 100 người chơi theo level (xếp giảm dần)
+  - Số người đang online (realtime từ Redis)
+  - Highlight dòng của chính mình (nếu có trong top)
+  - Columns: #, Người chơi (display + @username), Lv, Danh hiệu, Trận, Thắng, Kills
+  - Nút Refresh + Quay lại
+
+#### 6. Hệ thống EXP / Level / Danh hiệu
+
+- **EXP curve** (không giới hạn level):
+  - Level 1→2: 100 EXP
+  - Level 2→3: 200 EXP
+  - Level N→N+1: 100*N EXP
+  - Total EXP tại level N = 50 * (N-1) * N
+- **Danh hiệu tự động** theo level:
+  - Level 1-4: Tân Binh
+  - Level 5-9: Chiến Binh
+  - Level 10-19: Tinh Anh
+  - Level 20-49: Cao Thủ
+  - Level 50-99: Tông Sư
+  - Level 100+: Huyền Thoại
+- **EXP rewards sau multiplayer match**:
+  - +10 EXP: tham gia match
+  - +5 EXP mỗi kill
+  - +20 EXP: thắng match
+  - +score/4 EXP (bonus theo điểm số)
+- **Realtime notifications**: server push `level_up` và `exp_gained` events qua WebSocket khi match kết thúc
+- UI hiển thị thông báo level-up + exp gained trong arena (HUD có ExpLabel)
+
+#### 7. UI compact + fix tràn
+
+- **Menu chính** (`scenes/menu.tscn`):
+  - Sắp xếp lại thành 2 nhóm: buttons chính (1 cột) + grid 2 cột cho các nút phụ (Nhân vật, Hồ sơ, Bảng xếp hạng, Cài đặt, Chỉnh giao diện, Đăng nhập, Thoát)
+  - Giảm kích thước button: 56→50 (Play), 56→44 (secondary), 56→40 (grid items)
+  - Title 56→44, NewFeatureLabel 140→60
+  - Thêm `AccountStatusLabel` hiển thị trạng thái đăng nhập
+- **Multiplayer Lobby** (`scenes/multiplayer_lobby.tscn`):
+  - Dùng `MarginContainer` thay `CenterContainer` để căn lề
+  - Giảm font size + padding cho compact
+  - Thêm `AccountHBox` hiển thị level + title + nút đăng nhập
+  - Giảm ScrollContainer height 240→180
+  - Giảm ChatHBox height 140→120
+- **Multiplayer Arena**: hiển thị level + title trên head mỗi remote player (`[Lv15 Cao Thủ]`)
+
+#### 8. Tích hợp VPS sub-domain qua Traefik
+
+- Game client connect tới: `https://phitieu.louis.vangioitutien.com` (Traefik + TLS)
+- Không cần expose IP:Port trực tiếp (sub-VPS constraint)
+- Coolify auto-deploy từ branch `main` qua GitHub webhook
+- Volume mount `/data/phitieu:/app/data` cho dữ liệu persistent
+
+#### Files mới
+
+- `scripts/account_manager.gd` — AccountManager autoload
+- `scripts/login.gd` + `scenes/login.tscn` — màn hình đăng nhập/đăng ký
+- `scripts/profile.gd` + `scenes/profile.tscn` — màn hình hồ sơ
+- `scripts/leaderboard.gd` + `scenes/leaderboard.tscn` — màn hình bảng xếp hạng
+
+#### Files sửa
+
+- `relay-server/server.py` — mở rộng thành backend đầy đủ (auth + profile + leaderboard + EXP)
+- `relay-server/requirements.txt` — thêm `asyncpg`, `redis`, `bcrypt`
+- `relay-server/Dockerfile` — bump version 4.1, tăng healthcheck start_period
+- `scripts/multiplayer_manager.gd` — gửi auth token qua WS URL, xử lý events mới (level_up, exp_gained, auth_failed)
+- `scripts/multiplayer_lobby.gd` — fix sai node path, thêm AccountHBox, hiển thị level/title
+- `scenes/multiplayer_lobby.tscn` — UI compact, thêm AccountHBox
+- `scripts/multiplayer_arena.gd` — hiển thị level/title remote players, submit match result, hiển thị ExpLabel
+- `scenes/multiplayer_arena.tscn` — thêm ExpLabel node
+- `scripts/menu.gd` — thêm nút Hồ sơ/Bảng xếp hạng/Đăng nhập, hiển thị account status
+- `scenes/menu.tscn` — UI compact, dùng GridContainer 2 cột cho nút phụ
+- `project.godot` — bump version 4.1, thêm AccountManager autoload
+- `export_presets.cfg` — bump version/code 41, file_version 4.1.0.0
+
+---
+
 ## v4.0 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### Hướng dẫn chi tiết + Sửa bug Quest + Multiplayer Online

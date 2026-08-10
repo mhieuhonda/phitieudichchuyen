@@ -30,94 +30,125 @@ grow_vertical = 2
 
 [node name="MenuVBox" type="VBoxContainer" parent="CenterContainer"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
 [node name="GameTitle" type="Label" parent="CenterContainer/MenuVBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 56
+theme_override_font_sizes/font_size = 44
 theme_override_colors/font_color = Color(1.0, 0.85, 0.3, 1.0)
 theme_override_colors/font_shadow_color = Color(0.6, 0.4, 0.0, 0.7)
 theme_override_constants/shadow_offset_y = 4
-theme_override_constants/shadow_outline_size = 12
+theme_override_constants/shadow_outline_size = 10
 text = "PHI TIÊU DỊCH CHUYỂN"
 horizontal_alignment = 1
 
 [node name="NewFeatureLabel" type="RichTextLabel" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(700, 140)
+custom_minimum_size = Vector2(680, 60)
 layout_mode = 2
 bbcode_enabled = true
-text = "[color=#ffaa00][b]v4.0:[/b][/color] Tutorial + Multiplayer + Quest fix"
+text = "[color=#ffaa00][b]v4.1:[/b][/color] Auth + Profile + Leaderboard + EXP"
+
+[node name="AccountStatusLabel" type="Label" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
+text = "Chưa đăng nhập"
+horizontal_alignment = 1
 
 [node name="Spacer1" type="Control" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 
 [node name="PlayButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 64)
+custom_minimum_size = Vector2(360, 50)
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(1.0, 0.95, 0.4, 1.0)
 text = "⚔ VƯỢT ẢI"
 
 [node name="WorldButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 56)
+custom_minimum_size = Vector2(360, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "🌍 THẾ GIỚI"
 
 [node name="ContinueButton" type="Button" parent="CenterContainer/MenuVBox"]
 visible = false
-custom_minimum_size = Vector2(360, 56)
+custom_minimum_size = Vector2(360, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "▶ CHƠI TIẾP"
 
 [node name="MultiplayerButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 56)
+custom_minimum_size = Vector2(360, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "🌐 MULTIPLAYER"
 
 [node name="TutorialButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 56)
+custom_minimum_size = Vector2(360, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "📖 HƯỚNG DẪN"
 
-[node name="CharactersButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 56)
+[node name="SecondaryGrid" type="GridContainer" parent="CenterContainer/MenuVBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_constants/separation = 8
+columns = 2
+
+[node name="CharactersButton" type="Button" parent="CenterContainer/MenuVBox/SecondaryGrid"]
+custom_minimum_size = Vector2(176, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
 text = "NHÂN VẬT"
 
-[node name="SettingsButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 56)
+[node name="ProfileButton" type="Button" parent="CenterContainer/MenuVBox/SecondaryGrid"]
+custom_minimum_size = Vector2(176, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 14
+text = "👤 HỒ SƠ"
+
+[node name="LeaderboardButton" type="Button" parent="CenterContainer/MenuVBox/SecondaryGrid"]
+custom_minimum_size = Vector2(176, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "🏆 XẾP HẠNG"
+
+[node name="SettingsButton" type="Button" parent="CenterContainer/MenuVBox/SecondaryGrid"]
+custom_minimum_size = Vector2(176, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
 text = "CÀI ĐẶT"
 
-[node name="UICustomizeButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 56)
+[node name="UICustomizeButton" type="Button" parent="CenterContainer/MenuVBox/SecondaryGrid"]
+custom_minimum_size = Vector2(176, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "CHỈNH SỬA GIAO DIỆN"
+theme_override_font_sizes/font_size = 14
+text = "CHỈNH GIAO DIỆN"
 
-[node name="QuitButton" type="Button" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 56)
+[node name="AccountButton" type="Button" parent="CenterContainer/MenuVBox/SecondaryGrid"]
+custom_minimum_size = Vector2(176, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 14
+text = "🔐 ĐĂNG NHẬP"
+
+[node name="QuitButton" type="Button" parent="CenterContainer/MenuVBox/SecondaryGrid"]
+custom_minimum_size = Vector2(176, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
 text = "THOÁT"
 
 [node name="Spacer2" type="Control" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(0, 8)
+custom_minimum_size = Vector2(0, 4)
 layout_mode = 2
 
 [node name="ProgressLabel" type="Label" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(360, 24)
+custom_minimum_size = Vector2(360, 20)
 layout_mode = 2
 text = "Tiến độ: 0 / 20 ải"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
 theme_override_constants/shadow_offset_y = 1
@@ -129,13 +160,13 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 20.0
-offset_top = -35.0
+offset_top = -32.0
 offset_right = 400.0
-offset_bottom = -10.0
+offset_bottom = -8.0
 grow_vertical = 0
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.4, 0.55, 0.75, 0.7)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
 theme_override_constants/shadow_offset_y = 1
 theme_override_constants/shadow_outline_size = 2
-text = "v4.0 - Phi Tiêu Dịch Chuyển"
+text = "v4.1 - Phi Tiêu Dịch Chuyển"
