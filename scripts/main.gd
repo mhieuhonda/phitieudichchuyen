@@ -44,6 +44,15 @@ var _kill_streak_timer: float = 0.0
 var _hit_marker: Label = null
 var _hit_marker_tween: Tween = null
 
+# v3.8: Low-HP heartbeat sound timer
+var _heartbeat_timer: float = 0.0
+const HEARTBEAT_INTERVAL_LOW: float = 1.0   # khi HP < 20%
+const HEARTBEAT_INTERVAL_MED: float = 1.5   # khi HP < 30%
+
+# v3.8: Boss off-screen indicator (mũi tên chỉ hướng boss)
+var _boss_indicator: Line2D = null
+var _boss_indicator_label: Label = null
+
 func _ready():
     # v3.5: Khởi tạo stage mode
     var target_stage = 1
@@ -89,6 +98,7 @@ func _ready():
     _setup_hp_vignette()
     _setup_kill_streak_label()
     _setup_hit_marker()
+    _setup_boss_indicator()
 
     # v3.5: Music khác nhau cho ải boss
     if StageManager.is_final_stage():
@@ -147,6 +157,10 @@ func _process(delta):
     _update_hp_vignette(delta)
     # v3.8: Cập nhật kill streak timer
     _update_kill_streak(delta)
+    # v3.8: Cập nhật low-HP heartbeat sound
+    _update_heartbeat(delta)
+    # v3.8: Cập nhật boss off-screen indicator
+    _update_boss_indicator()
 
 ## v3.8: Setup pause menu (code-based, không cần scene riêng)
 func _setup_pause_menu():
@@ -636,3 +650,102 @@ func _input(event: InputEvent):
 ## Hit marker được trigger từ player.gd khi _on_dart_hit_player
 func _on_dart_hit_ai(amount: float, is_crit: bool):
     show_hit_marker(is_crit)
+
+## v3.8: Phát heartbeat sound khi HP < 30%. Càng thấp thì beat càng nhanh.
+func _update_heartbeat(delta: float):
+    if not is_instance_valid(player) or not player.is_alive:
+        _heartbeat_timer = 0.0
+        return
+    var hp_ratio = GameManager.player_hp / GameManager.player_max_hp if GameManager.player_max_hp > 0 else 1.0
+    if hp_ratio >= 0.30:
+        _heartbeat_timer = 0.0
+        return
+    var interval = HEARTBEAT_INTERVAL_LOW if hp_ratio < 0.20 else HEARTBEAT_INTERVAL_MED
+    _heartbeat_timer += delta
+    if _heartbeat_timer >= interval:
+        _heartbeat_timer = 0.0
+        AudioManager.play_variation("heartbeat", -2.0, 1.0 if hp_ratio > 0.20 else 1.15)
+
+## v3.8: Setup & update boss off-screen indicator
+## Nếu boss ở ngoài tầm nhìn camera, vẽ mũi tên đỏ ở rìa màn hình chỉ hướng boss.
+func _setup_boss_indicator():
+    # Line2D làm mũi tên (tam giác) ở rìa màn hình
+    _boss_indicator = Line2D.new()
+    _boss_indicator.width = 4.0
+    _boss_indicator.default_color = Color(1.0, 0.3, 0.2, 0.9)
+    _boss_indicator.z_index = 90
+    _boss_indicator.visible = false
+    hud.add_child(_boss_indicator)
+    # Label khoảng cách
+    _boss_indicator_label = Label.new()
+    _boss_indicator_label.text = ""
+    _boss_indicator_label.add_theme_font_size_override("font_size", 12)
+    _boss_indicator_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3, 0.95))
+    _boss_indicator_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    _boss_indicator_label.add_theme_constant_override("shadow_offset_y", 1)
+    _boss_indicator_label.add_theme_constant_override("shadow_outline_size", 2)
+    _boss_indicator_label.visible = false
+    hud.add_child(_boss_indicator_label)
+
+func _update_boss_indicator():
+    if not StageManager.is_final_stage():
+        if _boss_indicator:
+            _boss_indicator.visible = false
+        if _boss_indicator_label:
+            _boss_indicator_label.visible = false
+        return
+    if not _boss_indicator:
+        _setup_boss_indicator()
+    if not is_instance_valid(GameManager.stage_boss_ref) or not GameManager.stage_boss_ref.is_alive:
+        if _boss_indicator:
+            _boss_indicator.visible = false
+        if _boss_indicator_label:
+            _boss_indicator_label.visible = false
+        return
+    # Lấy vị trí boss & player trên screen
+    var boss_pos = GameManager.stage_boss_ref.global_position
+    var player_pos = player.global_position
+    var cam_pos = camera.get_screen_center_position()
+    var viewport_size = get_viewport_rect().size
+    var half_view = viewport_size * 0.5
+    # Boss position relative to camera center
+    var rel = boss_pos - cam_pos
+    # Check if boss is on-screen
+    var on_screen = abs(rel.x) < half_view.x - 40 and abs(rel.y) < half_view.y - 40
+    if on_screen:
+        if _boss_indicator:
+            _boss_indicator.visible = false
+        if _boss_indicator_label:
+            _boss_indicator_label.visible = false
+        return
+    # Tính hướng từ player tới boss (camera center = player position roughly)
+    var dir = (boss_pos - player_pos).normalized()
+    if dir == Vector2.ZERO:
+        dir = Vector2.RIGHT
+    # Clamp vị trí mũi tên vào rìa màn hình (camera center ± half_view * 0.85)
+    var edge_x = half_view.x * 0.88
+    var edge_y = half_view.y * 0.88
+    # Tìm điểm trên rìa viewport theo hướng dir
+    var t_x = edge_x / abs(dir.x) if abs(dir.x) > 0.001 else INF
+    var t_y = edge_y / abs(dir.y) if abs(dir.y) > 0.001 else INF
+    var t = min(t_x, t_y)
+    # arrow_pos relative to camera center → convert to viewport coords
+    # (CanvasLayer draws at viewport origin = top-left)
+    var arrow_pos_viewport = half_view + dir * t
+    # Vẽ mũi tên tam giác (3 điểm) tại arrow_pos_viewport, hướng dir
+    _boss_indicator.clear_points()
+    var arrow_size = 18.0
+    var tip = arrow_pos_viewport + dir * arrow_size
+    var back = arrow_pos_viewport - dir * arrow_size * 0.5
+    var perp = Vector2(-dir.y, dir.x) * arrow_size * 0.7
+    _boss_indicator.add_point(tip)
+    _boss_indicator.add_point(back + perp)
+    _boss_indicator.add_point(back - perp)
+    _boss_indicator.add_point(tip)  # close
+    _boss_indicator.visible = true
+    # Update label khoảng cách
+    var dist = int(player_pos.distance_to(boss_pos))
+    if _boss_indicator_label:
+        _boss_indicator_label.text = "BOSS %dpx" % dist
+        _boss_indicator_label.position = arrow_pos_viewport + Vector2(-30, -25)
+        _boss_indicator_label.visible = true

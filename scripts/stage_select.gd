@@ -1,6 +1,7 @@
 extends Control
 
 ## StageSelect - Màn hình chọn ải (v3.5)
+## v3.8: Thêm nút "Tiếp tục ải hiện tại", dialog xác nhận trước khi reset tiến độ.
 ## Hiển thị 20 ải dạng lưới. ải đã mở khóa có thể chọn, ải chưa mở khóa bị mờ.
 ## Hiển thị best time mỗi ải, số lần thử.
 ## Nút "Reset Tiến Độ" để chơi lại từ đầu.
@@ -10,6 +11,10 @@ extends Control
 @onready var title_label: Label = $CenterContainer/VBox/TitleLabel
 @onready var stats_label: Label = $CenterContainer/VBox/StatsLabel
 @onready var reset_btn: Button = $CenterContainer/VBox/ResetBtn
+
+# v3.8: Confirm dialog state
+var _confirm_panel: Panel = null
+var _continue_btn: Button = null
 
 const COL_GOLD := Color(1.0, 0.85, 0.3)
 const COL_GREEN := Color(0.3, 1.0, 0.5)
@@ -86,11 +91,144 @@ func _on_back_pressed():
 
 func _on_reset_pressed():
     AudioManager.play_cancel()
-    # Confirm dialog đơn giản — reset ngay
+    # v3.8: Hiện confirm dialog thay vì reset ngay
+    _show_reset_confirm_dialog()
+
+## v3.8: Hiện dialog xác nhận reset tiến độ
+func _show_reset_confirm_dialog():
+    if _confirm_panel and is_instance_valid(_confirm_panel):
+        _confirm_panel.queue_free()
+    _confirm_panel = Panel.new()
+    _confirm_panel.set_anchors_preset(Control.PRESET_CENTER)
+    _confirm_panel.offset_left = -200
+    _confirm_panel.offset_right = 200
+    _confirm_panel.offset_top = -120
+    _confirm_panel.offset_bottom = 120
+    _confirm_panel.z_index = 100
+    var style = StyleBoxFlat.new()
+    style.bg_color = Color(0.06, 0.02, 0.04, 0.97)
+    style.border_color = Color(0.9, 0.2, 0.15, 0.7)
+    style.border_width_top = 3
+    style.border_width_bottom = 3
+    style.border_width_left = 3
+    style.border_width_right = 3
+    style.corner_radius_top_left = 14
+    style.corner_radius_top_right = 14
+    style.corner_radius_bottom_left = 14
+    style.corner_radius_bottom_right = 14
+    style.shadow_color = Color(0.3, 0, 0, 0.6)
+    style.shadow_size = 18
+    _confirm_panel.add_theme_stylebox_override("panel", style)
+    add_child(_confirm_panel)
+    # Title
+    var title = Label.new()
+    title.text = "⚠ XÓA TIẾN ĐỘ?"
+    title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    title.offset_left = -180
+    title.offset_right = 180
+    title.offset_top = 14
+    title.offset_bottom = 50
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_size_override("font_size", 22)
+    title.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
+    _confirm_panel.add_child(title)
+    # Body
+    var body = Label.new()
+    body.text = "Mọi tiến độ vượt ải, best time,\nsố lần thử sẽ bị xóa vĩnh viễn.\n\nBạn chắc chắn?"
+    body.set_anchors_preset(Control.PRESET_CENTER)
+    body.offset_left = -180
+    body.offset_right = 180
+    body.offset_top = -30
+    body.offset_bottom = 50
+    body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    body.add_theme_font_size_override("font_size", 14)
+    body.add_theme_color_override("font_color", Color(0.88, 0.85, 0.88))
+    _confirm_panel.add_child(body)
+    # Buttons HBox
+    var hbox = HBoxContainer.new()
+    hbox.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+    hbox.offset_left = -180
+    hbox.offset_right = 180
+    hbox.offset_top = 70
+    hbox.offset_bottom = 110
+    hbox.add_theme_constant_override("separation", 20)
+    hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+    _confirm_panel.add_child(hbox)
+    # Yes button
+    var yes_btn = Button.new()
+    yes_btn.text = "✓ XÓA"
+    yes_btn.custom_minimum_size = Vector2(120, 36)
+    var yes_style = StyleBoxFlat.new()
+    yes_style.bg_color = Color(0.18, 0.04, 0.04, 0.95)
+    yes_style.corner_radius_top_left = 8
+    yes_style.corner_radius_top_right = 8
+    yes_style.corner_radius_bottom_left = 8
+    yes_style.corner_radius_bottom_right = 8
+    yes_style.border_color = Color(1.0, 0.3, 0.2, 0.7)
+    yes_style.border_width_top = 2
+    yes_style.border_width_bottom = 2
+    yes_style.border_width_left = 2
+    yes_style.border_width_right = 2
+    var yes_h = yes_style.duplicate()
+    yes_h.bg_color = Color(0.25, 0.06, 0.06, 0.98)
+    yes_h.border_color = Color(1.0, 0.4, 0.3, 0.95)
+    yes_btn.add_theme_stylebox_override("normal", yes_style)
+    yes_btn.add_theme_stylebox_override("hover", yes_h)
+    yes_btn.add_theme_stylebox_override("pressed", yes_style)
+    yes_btn.add_theme_stylebox_override("focus", yes_style)
+    yes_btn.pressed.connect(_on_reset_confirmed)
+    hbox.add_child(yes_btn)
+    # No button
+    var no_btn = Button.new()
+    no_btn.text = "✕ Hủy"
+    no_btn.custom_minimum_size = Vector2(120, 36)
+    var no_style = StyleBoxFlat.new()
+    no_style.bg_color = Color(0.04, 0.10, 0.06, 0.95)
+    no_style.corner_radius_top_left = 8
+    no_style.corner_radius_top_right = 8
+    no_style.corner_radius_bottom_left = 8
+    no_style.corner_radius_bottom_right = 8
+    no_style.border_color = Color(0.3, 1.0, 0.5, 0.5)
+    no_style.border_width_top = 2
+    no_style.border_width_bottom = 2
+    no_style.border_width_left = 2
+    no_style.border_width_right = 2
+    var no_h = no_style.duplicate()
+    no_h.bg_color = Color(0.06, 0.18, 0.10, 0.98)
+    no_h.border_color = Color(0.3, 1.0, 0.5, 0.85)
+    no_btn.add_theme_stylebox_override("normal", no_style)
+    no_btn.add_theme_stylebox_override("hover", no_h)
+    no_btn.add_theme_stylebox_override("pressed", no_style)
+    no_btn.add_theme_stylebox_override("focus", no_style)
+    no_btn.pressed.connect(_on_reset_cancelled)
+    hbox.add_child(no_btn)
+    # Animate scale-in
+    _confirm_panel.scale = Vector2(0.85, 0.85)
+    _confirm_panel.modulate.a = 0.0
+    var tween = create_tween().set_parallel(true)
+    tween.tween_property(_confirm_panel, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+    tween.tween_property(_confirm_panel, "modulate:a", 1.0, 0.15)
+
+func _on_reset_confirmed():
+    AudioManager.play_ui_click()
+    if _confirm_panel and is_instance_valid(_confirm_panel):
+        _confirm_panel.queue_free()
+        _confirm_panel = null
     StageManager.reset_progress()
     _populate_grid()
     _update_stats()
     AudioManager.play_success()
+
+func _on_reset_cancelled():
+    AudioManager.play_ui_click()
+    if _confirm_panel and is_instance_valid(_confirm_panel):
+        var tween = create_tween().set_parallel(true)
+        tween.tween_property(_confirm_panel, "scale", Vector2(0.92, 0.92), 0.1)
+        tween.tween_property(_confirm_panel, "modulate:a", 0.0, 0.12)
+        tween.chain().tween_callback(func():
+            if is_instance_valid(_confirm_panel):
+                _confirm_panel.queue_free()
+                _confirm_panel = null)
 
 func _style_button(btn: Button, accent: Color):
     var normal = StyleBoxFlat.new()
