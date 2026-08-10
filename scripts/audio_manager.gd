@@ -236,6 +236,10 @@ func _update_volumes():
 func _play_stream(stream: AudioStream, volume_db: float, pitch: float):
     var p = _pool[_pool_index]
     _pool_index = (_pool_index + 1) % POOL_SIZE
+    # v3.8: Stop stream trước khi reuse để tránh audio pop/click artifact
+    # khi pool player đang phát dở bị interrupt bởi sound mới.
+    if p.playing:
+        p.stop()
     p.stream = stream
     p.volume_db = _sound_volume_db + volume_db
     p.pitch_scale = pitch

@@ -1,6 +1,8 @@
+class_name Player
 extends CharacterBody2D
 
 ## Player - Nhân vật người chơi (v3.5)
+## v3.8: Thêm class_name Player để type-check an toàn (giống AIPlayer đã có).
 ## v3.5:
 ##   - Hỗ trợ Stage Mode: chết quá số lần quy định → fail stage
 ##   - Dịch chuyển tới Boss → gây 250k damage (thay vì kill)

@@ -18,6 +18,10 @@ var wall_thickness: float = 24.0
 var pickup_scene: PackedScene = preload("res://scenes/pickup.tscn")
 var pickups: Array = []
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+# v3.8: Cleanup pickup theo interval để giảm workload mỗi frame.
+# Trước đây _cleanup_pickups() chạy mỗi frame và lặp qua 15 pickup + new RNG.
+var _pickup_cleanup_timer: float = 0.0
+const PICKUP_CLEANUP_INTERVAL: float = 1.0  # kiểm tra mỗi 1 giây
 
 func _ready():
     rng.seed = 42
@@ -29,9 +33,13 @@ func _ready():
     _create_pickups()
     _update_zone_visual()
 
-func _process(_delta):
+func _process(delta):
     _update_zone_visual()
-    _cleanup_pickups()
+    # v3.8: Chỉ chạy pickup cleanup theo interval, không phải mỗi frame
+    _pickup_cleanup_timer += delta
+    if _pickup_cleanup_timer >= PICKUP_CLEANUP_INTERVAL:
+        _pickup_cleanup_timer = 0.0
+        _cleanup_pickups()
 
 func _setup_background():
         # v3.4: Dùng AnhNen.png làm ảnh nền — scale vừa map 2000x2000

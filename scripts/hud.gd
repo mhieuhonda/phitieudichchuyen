@@ -492,10 +492,11 @@ func _process(delta):
         else:
             hp_fill.bg_color = Color(0.9, 0.2, 0.15)
 
-    # Cập nhật số phi tiêu
-    var dart_info = _get_dart_info()
-    dart_count_label.text = dart_info
-    mid_flight_hint.visible = _has_flying_darts()
+    # v3.8: Tính dart info & flying flag trong 1 lần lặp duy nhất
+    # (trước đây lặp 2 lần qua player.all_darts mỗi frame — wasteful).
+    var dart_stats = _get_dart_stats()
+    dart_count_label.text = dart_stats["info"]
+    mid_flight_hint.visible = dart_stats["has_flying"]
 
     # v3.5: Stage mode — không thu nhỏ vòng bo
     if not GameManager.is_stage_mode:
@@ -519,14 +520,16 @@ func _process(delta):
             was_outside_zone = false
             zone_warning_sound_timer = 0.0
 
-    # Cập nhật số người còn sống (v3.5: thay bằng "Địch: X/Y")
-    var alive_count = 0
-    for a in get_tree().get_nodes_in_group("ai_players"):
-        if is_instance_valid(a) and "is_alive" in a and a.is_alive:
-            alive_count += 1
+    # v3.8: Dùng GameManager.stage_alive_ai (đã được duy trì chính xác bởi
+    # GameManager.on_ai_killed_in_stage) thay vì lặp qua group ai_players mỗi
+    # frame. Ngoài ra vẫn đếm group cho non-stage mode.
     if GameManager.is_stage_mode:
-        alive_label.text = "Địch: %d/%d" % [alive_count, GameManager.stage_total_ai]
+        alive_label.text = "Địch: %d/%d" % [GameManager.stage_alive_ai, GameManager.stage_total_ai]
     else:
+        var alive_count = 0
+        for a in get_tree().get_nodes_in_group("ai_players"):
+            if is_instance_valid(a) and "is_alive" in a and a.is_alive:
+                alive_count += 1
         if is_instance_valid(player) and player.is_alive:
             alive_count += 1
         alive_label.text = "Sống: %d" % alive_count
@@ -572,7 +575,9 @@ func _process(delta):
             fps_update_timer = 0.5
             fps_label.text = "FPS: %d" % Engine.get_frames_per_second()
 
-func _get_dart_info() -> String:
+## v3.8: Kết hợp _get_dart_info + _has_flying_darts thành 1 lần lặp duy nhất
+## mỗi frame. Trả về Dictionary với "info" (string hiển thị) và "has_flying".
+func _get_dart_stats() -> Dictionary:
     var flying = 0
     var stuck = 0
     for dart in player.all_darts:
@@ -582,18 +587,21 @@ func _get_dart_info() -> String:
             elif dart.is_stuck():
                 stuck += 1
     var max_darts = GameManager.max_darts_per_player + player.dart_bonus + player.char_dart_bonus
+    var info: String
     if flying > 0:
-        return "Phi tiêu: %d bay + %d cắm / %d" % [flying, stuck, max_darts]
+        info = "Phi tiêu: %d bay + %d cắm / %d" % [flying, stuck, max_darts]
     elif stuck > 0:
-        return "Phi tiêu: %d cắm / %d" % [stuck, max_darts]
+        info = "Phi tiêu: %d cắm / %d" % [stuck, max_darts]
     else:
-        return "Phi tiêu: 0/%d" % max_darts
+        info = "Phi tiêu: 0/%d" % max_darts
+    return {"info": info, "has_flying": flying > 0}
+
+# v3.8: Giữ lại hàm cũ dưới tên alias để code bên ngoài (nếu có) không vỡ.
+func _get_dart_info() -> String:
+    return _get_dart_stats()["info"]
 
 func _has_flying_darts() -> bool:
-    for dart in player.all_darts:
-        if is_instance_valid(dart) and dart.is_flying():
-            return true
-    return false
+    return _get_dart_stats()["has_flying"]
 
 func _on_score_changed(new_score: int):
     score_label.text = "Điểm: %d" % new_score
