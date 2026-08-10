@@ -46,6 +46,11 @@ layout_mode = 2
 custom_minimum_size = Vector2(140, 40)
 text = "📊 Stats"
 
+[node name="QuestTab" type="Button" parent="TopBar/TabButtons"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 40)
+text = "📜 Quest"
+
 [node name="TeamTab" type="Button" parent="TopBar/TabButtons"]
 layout_mode = 2
 custom_minimum_size = Vector2(140, 40)
@@ -108,6 +113,19 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
+
+[node name="QuestPanel" type="VBoxContainer" parent="Center/VBox"]
+visible = false
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Center/VBox/QuestPanel"]
+custom_minimum_size = Vector2(950, 520)
+layout_mode = 2
+
+[node name="QuestList" type="VBoxContainer" parent="Center/VBox/QuestPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
 
 [node name="AchievementPanel" type="VBoxContainer" parent="Center/VBox"]
 visible = false

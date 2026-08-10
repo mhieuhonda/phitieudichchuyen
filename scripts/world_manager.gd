@@ -188,10 +188,19 @@ func generate_tavern_npcs() -> Array:
                         var key = "%d:%s" % [sid, RECRUIT_NAMES_BY_SPECIES[sid][0]]
                         if not three_star_available.get(key, false):
                                 stars = 2  # downgrade nếu hết 3sao
-                var name_idx = (stars - 1) % RECRUIT_NAMES_BY_SPECIES[sid].size()
+                # v3.9: FIX BUG — 1sao và 3sao không trùng tên nữa.
+                # Trước đây: 1sao và 3sao đều dùng RECRUIT_NAMES_BY_SPECIES[sid][0]
+                #   → "Thỏ Trắng" xuất hiện cho cả 1sao lẫn 3sao đặc biệt.
+                # Giờ: 1sao dùng name_idx=2 (vD "Thỏ Xám"), 2sao dùng idx=1 (vD "Thỏ Nâu"),
+                #   3sao giữ idx=0 (vD "Thỏ Trắng" — đặc biệt).
+                var name_idx = 0
+                match stars:
+                        1: name_idx = 2
+                        2: name_idx = 1
+                        3: name_idx = 0
+                if name_idx >= RECRUIT_NAMES_BY_SPECIES[sid].size():
+                        name_idx = RECRUIT_NAMES_BY_SPECIES[sid].size() - 1
                 var npc_name = RECRUIT_NAMES_BY_SPECIES[sid][name_idx]
-                if stars == 3:
-                        npc_name = RECRUIT_NAMES_BY_SPECIES[sid][0]  # tên đặc biệt
                 var stats = SpeciesData.get_recruit_stats(sid, stars)
                 var skills = SpeciesData.get_recruit_skill_names(sid, stars)
                 # Giá thuê: 1sao = 20, 2sao = 60, 3sao = 200
@@ -222,8 +231,10 @@ func try_recruit(npc: Dictionary) -> Dictionary:
                 return {"success": false, "reason": "Đội đã đủ 5 thành viên"}
         # Check tỉ lệ thành công
         if randf() > npc["recruit_chance"]:
-                # Thất bại → giảm uy tín nhẹ
-                ProgressionManager.add_reputation(npc["species_id"], -2)
+                # v3.9: FIX BUG — bỏ penalty uy tín khi chiêu mộ thất bại.
+                # Trước đây: -2 uy tín mỗi lần fail → 70% fail tỉ lệ → soft-lock
+                #   khi uy tín chạm đáy -100 (recruit_chance = 10%).
+                # Giờ: chỉ trả về fail, không phạt uy tín. Player có thể thử lại.
                 return {"success": false, "reason": "Từ chối (uy tín thấp)"}
         # Thành công → trừ tiền, thêm vào đội
         ProgressionManager.spend_coins(npc["hire_cost"])
@@ -265,8 +276,16 @@ func get_leaders_in_region() -> Array:
 
 ## Tiền bối: random vùng hiện tại
 func _random_move_predecessor():
+        # v3.9: FIX BUG — predecessor có thể "move" về cùng vùng hiện tại (25% tỉ lệ).
+        # Giờ: filter ra vùng hiện tại khỏi danh sách ứng viên.
         var regions = REGIONS.keys()
-        predecessor_region = regions[randi() % regions.size()]
+        var candidates: Array = []
+        for r in regions:
+                if r != predecessor_region:
+                        candidates.append(r)
+        if candidates.is_empty():
+                return  # chỉ 1 vùng? không di chuyển
+        predecessor_region = candidates[randi() % candidates.size()]
         predecessor_moved.emit(predecessor_region)
 
 ## Tiền bối di chuyển sau mỗi lần player thăm
@@ -312,6 +331,13 @@ func learn_skill_from_leader(leader_key: String) -> Dictionary:
         return {"success": true, "skill": SpeciesData.get_species(sid)["leader_skill"]}
 
 func _process(delta):
+        # v3.9: FIX BUG — day_timer không tick khi đang trong combat (main.tscn).
+        # Trước đây: 5 phút = 1 ngày, day_timer chạy luôn khi đang đánh ải →
+        # nội chiến ngẫu nhiên kích hoạt giữa fight, player quay về world map
+        # thấy uy tín tụt không rõ lý do.
+        # Giờ: chỉ tick day_timer khi đang ở world scene.
+        if not _is_world_scene():
+                return
         day_timer += delta
         if day_timer >= DAY_LENGTH:
                 day_timer = 0.0
@@ -321,3 +347,13 @@ func _process(delta):
                 if randf() < 0.05:
                         var species_ids = SpeciesData.SPECIES.keys()
                         ProgressionManager.trigger_civil_war(species_ids[randi() % species_ids.size()], 120.0)
+
+# v3.9: Helper — kiểm tra scene hiện tại có phải world scene không
+func _is_world_scene() -> bool:
+        var tree = get_tree()
+        if not tree or not tree.current_scene:
+                return false
+        var fname = tree.current_scene.scene_file_path
+        return fname.find("world_map") >= 0 or fname.find("tavern") >= 0 \
+                or fname.find("quest_log") >= 0 or fname.find("skill_master") >= 0 \
+                or fname.find("predecessor_shop") >= 0 or fname.find("menu") >= 0

@@ -49,7 +49,11 @@ extends CanvasLayer
 @onready var deaths_label: Label = $DeathsLabel
 
 # v3.8: Boss HP segment markers (12 segments, vạch trắng chia HP bar)
-var _boss_hp_segments: Line2D = null
+# v3.9: FIX BUG — dùng mảng các Line2D riêng biệt thay vì 1 Line2D duy nhất.
+#       Trước đây: thêm 22 points vào 1 Line2D → Line2D nối điểm liên tục → vẽ
+#       zigzag pattern thay vì 11 vạch dọc riêng rẽ.
+#       Giờ: 11 Line2D riêng biệt, mỗi vạch 2 points, vẽ đúng vertical lines.
+var _boss_hp_segments: Array[Line2D] = []
 # v3.8: Boss HP percentage text (hiển thị lớn bên dưới bar)
 var _boss_hp_pct_label: Label = null
 # v3.8: Boss phase badge (PHASE 1 / PHASE 2 / RAGE)
@@ -57,6 +61,10 @@ var _boss_phase_badge: Label = null
 # v3.8: Onboarding hint panel (chỉ hiện ải 1 lần đầu)
 var _onboarding_panel: Panel = null
 var _onboarding_dismissed: bool = false
+
+# v3.9: Quest Mode HUD — banner mục tiêu + progress
+var _quest_objective_label: Label = null
+var _quest_progress_label: Label = null
 
 var player: CharacterBody2D = null
 var zone_shrink_timer: float = 0.0
@@ -321,6 +329,74 @@ func set_boss(boss: Node2D):
     _setup_boss_hp_segments()
     _setup_boss_hp_pct_label()
     _setup_boss_phase_badge()
+    # v3.9: Setup Quest Mode HUD (chỉ visible khi quest_mode)
+    _setup_quest_hud()
+
+# v3.9: Setup Quest Mode HUD — banner mục tiêu + progress bar ở top-center
+func _setup_quest_hud():
+    if _quest_objective_label and is_instance_valid(_quest_objective_label):
+        _quest_objective_label.queue_free()
+    if _quest_progress_label and is_instance_valid(_quest_progress_label):
+        _quest_progress_label.queue_free()
+    _quest_objective_label = Label.new()
+    _quest_objective_label.text = ""
+    _quest_objective_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    _quest_objective_label.offset_left = -300
+    _quest_objective_label.offset_right = 300
+    _quest_objective_label.offset_top = 80
+    _quest_objective_label.offset_bottom = 110
+    _quest_objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    _quest_objective_label.add_theme_font_size_override("font_size", 18)
+    _quest_objective_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3, 1.0))
+    _quest_objective_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    _quest_objective_label.add_theme_constant_override("shadow_offset_y", 2)
+    _quest_objective_label.add_theme_constant_override("shadow_outline_size", 3)
+    _quest_objective_label.visible = false
+    add_child(_quest_objective_label)
+    _quest_progress_label = Label.new()
+    _quest_progress_label.text = ""
+    _quest_progress_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    _quest_progress_label.offset_left = -300
+    _quest_progress_label.offset_right = 300
+    _quest_progress_label.offset_top = 110
+    _quest_progress_label.offset_bottom = 138
+    _quest_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    _quest_progress_label.add_theme_font_size_override("font_size", 16)
+    _quest_progress_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.7, 1.0))
+    _quest_progress_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    _quest_progress_label.add_theme_constant_override("shadow_offset_y", 1)
+    _quest_progress_label.add_theme_constant_override("shadow_outline_size", 2)
+    _quest_progress_label.visible = false
+    add_child(_quest_progress_label)
+
+# v3.9: Cập nhật Quest HUD — gọi từ main.gd khi vào quest mode
+func set_quest_objective(quest: Dictionary, current: int, target: int):
+    if not _quest_objective_label or not is_instance_valid(_quest_objective_label):
+        _setup_quest_hud()
+    if quest.is_empty():
+        _quest_objective_label.visible = false
+        _quest_progress_label.visible = false
+        return
+    var target_str = String(quest.get("target", ""))
+    var qname = String(quest.get("name", ""))
+    _quest_objective_label.text = "⚔ QUEST: %s — %s" % [qname, target_str]
+    _quest_objective_label.visible = true
+    if GameManager and GameManager.quest_type == "find":
+        _quest_progress_label.text = "Tìm và chạm vào mục tiêu!"
+    elif GameManager and GameManager.quest_type == "boss_mini":
+        _quest_progress_label.text = "Tiêu diệt mini-boss: 0/1"
+    else:
+        _quest_progress_label.text = "Tiêu diệt: %d / %d" % [current, target]
+    _quest_progress_label.visible = true
+
+# v3.9: Cập nhật progress khi có AI chết trong quest
+func update_quest_progress(current: int, target: int):
+    if not _quest_progress_label or not is_instance_valid(_quest_progress_label):
+        return
+    if GameManager and GameManager.quest_type == "boss_mini":
+        _quest_progress_label.text = "Tiêu diệt mini-boss: %d / %d" % [current, target]
+    elif GameManager and GameManager.quest_type != "find":
+        _quest_progress_label.text = "Tiêu diệt: %d / %d" % [current, target]
 
 ## v3.8: Setup phase badge — hiển thị "PHASE 1" / "PHASE 2" / "⚠ RAGE"
 ## bên trái của BossHpContainer. Đổi màu + text theo phase.
@@ -347,32 +423,37 @@ func _setup_boss_phase_badge():
 ## v3.8: Tạo 11 vạch dọc chia Boss HP bar thành 12 đoạn (mỗi đoạn = 8.33% HP).
 ## Giúp player thấy rõ tiến độ damage. Vạch màu trắng mờ, vạch cuối (rage threshold
 ## ở 12% HP) màu cam sáng.
+## v3.9: FIX BUG — trước đây dùng 1 Line2D với 22 points → vẽ zigzag. Giờ dùng
+##       11 Line2D riêng biệt, mỗi vạch 2 points → đúng vertical lines.
 func _setup_boss_hp_segments():
-    if _boss_hp_segments and is_instance_valid(_boss_hp_segments):
-        _boss_hp_segments.queue_free()
+    # Clear old segments nếu có
+    for seg in _boss_hp_segments:
+        if is_instance_valid(seg):
+            seg.queue_free()
+    _boss_hp_segments.clear()
     if not boss_hp_bar:
         return
-    _boss_hp_segments = Line2D.new()
-    _boss_hp_segments.width = 1.5
-    _boss_hp_segments.default_color = Color(1.0, 1.0, 1.0, 0.35)
-    _boss_hp_segments.z_index = 5
-    # Vẽ 11 vạch dọc (chia 12 đoạn)
     var bar_rect = boss_hp_bar.get_rect()
     var bar_w = bar_rect.size.x
     var bar_h = bar_rect.size.y
     var num_segments = 12
     for i in range(1, num_segments):
         var x = bar_rect.position.x + (bar_w * i) / float(num_segments)
+        var seg = Line2D.new()
+        seg.width = 1.5
         # Vạch cuối (i=11) = 1/12 ≈ 8.33% HP → gần rage threshold (12%)
         # Đánh dấu vạch rage bằng màu cam sáng
         if i >= num_segments - 1:
-            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y - 2))
-            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y + bar_h + 2))
-            # Phải add_point liên tục vì Line2D vẽ nối điểm
+            seg.default_color = Color(1.0, 0.6, 0.2, 0.85)
+            seg.add_point(Vector2(x, bar_rect.position.y - 2))
+            seg.add_point(Vector2(x, bar_rect.position.y + bar_h + 2))
         else:
-            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y - 1))
-            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y + bar_h + 1))
-    boss_hp_bar.add_child(_boss_hp_segments)
+            seg.default_color = Color(1.0, 1.0, 1.0, 0.35)
+            seg.add_point(Vector2(x, bar_rect.position.y - 1))
+            seg.add_point(Vector2(x, bar_rect.position.y + bar_h + 1))
+        seg.z_index = 5
+        boss_hp_bar.add_child(seg)
+        _boss_hp_segments.append(seg)
 
 ## v3.8: Setup label % HP lớn bên dưới bar — hiển thị "87.3%" rõ ràng
 func _setup_boss_hp_pct_label():
@@ -1034,14 +1115,27 @@ func _on_stage_failed(stage: int):
         stage_fail_panel.visible = true
         stage_fail_title.text = "✗ THẤT BẠI ✗"
         stage_fail_title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
-        var elapsed = StageManager.get_elapsed_stage_time()
-        var elapsed_str = StageManager.format_time(elapsed)
-        var attempts = StageManager.attempts_per_stage.get(stage, 1)
-        var deaths_used = StageManager.player_deaths_this_stage
-        var max_deaths = StageManager.get_max_deaths_per_stage(stage)
-        stage_fail_subtitle.text = "Bạn đã hết mạng ở ải %d.\n⏱ Thời gian: %s\n❤ Mạng: %d / %d (đã dùng hết)\n🎯 Lần thử: %d\n\nThử lại nhé!" % [
-            stage, elapsed_str, deaths_used, max_deaths, attempts
-        ]
+        # v3.9: Quest mode — different message
+        if GameManager.quest_mode:
+            var qname = String(GameManager.active_quest_data.get("name", ""))
+            var deaths_used = StageManager.player_deaths_this_stage
+            var max_deaths = int(GameManager.active_quest_data.get("_max_player_deaths", 3))
+            stage_fail_subtitle.text = "Quest \"%s\" thất bại!\n❤ Mạng: %d / %d (đã dùng hết)\n\nThử lại nhé!" % [
+                qname, deaths_used, max_deaths
+            ]
+            if stage_fail_retry_btn:
+                stage_fail_retry_btn.text = "THỬ LẠI QUEST"
+            if stage_fail_menu_btn:
+                stage_fail_menu_btn.text = "VỀ QUÁN RƯỢU"
+        else:
+            var elapsed = StageManager.get_elapsed_stage_time()
+            var elapsed_str = StageManager.format_time(elapsed)
+            var attempts = StageManager.attempts_per_stage.get(stage, 1)
+            var deaths_used = StageManager.player_deaths_this_stage
+            var max_deaths = StageManager.get_max_deaths_per_stage(stage)
+            stage_fail_subtitle.text = "Bạn đã hết mạng ở ải %d.\n⏱ Thời gian: %s\n❤ Mạng: %d / %d (đã dùng hết)\n🎯 Lần thử: %d\n\nThử lại nhé!" % [
+                stage, elapsed_str, deaths_used, max_deaths, attempts
+            ]
         _refresh_ui()
     _show_big_banner("THẤT BẠI!", Color(1.0, 0.25, 0.25, 1.0), 2.5)
 
@@ -1064,11 +1158,21 @@ func _on_stage_clear_menu():
 
 func _on_stage_fail_retry():
     AudioManager.play_ui_click()
+    # v3.9: Quest mode — retry quest (reload main.tscn với quest_mode vẫn true)
+    if GameManager.quest_mode:
+        GameManager.reset_stage_flags()
+        get_tree().reload_current_scene()
+        return
     # Retry với transition animation
     _play_stage_transition(current_stage, true)
 
 func _on_stage_fail_menu():
     AudioManager.play_ui_click()
+    # v3.9: Quest mode — end quest mode + return to tavern
+    if GameManager.quest_mode:
+        GameManager.end_quest_mode()
+        get_tree().change_scene_to_file("res://scenes/tavern.tscn")
+        return
     get_tree().change_scene_to_file("res://scenes/menu.tscn")
 
 ## v3.8: Stage transition animation — fade to black, show "ẢI X" banner, reload scene

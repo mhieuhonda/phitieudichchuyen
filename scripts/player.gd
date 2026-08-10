@@ -122,6 +122,11 @@ func _apply_character_data():
         char_speed_bonus = char_data["speed_bonus"]
         char_dart_bonus = char_data["dart_bonus"]
         char_skill_bonus = char_data["skill_bonus"]
+        # v3.9: Force GameManager tính lại meta bonus (player stats / class / team)
+        # ngay khi player spawn. meta_hp_mult sẽ được áp dụng trong GameManager.reset_game
+        # nhưng gọi lần nữa để đảm bảo.
+        if GameManager and GameManager.has_method("_recalculate_meta_bonuses"):
+                GameManager._recalculate_meta_bonuses()
 
 func set_joystick(joy: Control):
         joystick_ref = joy
@@ -171,8 +176,12 @@ func _physics_process(delta):
                         input_dir += joystick_ref.get_direction()
                 if input_dir != Vector2.ZERO:
                         input_dir = input_dir.normalized()
-                        # Apply character speed bonus + hit slow factor
-                        velocity = input_dir * (GameManager.walk_speed + char_speed_bonus) * hit_slow_factor
+                        # v3.9: Apply character speed bonus + hit slow factor + meta speed bonus
+                        var speed = (GameManager.walk_speed + char_speed_bonus) * hit_slow_factor
+                        if GameManager and GameManager.has_method("get_player_walk_speed"):
+                                # meta_speed_mult đã bao gồm char_speed_bonus tách
+                                speed = GameManager.get_player_walk_speed() * hit_slow_factor + char_speed_bonus * hit_slow_factor
+                        velocity = input_dir * speed
                 else:
                         velocity = Vector2.ZERO
         else:
@@ -372,6 +381,9 @@ func _spawn_single_dart(direction: Vector2, power: float):
         _spawn_smoke_puff(global_position)
 
 func _get_max_darts() -> int:
+        # v3.9: Áp dụng meta_dart_count_bonus (từ class main species)
+        if GameManager and GameManager.has_method("get_player_max_darts"):
+                return GameManager.get_player_max_darts(GameManager.max_darts_per_player, char_dart_bonus)
         return GameManager.max_darts_per_player + dart_bonus + char_dart_bonus
 
 func _update_aim_line():
@@ -453,7 +465,11 @@ func _count_active_darts() -> int:
         return count
 
 func _teleport_to_dart():
-        if Time.get_ticks_msec() / 1000.0 - last_teleport_time < teleport_cooldown:
+        # v3.9: Áp dụng meta_tp_cooldown_mult (agility stat giảm cooldown)
+        var effective_cooldown = teleport_cooldown
+        if GameManager:
+                effective_cooldown = teleport_cooldown * GameManager.meta_tp_cooldown_mult
+        if Time.get_ticks_msec() / 1000.0 - last_teleport_time < effective_cooldown:
                 return
         var teleportable_darts = []
         for dart in all_darts:
@@ -559,7 +575,13 @@ func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
                 # v3.8: Hit marker — báo cho main.gd biết dart đã trúng đích
                 # Player là con của main.gd trong scene tree, nên get_parent() chính là main.
                 var main_node = get_parent()
-                hit_player.take_damage_from(GameManager.dart_hit_damage, self)
+                # v3.9: FIX BUG — player dart damage giờ scale với throw power
+                # (trước đây flat 25 dù ném mạnh hay yếu, trong khi AI scale theo power).
+                # Giờ: dmg = base * power * meta_dmg_mult (áp dụng meta-progression).
+                var dmg = GameManager.dart_hit_damage * dart.power
+                if GameManager and GameManager.has_method("compute_player_dart_damage"):
+                        dmg = GameManager.compute_player_dart_damage(dart.power)
+                hit_player.take_damage_from(dmg, self)
                 if main_node and main_node.has_method("show_hit_marker"):
                         main_node.show_hit_marker(false)
                 if was_alive and "is_alive" in hit_player and not hit_player.is_alive:

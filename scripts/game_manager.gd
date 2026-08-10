@@ -1,8 +1,12 @@
 extends Node
 
-## GameManager - Quản lý trạng thái toàn cục của game (v3.5)
+## GameManager - Quản lý trạng thái toàn cục của game (v3.9)
 ## Singleton autoload, điều khiển điểm số, combo, respawn, vòng bo, pickups
 ##
+## v3.9 changes:
+## - Thêm Quest Mode: chơi ải riêng theo quest của Thế Giới (kill X / boss mini / find)
+## - Áp dụng meta-progression (magic/physical/agility/class/team) vào combat stats
+## - dart_hit_damage_multi cho phép scale damage theo power (player & AI)
 ## v3.5 changes:
 ## - Hỗ trợ Stage Mode (vượt ải) qua StageManager autoload
 ## - Stage Mode: không thu nhỏ vòng bo, không có match time limit
@@ -29,6 +33,10 @@ signal stage_cleared(stage: int)
 signal stage_failed_signal(stage: int)
 signal ai_count_changed(alive_count: int, total_count: int)
 signal boss_hp_changed(hp: float, max_hp: float, is_rage: bool)
+# v3.9: Quest mode signals
+signal quest_progress_changed(quest_id: String, current: int, target: int)
+signal quest_objective_reached(quest_id: String)
+signal quest_completed(quest_id: String)
 
 # === CẤU HÌNH ===
 @export_group("Phi Tiêu")
@@ -130,6 +138,26 @@ var stage_failed: bool = false
 var stage_cleared_flag: bool = false
 var stage_boss_ref: Node2D = null  # ref tới boss nếu ải 20
 
+# v3.9: Quest Mode state — khi player nhận quest ở Tavern và vào ải để làm quest
+var quest_mode: bool = false
+var active_quest_id: String = ""
+var active_quest_data: Dictionary = {}
+var quest_type: String = ""          # "kill" | "boss_mini" | "find"
+var quest_kills_target: int = 0
+var quest_kills_current: int = 0
+var quest_target_reached: bool = false
+var quest_target_node: Node2D = null  # node mục tiêu cho quest "find"
+var quest_completed_flag: bool = false
+var quest_failed_flag: bool = false
+
+# v3.9: Meta-progression combat bonuses (load từ ProgressionManager)
+# Áp dụng cho player. Tính lại mỗi khi vào stage/quest.
+var meta_hp_mult: float = 1.0
+var meta_dmg_mult: float = 1.0
+var meta_speed_mult: float = 1.0
+var meta_dart_count_bonus: int = 0
+var meta_tp_cooldown_mult: float = 1.0  # <1 = nhanh hơn
+
 # === LEADERBOARD ===
 # Mỗi entry: { "id": int, "name": String, "score": int, "kills": int, "is_player": bool, "alive": bool }
 var leaderboard_entries: Array = []
@@ -167,11 +195,13 @@ func _process(delta):
 func reset_game():
     player_score = 0
     player_size = initial_player_radius
+    # v3.9: Tính meta-progression bonus TRƯỚC khi apply character bonus
+    _recalculate_meta_bonuses()
     # Apply character HP bonus
     var char_hp_bonus = 0.0
     if CharacterData:
         char_hp_bonus = CharacterData.get_hp_bonus(CharacterData.selected_character_id)
-    base_player_max_hp = 100.0 + char_hp_bonus
+    base_player_max_hp = (100.0 + char_hp_bonus) * meta_hp_mult
     player_max_hp = compute_max_hp_for_size(player_size)
     # v2.2: Apply daily login reward HP bonus
     if SettingsManager:
@@ -504,11 +534,20 @@ func get_last_stage_bonus() -> Dictionary:
 ## Player chết trong stage — return true nếu respawn được, false nếu fail
 func on_player_died_in_stage() -> bool:
     StageManager.register_player_death()
-    var max_deaths = StageManager.get_max_deaths_per_stage(StageManager.current_stage)
+    var max_deaths: int
+    if quest_mode:
+        # v3.9: Quest mode — dùng max_deaths từ quest preset (lưu trong active_quest_data)
+        max_deaths = int(active_quest_data.get("_max_player_deaths", 3))
+    else:
+        max_deaths = StageManager.get_max_deaths_per_stage(StageManager.current_stage)
     if StageManager.player_deaths_this_stage >= max_deaths:
         _fail_stage()
         return false
     return true  # cho phép respawn
+
+## v3.9: Setter cho quest preset max_player_deaths (gọi từ main.gd::_setup_quest_mode)
+func set_quest_max_deaths(max_deaths: int):
+    active_quest_data["_max_player_deaths"] = max_deaths
 
 func _fail_stage():
     if stage_failed or stage_cleared_flag:
@@ -525,6 +564,12 @@ func reset_stage_flags():
     stage_cleared_flag = false
     stage_boss_ref = null
     stage_alive_ai = stage_total_ai
+    # v3.9: Reset quest flags khi retry
+    if quest_mode:
+        quest_completed_flag = false
+        quest_failed_flag = false
+        quest_target_reached = false
+        quest_kills_current = 0
 
 ## Cấu hình AI theo stage hiện tại
 func apply_stage_ai_config():
@@ -540,3 +585,134 @@ func apply_stage_ai_config():
     ai_pursuit_speed_mult = cfg["pursuit_speed_mult"]
     ai_pickup_seeking = cfg["pickup_seeking"]
     num_ai_players = StageManager.get_ai_count_for_stage(StageManager.current_stage)
+
+# v3.9: Quest Mode API ======================================================
+
+## Bắt đầu 1 quest. Đặt quest_mode = true, reset quest state, cấu hình theo type.
+func start_quest(quest: Dictionary):
+    quest_mode = true
+    is_stage_mode = true  # quest dùng stage mode physics
+    active_quest_id = quest.get("id", "")
+    active_quest_data = quest
+    quest_completed_flag = false
+    quest_failed_flag = false
+    quest_target_reached = false
+    quest_target_node = null
+    quest_kills_current = 0
+    # Phân loại quest theo target string
+    var target_str = String(quest.get("target", "")).to_lower()
+    if target_str.begins_with("kill"):
+        quest_type = "kill"
+        # Parse số từ chuỗi "kill 5", "kill 18"...
+        var parts = target_str.split(" ", false)
+        if parts.size() >= 2:
+            quest_kills_target = int(parts[1])
+        else:
+            quest_kills_target = 5
+    elif target_str.find("boss") >= 0:
+        quest_type = "boss_mini"
+        quest_kills_target = 1
+    elif target_str.find("find") >= 0:
+        quest_type = "find"
+        quest_kills_target = 1
+    else:
+        quest_type = "kill"
+        quest_kills_target = 5
+    quest_kills_target = max(1, quest_kills_target)
+
+## Thoát quest mode — gọi khi quit/retry
+func end_quest_mode():
+    quest_mode = false
+    active_quest_id = ""
+    active_quest_data = {}
+    quest_type = ""
+    quest_kills_current = 0
+    quest_kills_target = 0
+    quest_target_reached = false
+    quest_target_node = null
+    quest_completed_flag = false
+    quest_failed_flag = false
+
+## Gọi từ main.gd khi 1 AI/mini-boss bị kill trong quest mode
+func on_quest_kill():
+    if not quest_mode or quest_type == "" or quest_type == "find":
+        return
+    quest_kills_current += 1
+    quest_progress_changed.emit(active_quest_id, quest_kills_current, quest_kills_target)
+    if quest_kills_current >= quest_kills_target and not quest_completed_flag:
+        quest_objective_reached.emit(active_quest_id)
+        _complete_quest_objective()
+
+## Gọi từ main.gd khi player chạm quest target (find quest)
+func on_quest_target_reached():
+    if not quest_mode or quest_type != "find" or quest_target_reached:
+        return
+    quest_target_reached = true
+    quest_progress_changed.emit(active_quest_id, 1, 1)
+    quest_objective_reached.emit(active_quest_id)
+    _complete_quest_objective()
+
+func _complete_quest_objective():
+    if quest_completed_flag:
+        return
+    quest_completed_flag = true
+    game_active = false
+    # Reward quest qua ProgressionManager
+    if ProgressionManager and active_quest_id != "":
+        ProgressionManager.complete_quest(active_quest_id)
+    quest_completed.emit(active_quest_id)
+    AudioManager.play_music("victory")
+
+## v3.9: Tính lại meta-progression bonuses từ ProgressionManager.
+## Gọi mỗi khi vào stage/quest (reset_game). Bonus = player stats + class + team.
+func _recalculate_meta_bonuses():
+    meta_hp_mult = 1.0
+    meta_dmg_mult = 1.0
+    meta_speed_mult = 1.0
+    meta_dart_count_bonus = 0
+    meta_tp_cooldown_mult = 1.0
+    if not ProgressionManager:
+        return
+    # Player stats: mỗi điểm = 5% bonus cho stat tương ứng
+    # Magic → +dmg (phi tiêu mạnh hơn)
+    # Physical → +HP & +dmg nhỏ
+    # Agility → +speed & -tp cooldown
+    var m = ProgressionManager.player_magic
+    var p = ProgressionManager.player_physical
+    var a = ProgressionManager.player_agility
+    meta_dmg_mult *= 1.0 + m * 0.05 + p * 0.025
+    meta_hp_mult *= 1.0 + p * 0.05
+    meta_speed_mult *= 1.0 + a * 0.04
+    meta_tp_cooldown_mult *= max(0.5, 1.0 - a * 0.05)
+    # Class bonus: nếu player đang là 1 loài chính, +1 dart & +10% HP
+    var sid = ProgressionManager.current_class_id
+    if sid >= 0:
+        var sp = SpeciesData.get_species(sid)
+        if sp.get("main", false):
+            meta_dart_count_bonus += 1
+            meta_hp_mult *= 1.10
+    # Team bonus
+    var tb = ProgressionManager.get_team_bonus_for_player()
+    meta_hp_mult *= 1.0 + float(tb.get("hp_bonus_pct", 0.0)) / 100.0
+    meta_dmg_mult *= 1.0 + float(tb.get("damage_bonus_pct", 0.0)) / 100.0
+    meta_speed_mult *= 1.0 + float(tb.get("speed_bonus_pct", 0.0)) / 100.0
+
+## v3.9: Helper cho player.gd — tính dart damage với power & meta bonus
+func compute_player_dart_damage(power: float) -> float:
+    return dart_hit_damage * power * meta_dmg_mult
+
+## v3.9: Helper cho ai_player.gd — tính dart damage với power & stage dmg_mult
+func compute_ai_dart_damage(power: float) -> float:
+    var dmg_mult = 1.0
+    if is_stage_mode and StageManager:
+        var cfg = StageManager.get_ai_intelligence_for_stage(StageManager.current_stage)
+        dmg_mult = float(cfg.get("ai_dmg_mult", 1.0))
+    return dart_hit_damage * power * dmg_mult
+
+## v3.9: Helper cho player — walk speed sau meta bonus
+func get_player_walk_speed() -> float:
+    return walk_speed * meta_speed_mult
+
+## v3.9: Helper cho player — max darts sau meta bonus
+func get_player_max_darts(base: int, char_bonus: int) -> int:
+    return base + char_bonus + meta_dart_count_bonus

@@ -337,7 +337,8 @@ func get_team_bonus_for_player() -> Dictionary:
 
 ## Sau khi đánh xong quái, đồng đội lấy chiến lợi phẩm + tiền thuê → mất hút
 func dissolve_team_after_quest():
-        # Mỗi thành viên lấy 10% HL Coin hiện có làm "phí thuê + chiến lợi phẩm"
+        # v3.9: Sửa comment cho đúng — 5% mỗi thành viên
+        # Mỗi thành viên lấy 5% HL Coin hiện có làm "phí thuê + chiến lợi phẩm"
         var fee_per_member = int(hl_coins * 0.05)  # 5% mỗi thành viên
         var total_fee = fee_per_member * team.size()
         if total_fee > 0:
@@ -386,6 +387,9 @@ func accept_quest(quest: Dictionary) -> bool:
         if quest.has("require_min_team") and quest["require_min_team"] > 0:
                 if team.size() + 1 < quest["require_min_team"]:  # +1 cho player
                         return false
+        # v3.9: Đảm bảo quest có reward_species key
+        if not quest.has("reward_species") and quest.has("reward_rep_species"):
+                quest["reward_species"] = quest["reward_rep_species"]
         active_quests.append(quest)
         _save()
         return true
@@ -413,5 +417,28 @@ func complete_quest(quest_id: String):
                         return true
         return false
 
+# v3.9: Helper — lấy quest active theo id (dùng cho main.gd)
+func get_active_quest_by_id(quest_id: String) -> Dictionary:
+        for q in active_quests:
+                if q.get("id", "") == quest_id:
+                        return q
+        return {}
+
+# v3.9: Helper — đếm quest đã hoàn thành
+func get_completed_quest_count() -> int:
+        return completed_quests.size()
+
+# v3.9: Gate civil war timer — chỉ tick khi đang ở world scene, không tick khi trong combat
+# (giảm side-effect không mong muốn khi đang đánh ải)
+func _is_world_scene() -> bool:
+        var tree = get_tree()
+        if not tree or not tree.current_scene:
+                return false
+        var fname = tree.current_scene.scene_file_path
+        return fname.find("world_map") >= 0 or fname.find("tavern") >= 0 \
+                or fname.find("quest_log") >= 0 or fname.find("skill_master") >= 0 \
+                or fname.find("predecessor_shop") >= 0 or fname.find("menu") >= 0
+
 func _process(delta):
-        update_civil_war(delta)
+        if _is_world_scene():
+                update_civil_war(delta)

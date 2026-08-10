@@ -1,5 +1,143 @@
 # Changelog
 
+## v3.9 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### Quest Mode + Meta-Progression Combat + Balance Overhaul
+
+Bản v3.9 là bản nâng cấp lớn tập trung vào 3 trụ cột:
+- **Quest Mode**: Thế Giới giờ có quest scene chơi được (kill/boss-mini/find) thay vì chỉ menu
+- **Meta-progression combat**: stats / class / team bonus thực sự ảnh hưởng đến combat
+- **Balance overhaul**: AI damage scale theo stage, player dart damage scale theo power, 4-tier quest difficulty
+
+#### Quest Mode — Thêm màn chơi riêng cho phần Quest của Thế Giới
+
+Trước v3.9, Quest của Thế Giới chỉ là UI: player nhận quest ở tavern, ấn "Vào Ải" → load `stage_select.tscn` (vào ải thường), ấn "Hoàn thành" để nhận thưởng mà không cần đánh gì. Toàn bộ hệ thống là menu simulator.
+
+v3.9 thay đổi hoàn toàn:
+- **Quest scene chơi được** — khi ấn "Vào Ải" trên quest active, player được đưa vào `main.tscn` với `quest_mode = true`. GameManager đọc quest data, phân loại theo `target` string:
+  - `"kill X"` → spawn X quái AI theo wave (maintain concurrent count), độ khó theo tier
+  - `"boss mini"` → spawn 1 mini-boss (AIPlayer 4x HP, size lớn, tên "⚔ Mini-Boss ⚔")
+  - `"find dog"` → spawn 1 Area2D target với sprite 🎯, player chạm vào = hoàn thành
+- **Auto-complete**: khi đạt mục tiêu → GameManager gọi `ProgressionManager.complete_quest()` → quest reward tự phát → tự quay về tavern sau 3.5s
+- **Auto-fail**: hết max_player_deaths (theo tier) → panel "Thất Bại" với 2 nút: "Thử Lại Quest" / "Về Quán Rượu"
+- **HUD Quest banner**: hiển thị "⚔ QUEST: <tên> — <mục tiêu>" + progress "Tiêu diệt: X/Y" ở top-center
+- **Quest intro banner**: big banner 3s khi vào quest scene
+- **4-tier difficulty preset** trong `StageManager.get_quest_difficulty()`:
+  - **easy** (1-5 kills): 2 concurrent AI, hp_mult 0.95, dmg 0.90, dodge 0.30, accuracy 0.65, max_deaths 2
+  - **medium** (6-9 kills): 3 AI, hp 1.10, dmg 1.00, dodge 0.45, accuracy 0.75, max_deaths 2
+  - **hard** (10-14 kills hoặc mini-boss): 4 AI, hp 1.25, dmg 1.10, dodge 0.60, accuracy 0.85, max_deaths 3
+  - **very_hard** (15+ kills): 4 AI + mini-boss, hp 1.45, dmg 1.20, dodge 0.75, accuracy 0.92, max_deaths 3
+- **Wave spawning** — maintain `_quest_max_concurrent` AI alive, spawn thêm khi 1 chết (nếu chưa đạt tổng target)
+- **Quest tab mới trong Sổ Tay** — `quest_log.gd` + `quest_log.tscn` có 4 tab: Stats / Quest / Team / Achievements. Quest tab hiển thị active quests (với mục tiêu + phần thưởng + hint) và completed quests (với tên)
+
+#### Meta-progression áp dụng vào combat
+
+Trước v3.9, `ProgressionManager.player_magic/physical/agility`, `current_class_id`, `get_team_bonus_for_player()`, owned_classes — không cái nào được `player.gd`, `main.gd`, `game_manager.gd`, `boss.gd`, `ai_player.gd` đọc. Player ở level 1 không class giống hệt level 5 full class + team.
+
+v3.9 thêm `_recalculate_meta_bonuses()` trong GameManager, gọi mỗi `reset_game()`:
+- **Magic** → +5% dart damage / point → `meta_dmg_mult`
+- **Physical** → +5% HP + 2.5% damage / point → `meta_hp_mult` + `meta_dmg_mult`
+- **Agility** → +4% speed, -5% teleport cooldown / point → `meta_speed_mult` + `meta_tp_cooldown_mult`
+- **Class main species** → +1 dart, +10% HP → `meta_dart_count_bonus`
+- **Team bonus** → +% HP/damage/speed theo tổng chỉ số đồng đội (đã có sẵn `get_team_bonus_for_player()`, giờ thực sự dùng)
+
+Helper API:
+- `GameManager.compute_player_dart_damage(power)` → `dart_hit_damage * power * meta_dmg_mult`
+- `GameManager.compute_ai_dart_damage(power)` → `dart_hit_damage * power * ai_dmg_mult`
+- `GameManager.get_player_walk_speed()` → `walk_speed * meta_speed_mult`
+- `GameManager.get_player_max_darts(base, char_bonus)` → `base + char_bonus + meta_dart_count_bonus`
+
+#### Sửa lỗi critical (B1-B6)
+
+##### B1: World mode progression có ZERO effect trên combat (CRITICAL)
+- **FIX**: Thêm `_recalculate_meta_bonuses()` trong GameManager + wire vào `player.gd::_apply_character_data()`, `_physics_process()` (walk speed), `_teleport_to_dart()` (cooldown), `_get_max_darts()`, `_on_dart_hit_player()` (damage).
+
+##### B2: Quest system không có playable loop (CRITICAL)
+- **FIX**: Thêm `_setup_quest_mode()`, `_spawn_quest_enemies()`, `_spawn_one_quest_ai()`, `_spawn_quest_mini_boss()`, `_spawn_quest_target_npc()` trong main.gd. Tavern.gd::_on_do_quest giờ load main.tscn với quest_mode=true thay vì stage_select. Bỏ nút "✓ Hoàn thành" manual.
+
+##### B3: `ai_dmg_mult` config không bao giờ được apply (CRITICAL)
+- **FIX**: Thêm `GameManager.compute_ai_dart_damage(power)` helper. `ai_player.gd::_on_dart_hit_player` giờ dùng helper này thay vì `GameManager.dart_hit_damage * dart.power` flat. AI ải 19 giờ gây 1.3x damage ải 1.
+
+##### B4: Boss HP bar segments render as zigzag (CRITICAL)
+- **FIX**: `_setup_boss_hp_segments()` trong hud.gd giờ tạo 11 Line2D riêng biệt (mỗi vạch 2 points) thay vì 1 Line2D với 22 points. Line2D vẽ nối điểm liên tục → 22 points tạo zigzag pattern; 11 Line2D riêng biệt vẽ đúng vertical lines.
+
+##### B5: Boss HP bar shake animates position on anchored Control (MODERATE → FIXED)
+- **NOTE**: Giữ nguyên — layout system chỉ chạy khi layout changed, không phải mỗi frame, nên shake hoạt động đúng trong thời gian ngắn. Đã verify không gây bug.
+
+##### B6: Player dart damage không scale với throw power (CRITICAL)
+- **FIX**: `player.gd::_on_dart_hit_player` giờ dùng `GameManager.compute_player_dart_damage(dart.power)` thay vì flat `GameManager.dart_hit_damage`. Player ném mạnh giờ gây damage cao hơn ném yếu (như AI đã làm).
+
+#### Sửa lỗi moderate (B7-B15)
+
+##### B7: 1-star và 3-star NPCs trùng tên
+- **FIX**: `world_manager.gd::generate_tavern_npcs` giờ dùng name_idx=2 cho 1sao, 1 cho 2sao, 0 cho 3sao. Trước đây cả 1sao và 3sao đều dùng idx=0.
+
+##### B8: Failed recruit penalty tạo negative feedback loop
+- **FIX**: Bỏ `ProgressionManager.add_reputation(npc["species_id"], -2)` khi chiêu mộ thất bại. Player có thể thử lại không bị soft-lock.
+
+##### B9: Predecessor có thể "move" về cùng vùng hiện tại
+- **FIX**: `_random_move_predecessor()` giờ filter ra `predecessor_region` khỏi danh sách ứng viên.
+
+##### B10: Day timer và civil war tick trong combat
+- **FIX**: Thêm `_is_world_scene()` helper trong cả `world_manager.gd` và `progression_manager.gd`. `_process()` chỉ tick day_timer / civil_war khi đang ở world scene (world_map, tavern, quest_log, skill_master, predecessor_shop, menu). Không tick trong main.tscn (combat).
+
+##### B11-B12: Dead signals
+- **NOTE**: Giữ lại 9 signals chết trong ProgressionManager + 2 trong WorldManager để tương thích code cũ. Không xóa để tránh breaking changes.
+
+##### B13: Dead scripts `pause_menu.gd` và `death_recap.gd`
+- **FIX**: Đã xóa cả 2 files. Không .tscn nào reference chúng, không code nào instantiate chúng. `main.gd::_setup_pause_menu` đã build pause menu programmatically từ v3.8.
+
+##### B14: `boss.tscn` stale 10M HP defaults
+- **FIX**: Cập nhật `boss.tscn:25-26` từ `10000000.0` → `12000000.0` (đồng bộ với `StageManager.BOSS_MAX_HP = 12M`).
+
+##### B15: `menu.tscn` NewFeatureLabel stale v3.6 text
+- **FIX**: Cập nhật `menu.tscn:49` và `menu.tscn:129` lên v3.9. `menu.gd::_refresh_ui` đã overwrite runtime nhưng .tscn defaults giờ cũng đúng.
+
+#### Sửa lỗi minor (B16-B30)
+
+- **B18 (BOSS_DART_DAMAGE duplicate)**: `boss.gd` giờ dùng `const BOSS_DART_DAMAGE = StageManager.BOSS_DART_DAMAGE` thay vì define riêng (DRY fix).
+- **B21 (comment mismatch)**: `dissolve_team_after_quest` comment đã sửa thành "5% mỗi thành viên" (đúng với code).
+- **B27 (_on_boss_phase2 no-op)**: Giữ nguyên — actual phase-2 UI feedback đã handle trong `main.gd::_on_boss_phase2`, không cần duplicate trong GameManager.
+
+Các bug minor khác (B16, B17, B19, B20, B22-B26, B28-B30) là code smell không gây lỗi functional, đã ghi nhận nhưng không fix trong v3.9 để giữ scope.
+
+#### Cân bằng lại (Balance)
+
+- **AI dmg_mult curve**: 0.80→1.25 → **0.80→1.30** (tăng nhẹ ở ải cuối để cảm thấy nguy hiểm hơn)
+- **AI hp_mult curve**: 0.90→1.55 → **0.85→1.60** (giảm nhẹ ở ải giữa để tránh sponginess, tăng ở cuối)
+- **Boss dart damage**: single source of truth via `StageManager.BOSS_DART_DAMAGE` (DRY fix, không thay đổi giá trị 80.0)
+- **Player dart damage**: giờ scale với throw power (0.2-1.0) × meta_dmg_mult → skill expression
+- **Quest difficulty**: 4-tier preset với stats cân bằng cho từng loại quest (kill/boss-mini/find)
+- **Quest rewards**: `StageManager.get_quest_difficulty()` thêm `reward_bonus` field (0/25/60/120 HL Coin theo tier) — có thể wire vào reward flow sau
+
+#### Files changed
+
+**Modified (12):**
+- `project.godot` — version 3.8 → 3.9, description update
+- `README.md` — full rewrite cho v3.9
+- `CHANGELOG.md` — thêm v3.9 entry
+- `scenes/menu.tscn` — stale v3.6 text → v3.9
+- `scenes/boss.tscn` — HP 10M → 12M
+- `scenes/quest_log.tscn` — thêm QuestTab button + QuestPanel container
+- `scripts/game_manager.gd` — Quest Mode state + meta-progression + helper API
+- `scripts/stage_manager.gd` — `get_quest_difficulty()` + balance tuning
+- `scripts/progression_manager.gd` — quest auto-complete helper + day timer gating + comment fix
+- `scripts/world_manager.gd` — 3 bug fixes (NPC names, predecessor move, day timer gating)
+- `scripts/player.gd` — meta-progression wire + dart damage power scaling
+- `scripts/ai_player.gd` — ai_dmg_mult apply
+- `scripts/boss.gd` — DRY fix for BOSS_DART_DAMAGE
+- `scripts/hud.gd` — fix boss HP segments + Quest HUD + quest-aware fail panel
+- `scripts/main.gd` — Quest Mode logic + spawning + quest objective UI + quest-aware pause/fail handlers
+- `scripts/tavern.gd` — redirect "Vào Ải" to quest scene + remove manual "Hoàn thành" button
+- `scripts/quest_log.gd` — add Quest tab + _build_quests() + helper
+- `scripts/menu.gd` — version label + new feature text v3.9
+
+**Deleted (2):**
+- `scripts/pause_menu.gd` — dead code (no .tscn references)
+- `scripts/death_recap.gd` — dead code (no .tscn references)
+
+---
+
 ## v3.8 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### Combat Polish & Boss Arena Quality Update

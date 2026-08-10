@@ -177,12 +177,12 @@ func _apply_premium_styling():
 
 func _refresh_ui():
         if version_label:
-                version_label.text = "v3.8 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v3.9 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#ffaa00][b]v3.8 MỚI:[/b][/color] Boss Phase 2 (50% HP) + Minimap radar + Pause menu (P/ESC) + Achievement toast + 5 achievements mới\n[color=#44ff88][b]Fix:[/b][/color] Player darts không bị AI né + Boss HP HUD sai + Boss double-laser spawn + AI dodge burst reactivation\n[color=#55aaff][b]UI/UX:[/b][/color] Hit markers + Kill streak UI + Boss HP segments + % + phase badge + off-screen arrows + low-HP heartbeat + aim ricochet preview + onboarding hints + stage stats + stage transition + dart glow + difficulty colors\n[color=#ff4444][b]Rewards:[/b][/color] Perfect Stage bonus + Speed bonus + Kill streak bonus + Coin pickup feedback + 19 achievements (5 mới)"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.9 MỚI:[/b][/color] Quest scene chơi được (kill/boss-mini/find) + Quest tab trong Sổ Tay + Áp dụng meta-progression vào combat (HP/dmg/speed/darts)\n[color=#44ff88][b]Fix 30 bugs:[/b][/color] AI damage scale theo stage + Player dart damage scale theo power + Boss HP segments vẽ đúng + Tiền bối không move cùng vùng + NPC tên không trùng + Day timer không tick trong combat + Xóa 2 dead scripts\n[color=#55aaff][b]Cân bằng:[/b][/color] AI dmg_mult 0.80→1.30 + HP mult 0.85→1.60 + Quest difficulty preset 4 cấp"
                 else:
-                        new_feature_label.text = "[color=#ffaa00][b]v3.8 NEW:[/b][/color] Boss Phase 2 (50% HP) + Minimap radar + Pause menu (P/ESC) + Achievement toast + 5 new achievements\n[color=#44ff88][b]Fix:[/b][/color] Player darts not dodgeable by AI + Boss HP HUD mismatch + Boss double-laser + AI dodge burst reactivation\n[color=#55aaff][b]UI/UX:[/b][/color] Hit markers + Kill streak + Boss HP segments + phase badge + off-screen arrows + low-HP heartbeat + aim ricochet preview + onboarding + stage stats + stage transition + dart glow + difficulty colors\n[color=#ff4444][b]Rewards:[/b][/color] Perfect Stage bonus + Speed bonus + Kill streak bonus + Coin pickup feedback + 19 achievements (5 new)"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.9 NEW:[/b][/color] Playable Quest scene (kill/boss-mini/find) + Quest tab in Journal + Meta-progression applied to combat (HP/dmg/speed/darts)\n[color=#44ff88][b]Fix 30 bugs:[/b][/color] AI damage scales with stage + Player dart damage scales with power + Boss HP segments render correctly + Predecessor no longer moves to same region + NPC names no longer collide + Day timer no longer ticks during combat + Removed 2 dead scripts\n[color=#55aaff][b]Balance:[/b][/color] AI dmg_mult 0.80→1.30 + HP mult 0.85→1.60 + 4-tier Quest difficulty presets"
         if play_button:
                 play_button.text = "⚔ VƯỢT ẢI" if I18N.is_vi() else "⚔ STAGES"
         if world_button:

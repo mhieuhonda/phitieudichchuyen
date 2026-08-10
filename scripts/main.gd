@@ -74,8 +74,13 @@ func _ready():
         target_stage = StageManager.current_stage
     elif StageManager:
         target_stage = StageManager.current_stage
-    GameManager.start_stage(target_stage)
-    GameManager.apply_stage_ai_config()
+    # v3.9: Nếu đang ở Quest Mode, không dùng StageManager.current_stage.
+    # Thay vào đó, dùng difficulty preset từ StageManager.get_quest_difficulty().
+    if GameManager.quest_mode:
+        _setup_quest_mode()
+    else:
+        GameManager.start_stage(target_stage)
+        GameManager.apply_stage_ai_config()
     AIPlayer.reset_name_index()
 
     player.player_id = 0
@@ -92,7 +97,10 @@ func _ready():
         mobile_controls.throw_ended.connect(_on_mobile_throw_end)
 
     hud.set_player(player)
-    hud.set_stage(StageManager.current_stage)
+    if not GameManager.quest_mode:
+        hud.set_stage(StageManager.current_stage)
+    else:
+        hud.set_stage(0)  # 0 = không hiển thị "ẢI X/20"
     _spawn_enemies()
 
     player.player_died.connect(_on_player_died)
@@ -104,6 +112,11 @@ func _ready():
     GameManager.stage_cleared.connect(_on_stage_cleared)
     GameManager.stage_failed_signal.connect(_on_stage_failed)
     GameManager.game_over.connect(_on_game_over)
+    # v3.9: Quest mode signals
+    if GameManager.has_signal("quest_progress_changed"):
+        GameManager.quest_progress_changed.connect(_on_quest_progress_changed)
+    if GameManager.has_signal("quest_completed"):
+        GameManager.quest_completed.connect(_on_quest_completed)
     # v3.8: Achievement toast notifications
     if ProgressionManager:
         ProgressionManager.achievement_unlocked.connect(_on_achievement_unlocked)
@@ -122,18 +135,238 @@ func _ready():
     _setup_minimap()
 
     # v3.5: Music khác nhau cho ải boss
-    if StageManager.is_final_stage():
+    if StageManager.is_final_stage() and not GameManager.quest_mode:
         AudioManager.play_music("defeat")  # nhạc căng thẳng cho boss fight
     else:
         AudioManager.play_music("game")
-    # v3.8: Stage intro banner
-    _show_stage_intro_banner()
+    # v3.8: Stage intro banner (chỉ khi không phải quest mode)
+    if GameManager.quest_mode:
+        _show_quest_intro_banner()
+    else:
+        _show_stage_intro_banner()
 
 func _spawn_enemies():
+    # v3.9: Quest mode path
+    if GameManager.quest_mode:
+        _spawn_quest_enemies()
+        return
     if StageManager.is_final_stage():
         _spawn_boss()
     else:
         _spawn_ai_players()
+
+# v3.9: Quest Mode setup — load quest data, configure AI difficulty
+var _quest_preset: Dictionary = {}
+var _quest_total_spawned: int = 0
+var _quest_max_concurrent: int = 0
+var _quest_target_kills: int = 0
+var _quest_spawn_cooldown: float = 0.0
+var _quest_target_node: Node2D = null
+
+func _setup_quest_mode():
+    var q = GameManager.active_quest_data
+    if q.is_empty() and ProgressionManager and GameManager.active_quest_id != "":
+        q = ProgressionManager.get_active_quest_by_id(GameManager.active_quest_id)
+        GameManager.active_quest_data = q
+    if q.is_empty():
+        # Fallback: không có quest data → thoát quest mode
+        push_warning("[main.gd] Quest mode active nhưng không có quest data — end quest mode")
+        GameManager.end_quest_mode()
+        GameManager.start_stage(1)
+        GameManager.apply_stage_ai_config()
+        return
+    # Khởi tạo quest state trong GameManager
+    GameManager.start_quest(q)
+    _quest_preset = StageManager.get_quest_difficulty(q)
+    _quest_max_concurrent = int(_quest_preset.get("ai_count", 3))
+    _quest_target_kills = int(_quest_preset.get("spawn_count", 5))
+    _quest_total_spawned = 0
+    _quest_spawn_cooldown = 0.0
+    # v3.9: Set max deaths cho quest mode
+    var max_deaths = int(_quest_preset.get("max_player_deaths", 3))
+    GameManager.set_quest_max_deaths(max_deaths)
+    # Cấu hình AI theo preset
+    GameManager.ai_dodge_chance = float(_quest_preset.get("dodge_chance", 0.4))
+    GameManager.ai_accuracy = float(_quest_preset.get("accuracy", 0.75))
+    GameManager.ai_mid_flight_teleport_chance = 0.55
+    GameManager.ai_predict_lead_factor = 1.1
+    GameManager.ai_kite_distance = float(_quest_preset.get("kite_distance", 260.0))
+    GameManager.ai_flee_hp_threshold = 0.30
+    GameManager.ai_pursuit_speed_mult = float(_quest_preset.get("pursuit_speed_mult", 1.20))
+    GameManager.ai_pickup_seeking = true
+    GameManager.num_ai_players = _quest_max_concurrent
+    # Khởi tạo HUD quest banner
+    if hud and hud.has_method("set_quest_objective"):
+        hud.set_quest_objective(q, 0, _quest_target_kills)
+
+func _spawn_quest_enemies():
+    if GameManager.quest_type == "find":
+        _spawn_quest_target_npc()
+        return
+    if GameManager.quest_type == "boss_mini":
+        _spawn_quest_mini_boss()
+        return
+    # kill quest: spawn tối đa _quest_max_concurrent AI
+    var to_spawn = min(_quest_max_concurrent, _quest_target_kills - _quest_total_spawned)
+    for i in to_spawn:
+        _spawn_one_quest_ai()
+
+func _spawn_one_quest_ai():
+    if _quest_total_spawned >= _quest_target_kills:
+        return
+    var ai = ai_scene.instantiate()
+    ai.ai_id = _quest_total_spawned
+    ai_container.add_child(ai)
+    # Apply quest preset HP/dmg mult
+    var hp_mult = float(_quest_preset.get("hp_mult", 1.0))
+    if ai.has_method("set_quest_hp_mult"):
+        ai.set_quest_hp_mult(hp_mult)
+    else:
+        ai.current_max_hp *= hp_mult
+        ai.current_hp = ai.current_max_hp
+    var rng = RandomNumberGenerator.new()
+    rng.seed = _quest_total_spawned * 11 + 7
+    var angle = rng.randf() * TAU
+    var dist = rng.randf_range(200, 600)
+    ai.global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
+    ai.ai_died.connect(_on_ai_died)
+    _quest_total_spawned += 1
+
+func _spawn_quest_mini_boss():
+    # Mini-boss = 1 AIPlayer với HP 4x + size lớn hơn
+    var ai = ai_scene.instantiate()
+    ai.ai_id = 0
+    ai.ai_name = "⚔ Mini-Boss ⚔"
+    ai_container.add_child(ai)
+    var hp_mult = 4.0  # mini-boss 4x HP
+    if ai.has_method("set_quest_hp_mult"):
+        ai.set_quest_hp_mult(hp_mult)
+    else:
+        ai.current_max_hp *= hp_mult
+        ai.current_hp = ai.current_max_hp
+    # Mini-boss to hơn
+    ai.current_size = 50.0
+    if ai.has_method("_update_visual_size"):
+        ai._update_visual_size()
+    # Spawn xa player
+    var angle = randf() * TAU
+    ai.global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * 500.0
+    ai.ai_died.connect(_on_ai_died)
+    _quest_total_spawned = 1
+    _quest_target_kills = 1
+    # Show kill feed
+    hud._add_kill_feed("⚔ Mini-Boss xuất hiện! Tiêu diệt nó!", Color(1.0, 0.4, 0.2))
+    _spawn_screen_flash(Color(1.0, 0.4, 0.2, 0.40), 0.6)
+    apply_screen_shake(8.0, 0.4)
+
+func _spawn_quest_target_npc():
+    # Tạo 1 Area2D với Sprite là "quest target" — player chạm vào = hoàn thành
+    var target = Area2D.new()
+    target.name = "QuestTargetNPC"
+    target.collision_layer = 16  # pickup layer
+    target.collision_mask = 1    # player layer
+    var sprite = Sprite2D.new()
+    sprite.texture = load("res://assets/sprites/pickup_health.png")
+    sprite.scale = Vector2(1.5, 1.5)
+    sprite.modulate = Color(1.0, 0.85, 0.3)
+    target.add_child(sprite)
+    var col = CollisionShape2D.new()
+    var shape = CircleShape2D.new()
+    shape.radius = 40.0
+    col.shape = shape
+    target.add_child(col)
+    # Label
+    var lbl = Label.new()
+    lbl.text = "🎯 MỤC TIÊU"
+    lbl.add_theme_font_size_override("font_size", 14)
+    lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+    lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+    lbl.position = Vector2(-50, -60)
+    target.add_child(lbl)
+    ai_container.add_child(target)
+    # Random vị trí xa player
+    var angle = randf() * TAU
+    target.global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * 500.0
+    # Connect body entered → player chạm
+    target.body_entered.connect(func(body):
+        if body == player:
+            _on_quest_target_reached(target))
+    _quest_target_node = target
+    GameManager.quest_target_node = target
+    hud._add_kill_feed("🎯 Tìm và chạm vào mục tiêu để hoàn thành quest!", Color(1.0, 0.85, 0.3))
+
+func _on_quest_target_reached(target: Node2D):
+    if not GameManager.quest_mode or GameManager.quest_target_reached:
+        return
+    # Spawn effect + screen flash
+    if is_instance_valid(target):
+        var burst = CPUParticles2D.new()
+        burst.emitting = true
+        burst.one_shot = true
+        burst.explosiveness = 0.9
+        burst.amount = 30
+        burst.lifetime = 0.8
+        burst.spread = 180.0
+        burst.initial_velocity_min = 80
+        burst.initial_velocity_max = 200
+        burst.color = Color(1.0, 0.85, 0.3)
+        burst.gravity = Vector2.ZERO
+        add_child(burst)
+        burst.global_position = target.global_position
+        get_tree().create_timer(1.2).timeout.connect(burst.queue_free)
+        target.queue_free()
+    _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.5), 0.6)
+    apply_screen_shake(8.0, 0.5)
+    GameManager.on_quest_target_reached()
+
+func _on_quest_progress_changed(_quest_id: String, current: int, target: int):
+    if hud and hud.has_method("update_quest_progress"):
+        hud.update_quest_progress(current, target)
+
+func _on_quest_completed(quest_id: String):
+    # Hiển thị quest complete panel + auto return to tavern
+    _spawn_screen_flash(Color(0.3, 1.0, 0.5, 0.45), 1.0)
+    apply_screen_shake(10.0, 0.8)
+    AudioManager.play_achievement()
+    AudioManager.play_variation("success", 2.0, 1.0)
+    AudioManager.play_variation("drum_crash", 3.0, 1.0)
+    hud._add_kill_feed("✓ HOÀN THÀNH QUEST! Quay về quán rượu...", Color(0.5, 1.0, 0.5))
+    hud._show_big_banner("QUEST HOÀN THÀNH!", Color(0.5, 1.0, 0.5, 1.0), 3.0)
+    # Auto return to tavern after 3s
+    var tree = get_tree()
+    get_tree().create_timer(3.5).timeout.connect(func():
+        GameManager.end_quest_mode()
+        tree.change_scene_to_file("res://scenes/tavern.tscn"))
+
+func _show_quest_intro_banner():
+    var q = GameManager.active_quest_data
+    if q.is_empty():
+        return
+    var qname = String(q.get("name", ""))
+    var target_str = String(q.get("target", ""))
+    var text = "⚔ QUEST: %s\nMục tiêu: %s" % [qname, target_str]
+    hud._show_big_banner(text, Color(1.0, 0.85, 0.3, 1.0), 3.0)
+    hud._add_kill_feed("⚔ Bắt đầu quest: %s" % qname, Color(1.0, 0.85, 0.3))
+
+func _process_quest_spawning(delta):
+    if not GameManager.quest_mode or GameManager.quest_type == "find":
+        return
+    if GameManager.quest_type == "boss_mini":
+        return  # mini-boss spawned once
+    # Spawn wave cho kill quest — maintain _quest_max_concurrent alive
+    if _quest_total_spawned >= _quest_target_kills:
+        return  # đã spawn đủ
+    _quest_spawn_cooldown -= delta
+    if _quest_spawn_cooldown > 0:
+        return
+    # Count alive AI
+    var alive_ai = 0
+    for ai in ai_container.get_children():
+        if ai is CharacterBody2D and ai.is_alive:
+            alive_ai += 1
+    if alive_ai < _quest_max_concurrent:
+        _spawn_one_quest_ai()
+        _quest_spawn_cooldown = float(_quest_preset.get("spawn_interval", 3.0))
 
 func _spawn_boss():
     var boss = boss_scene.instantiate()
@@ -338,6 +571,8 @@ func _process(delta):
     _check_stage_time_warning()
     # v3.8: Low HP pickup arrow (point to nearest health pickup)
     _update_low_hp_pickup_arrow()
+    # v3.9: Quest mode spawning (maintain concurrent AI)
+    _process_quest_spawning(delta)
 
 ## v3.8: Setup pause menu (code-based, không cần scene riêng)
 func _setup_pause_menu():
@@ -518,6 +753,9 @@ func _pause_retry():
     _is_paused = false
     get_tree().paused = false
     AudioManager.play_ui_click()
+    # v3.9: Reset quest state nếu đang trong quest mode
+    if GameManager.quest_mode:
+        GameManager.reset_stage_flags()
     get_tree().reload_current_scene()
 
 func _pause_settings():
@@ -530,6 +768,9 @@ func _pause_to_menu():
     _is_paused = false
     get_tree().paused = false
     AudioManager.play_cancel()
+    # v3.9: End quest mode khi về menu (clear state)
+    if GameManager.quest_mode:
+        GameManager.end_quest_mode()
     get_tree().change_scene_to_file("res://scenes/menu.tscn")
 
 ## v3.8: Setup low-HP vignette (red border pulse when HP < 30%)
@@ -775,6 +1016,31 @@ func _spawn_screen_flash(color: Color, duration: float):
     tween.tween_callback(flash.queue_free)
 
 func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
+    # v3.9: Quest mode routing — nếu đang trong quest, gọi on_quest_kill
+    # thay vì on_ai_killed_in_stage (để không trigger _complete_stage flow).
+    if GameManager.quest_mode:
+        GameManager.on_quest_kill()
+        if killer == player:
+            hud._add_kill_feed("Bạn đã tiêu diệt %s!" % ai.ai_name, Color(0.2, 1.0, 0.2))
+            AudioManager.play_kill()
+            AudioManager.play_achievement()
+            _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.20), 0.25)
+            apply_screen_shake(4.0, 0.2)
+            _kill_streak += 1
+            _kill_streak_timer = KILL_STREAK_WINDOW
+            _update_kill_streak_label()
+            if _kill_streak > SettingsManager.best_kill_streak:
+                SettingsManager.best_kill_streak = _kill_streak
+                SettingsManager.save_settings()
+            if ProgressionManager:
+                ProgressionManager.add_coins(15)  # small reward per quest kill
+                if _kill_streak >= 5:
+                    ProgressionManager.unlock_achievement("kill_streak_5")
+                if _kill_streak >= 10:
+                    ProgressionManager.unlock_achievement("kill_streak_10")
+        else:
+            hud._add_kill_feed("%s đã bị tiêu diệt" % ai.ai_name, Color(1.0, 0.5, 0.2))
+        return
     # v3.5: Stage mode — notify GameManager
     GameManager.on_ai_killed_in_stage()
     if killer == player:

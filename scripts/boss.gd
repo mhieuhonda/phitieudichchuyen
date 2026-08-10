@@ -75,7 +75,9 @@ const PHASE2_SPREAD_ANGLE: float = 0.35  # radians (~20° mỗi bên)
 var _hurt_flash_timer: float = 0.0
 
 # Boss damage (v3.7: < 4x player dart — player dart = 25, 4x = 100, boss = 80)
-const BOSS_DART_DAMAGE: float = 80.0
+# v3.9: Dùng StageManager.BOSS_DART_DAMAGE làm single source of truth (trước đây
+#       boss.gd và stage_manager.gd đều define const BOSS_DART_DAMAGE = 80, dễ lệch).
+const BOSS_DART_DAMAGE: float = StageManager.BOSS_DART_DAMAGE
 
 signal boss_damaged(amount: float, current_hp: float, max_hp: float)
 signal boss_died(boss: Node2D)

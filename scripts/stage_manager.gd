@@ -1,18 +1,20 @@
 extends Node
 
-## StageManager - Quản lý 20 ải vượt ải (v3.5)
+## StageManager - Quản lý 20 ải vượt ải (v3.9)
 ## Singleton autoload. Lưu tiến độ vào user://progress.cfg
 ## - current_stage: ải đang chơi (1..20)
 ## - max_stage_unlocked: ải cao nhất đã mở khóa (1..20)
 ## - attempts_per_stage: số lần thử mỗi ải
 ## - best_time_per_stage: thời gian hoàn thành tốt nhất mỗi ải
 ##
+## v3.9: Thêm get_quest_difficulty() cho Quest Mode — preset theo loài yêu cầu.
+##       Cân bằng lại đường cong AI dmg_mult (0.80→1.30) để ải cuối cảm thấy nguy hiểm.
 ## Cấu hình 20 ải:
 ##  - Ải 1-5:   1 AI, info thấp (dodge/accuracy thấp, không kiting)
 ##  - Ải 6-10:  2 AI, info trung bình (có kiting nhẹ, né đôi chút)
 ##  - Ải 11-15: 3 AI, info cao (kiting, prediction tốt, né dart)
 ##  - Ải 16-19: 4 AI, info rất cao (full skills: kiting, prediction, dodge, flee, pursuit)
-##  - Ải 20:    BOSS CUỐI — 10M HP, laser, sweep rage ở 10% HP
+##  - Ải 20:    BOSS CUỐI — 12M HP, laser, sweep rage ở 12% HP
 
 signal stage_started(stage: int)
 signal stage_completed(stage: int, time_seconds: float)
@@ -134,7 +136,8 @@ func get_ai_count_for_stage(stage: int) -> int:
     return 4  # 16..19
 
 ## Thông số AI theo ải (dodge, accuracy, kiting, prediction...)
-## v3.7: Tăng độ khó — đường cong tăng nhanh hơn từ ải 1→19
+## v3.9: Tinh chỉnh lại — dmg_mult nâng lên 0.80→1.30 (trước 1.25) để ải cuối nguy hiểm hơn.
+##       HP mult giảm nhẹ ở ải giữa để tránh sponginess, tăng nhẹ ở ải cuối.
 func get_ai_intelligence_for_stage(stage: int) -> Dictionary:
     # progress 0..1 theo stage (1 -> 0.0, 19 -> 1.0)
     # v3.7: dùng curve mũ nhẹ để ải đầu khó hơn + ải cuối khó hơn nữa
@@ -149,9 +152,62 @@ func get_ai_intelligence_for_stage(stage: int) -> Dictionary:
         "flee_hp_threshold": lerp(0.25, 0.45, t_curved),
         "pursuit_speed_mult": lerp(1.10, 1.40, t_curved), # v3.7: tăng pursuit
         "pickup_seeking": stage >= 6,                     # v3.7: AI nhặt pickup từ ải 6 (trước 8)
-        "ai_hp_mult": lerp(0.90, 1.55, t_curved),         # v3.7: tăng HP mult
-        "ai_dmg_mult": lerp(0.80, 1.25, t_curved),        # v3.7: tăng dmg mult
+        "ai_hp_mult": lerp(0.85, 1.60, t_curved),         # v3.9: 0.90→1.55 thành 0.85→1.60
+        "ai_dmg_mult": lerp(0.80, 1.30, t_curved),        # v3.9: 0.80→1.25 thành 0.80→1.30
     }
+
+## v3.9: Quest difficulty preset — cấu hình AI cho quest scene theo quest type
+## Trả về Dictionary với các key:
+##   ai_count, hp_mult, dmg_mult, dodge_chance, accuracy, kite_distance, pursuit_speed_mult, mini_boss
+func get_quest_difficulty(quest: Dictionary) -> Dictionary:
+    var target_str = String(quest.get("target", "")).to_lower()
+    var qid = String(quest.get("id", ""))
+    # Parse số kill
+    var num_kills = 5
+    if target_str.begins_with("kill"):
+        var parts = target_str.split(" ", false)
+        if parts.size() >= 2:
+            num_kills = int(parts[1])
+    # Quest có yêu cầu team ≥3 → khó hơn
+    var req_team = int(quest.get("require_min_team", 1))
+    var difficulty_tier = 0  # 0=easy, 1=medium, 2=hard, 3=very_hard
+    if target_str.find("boss") >= 0:
+        difficulty_tier = 2  # mini-boss fight
+    elif num_kills >= 15:
+        difficulty_tier = 3  # very hard
+    elif num_kills >= 10:
+        difficulty_tier = 2
+    elif num_kills >= 6:
+        difficulty_tier = 1
+    else:
+        difficulty_tier = 0
+    # Tier-based stats
+    var presets = [
+        # easy: 1-5 kills, 2-3 AI spawn, low HP/dodge
+        {"ai_count": 2, "hp_mult": 0.95, "dmg_mult": 0.90, "dodge_chance": 0.30,
+         "accuracy": 0.65, "kite_distance": 220.0, "pursuit_speed_mult": 1.15,
+         "mini_boss": false, "spawn_interval": 4.0},
+        # medium: 6-9 kills, 3 AI spawn, mid stats
+        {"ai_count": 3, "hp_mult": 1.10, "dmg_mult": 1.00, "dodge_chance": 0.45,
+         "accuracy": 0.75, "kite_distance": 260.0, "pursuit_speed_mult": 1.20,
+         "mini_boss": false, "spawn_interval": 3.5},
+        # hard: 10-14 kills or mini-boss, 4 AI spawn, high stats
+        {"ai_count": 4, "hp_mult": 1.25, "dmg_mult": 1.10, "dodge_chance": 0.60,
+         "accuracy": 0.85, "kite_distance": 290.0, "pursuit_speed_mult": 1.30,
+         "mini_boss": (target_str.find("boss") >= 0), "spawn_interval": 3.0},
+        # very hard: 15+ kills, 4 AI + mini-boss, top stats
+        {"ai_count": 4, "hp_mult": 1.45, "dmg_mult": 1.20, "dodge_chance": 0.75,
+         "accuracy": 0.92, "kite_distance": 320.0, "pursuit_speed_mult": 1.40,
+         "mini_boss": (target_str.find("boss") >= 0), "spawn_interval": 2.5},
+    ]
+    var preset = presets[difficulty_tier]
+    # Reward scales với difficulty — bonus HL Coin + reputation
+    var reward_bonus = [0, 25, 60, 120][difficulty_tier]
+    preset["reward_bonus"] = reward_bonus
+    preset["max_player_deaths"] = 3 if difficulty_tier >= 2 else 2
+    preset["spawn_count"] = num_kills
+    preset["is_find_quest"] = (target_str.find("find") >= 0)
+    return preset
 
 ## Số lần chết tối đa trong ải trước khi fail (v3.7: giảm để tăng độ khó)
 func get_max_deaths_per_stage(stage: int) -> int:

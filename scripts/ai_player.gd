@@ -618,7 +618,13 @@ func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
                 return  # bỏ qua — không gây damage cho AI khác
         if hit_player.has_method("take_damage_from"):
                 var was_alive = hit_player.is_alive if "is_alive" in hit_player else true
+                # v3.9: FIX BUG — áp dụng ai_dmg_mult (config từ StageManager) cho AI damage.
+                # Trước đây: dmg_mult 0.80→1.25 đã được định nghĩa nhưng không bao giờ dùng
+                #   → AI ở ải 1 và ải 19 gây cùng damage, chỉ HP và dodge scale.
+                # Giờ: dmg = base * power * ai_dmg_mult (qua helper compute_ai_dart_damage).
                 var dmg = GameManager.dart_hit_damage * dart.power
+                if GameManager and GameManager.has_method("compute_ai_dart_damage"):
+                        dmg = GameManager.compute_ai_dart_damage(dart.power)
                 hit_player.take_damage_from(dmg, self)
                 if was_alive and "is_alive" in hit_player and not hit_player.is_alive:
                         # v3.5: Nếu player bị AI giết — không ghi score cho AI
@@ -834,4 +840,11 @@ func heal(amount: float):
 ## AI nhặt dart refill
 func refill_darts(bonus: int, duration: float):
         current_hp = min(current_hp + 15.0, current_max_hp)
+        _update_hp_bar()
+
+# v3.9: Setter cho quest mode — override HP với mult riêng (bỏ qua stage hp_mult).
+# Gọi từ main.gd::_spawn_one_quest_ai / _spawn_quest_mini_boss.
+func set_quest_hp_mult(mult: float):
+        current_max_hp = GameManager.compute_max_hp_for_size(current_size) * mult
+        current_hp = current_max_hp
         _update_hp_bar()
