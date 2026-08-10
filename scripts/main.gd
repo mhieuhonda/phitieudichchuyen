@@ -96,6 +96,9 @@ func _ready():
     GameManager.stage_cleared.connect(_on_stage_cleared)
     GameManager.stage_failed_signal.connect(_on_stage_failed)
     GameManager.game_over.connect(_on_game_over)
+    # v3.8: Achievement toast notifications
+    if ProgressionManager:
+        ProgressionManager.achievement_unlocked.connect(_on_achievement_unlocked)
 
     _setup_camera()
 
@@ -138,6 +141,100 @@ func _on_boss_phase2(_boss: Node2D):
     hud._show_big_banner("PHASE 2!", Color(1.0, 0.5, 0.2, 1.0), 2.0)
     _spawn_screen_flash(Color(1.0, 0.4, 0.2, 0.30), 0.6)
     apply_screen_shake(6.0, 0.4)
+
+## v3.8: Achievement toast notification — hiển thị popup khi unlock achievement
+func _on_achievement_unlocked(achievement_id: String):
+    if not ProgressionManager:
+        return
+    var def = ProgressionManager.ACHIEVEMENTS_DEF.get(achievement_id, {})
+    if def.is_empty():
+        return
+    var name = def.get("name", achievement_id)
+    var desc = def.get("desc", "")
+    var coins = int(def.get("coins", 0))
+    # Toast popup
+    _show_achievement_toast(name, desc, coins)
+    AudioManager.play_achievement()
+    AudioManager.play_variation("sparkle", 1.0, 1.1)
+
+## v3.8: Show achievement toast popup ở giữa-top màn hình
+var _achievement_toast_panel: Panel = null
+func _show_achievement_toast(name: String, desc: String, coins: int):
+    # Remove existing toast if any
+    if _achievement_toast_panel and is_instance_valid(_achievement_toast_panel):
+        _achievement_toast_panel.queue_free()
+    _achievement_toast_panel = Panel.new()
+    _achievement_toast_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    _achievement_toast_panel.offset_left = -180
+    _achievement_toast_panel.offset_right = 180
+    _achievement_toast_panel.offset_top = 80
+    _achievement_toast_panel.offset_bottom = 165
+    _achievement_toast_panel.z_index = 250
+    var style = StyleBoxFlat.new()
+    style.bg_color = Color(0.10, 0.06, 0.02, 0.97)
+    style.border_color = Color(1.0, 0.85, 0.3, 0.85)
+    style.border_width_top = 3
+    style.border_width_bottom = 3
+    style.border_width_left = 3
+    style.border_width_right = 3
+    style.corner_radius_top_left = 12
+    style.corner_radius_top_right = 12
+    style.corner_radius_bottom_left = 12
+    style.corner_radius_bottom_right = 12
+    style.shadow_color = Color(0.4, 0.3, 0.0, 0.6)
+    style.shadow_size = 18
+    _achievement_toast_panel.add_theme_stylebox_override("panel", style)
+    hud.add_child(_achievement_toast_panel)
+    # Title
+    var title = Label.new()
+    title.text = "🏆 THÀNH TỰU!"
+    title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    title.offset_left = -160
+    title.offset_right = 160
+    title.offset_top = 8
+    title.offset_bottom = 30
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_size_override("font_size", 16)
+    title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+    _achievement_toast_panel.add_child(title)
+    # Name
+    var name_lbl = Label.new()
+    name_lbl.text = name
+    name_lbl.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    name_lbl.offset_left = -160
+    name_lbl.offset_right = 160
+    name_lbl.offset_top = 32
+    name_lbl.offset_bottom = 55
+    name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    name_lbl.add_theme_font_size_override("font_size", 18)
+    name_lbl.add_theme_color_override("font_color", Color(0.95, 0.95, 1.0))
+    _achievement_toast_panel.add_child(name_lbl)
+    # Description + coins
+    var desc_lbl = Label.new()
+    desc_lbl.text = "%s\n💰 +%d HL Coin" % [desc, coins]
+    desc_lbl.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    desc_lbl.offset_left = -160
+    desc_lbl.offset_right = 160
+    desc_lbl.offset_top = 58
+    desc_lbl.offset_bottom = 85
+    desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    desc_lbl.add_theme_font_size_override("font_size", 12)
+    desc_lbl.add_theme_color_override("font_color", Color(0.75, 0.78, 0.88))
+    _achievement_toast_panel.add_child(desc_lbl)
+    # Animate in
+    _achievement_toast_panel.modulate.a = 0.0
+    _achievement_toast_panel.scale = Vector2(0.85, 0.85)
+    var tween = create_tween().set_parallel(true)
+    tween.tween_property(_achievement_toast_panel, "modulate:a", 1.0, 0.25).set_trans(Tween.TRANS_QUAD)
+    tween.tween_property(_achievement_toast_panel, "scale", Vector2(1.0, 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+    # Auto-remove after 3.5s
+    var toast_ref = _achievement_toast_panel
+    get_tree().create_timer(3.5).timeout.connect(func():
+        if is_instance_valid(toast_ref):
+            var fade = create_tween().set_parallel(true)
+            fade.tween_property(toast_ref, "modulate:a", 0.0, 0.4).set_trans(Tween.TRANS_QUAD)
+            fade.tween_property(toast_ref, "scale", Vector2(0.92, 0.92), 0.4)
+            fade.chain().tween_callback(toast_ref.queue_free))
 
 func _spawn_ai_players():
     for i in GameManager.num_ai_players:
