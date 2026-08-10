@@ -124,10 +124,71 @@ func _ready():
         rage_aura.color = Color(1.0, 0.15, 0.05, 0.85)
     # Boss spawn sound
     _play_spawn_sound()
+    # v3.8: Dramatic spawn effect — particle ring expanding outward + screen shake
+    _spawn_dramatic_entrance()
     # Initial state
     current_state = BossState.IDLE
     state_timer = 1.5  # 1.5s idle đầu tiên
     laser_cooldown = 3.0  # 3s đầu không bắn laser
+
+## v3.8: Dramatic spawn effect khi boss xuất hiện
+func _spawn_dramatic_entrance():
+    if SettingsManager.get_particle_multiplier() > 0:
+        # 3-wave particle burst outward
+        for i in 3:
+            var wave = CPUParticles2D.new()
+            wave.emitting = true
+            wave.one_shot = true
+            wave.explosiveness = 0.95
+            wave.amount = max(8, int(25 * SettingsManager.get_particle_multiplier()))
+            wave.lifetime = 0.8
+            wave.direction = Vector2(0, -1)
+            wave.spread = 180.0
+            wave.initial_velocity_min = 150 + i * 80
+            wave.initial_velocity_max = 280 + i * 100
+            wave.gravity = Vector2.ZERO
+            wave.scale_amount_min = 4
+            wave.scale_amount_max = 9
+            var colors = [Color(1.0, 0.2, 0.1, 0.95), Color(1.0, 0.5, 0.2, 0.9), Color(0.8, 0.1, 0.4, 0.9)]
+            wave.color = colors[i]
+            get_parent().add_child(wave)
+            wave.global_position = global_position
+            # Stagger
+            var delay = i * 0.12
+            var wave_ref = wave
+            create_tween().tween_interval(delay).tween_callback(func():
+                if is_instance_valid(wave_ref):
+                    wave_ref.emitting = true)
+            get_tree().create_timer(2.0).timeout.connect(wave.queue_free)
+    # Big screen shake
+    GameManager.request_screen_shake(8.0, 0.6)
+
+## v3.8: Spawn 1 particle朝着 boss hướng về phía player (laser charge buildup)
+## Hỗ trợ visual telegraph cho player biết laser sắp bắn theo hướng nào.
+func _spawn_laser_charge_particle():
+    if not is_instance_valid(target_player):
+        return
+    var dir = (target_player.global_position - global_position).normalized()
+    if dir == Vector2.ZERO:
+        dir = Vector2.RIGHT
+    var spark = CPUParticles2D.new()
+    spark.emitting = true
+    spark.one_shot = true
+    spark.explosiveness = 0.9
+    spark.amount = max(1, int(3 * SettingsManager.get_particle_multiplier()))
+    spark.lifetime = 0.3
+    spark.direction = -dir  # particle bay ngược lại (về phía boss)
+    spark.spread = 30.0
+    spark.initial_velocity_min = 80
+    spark.initial_velocity_max = 180
+    spark.gravity = Vector2.ZERO
+    spark.scale_amount_min = 2
+    spark.scale_amount_max = 4
+    spark.color = Color(1.0, 0.5, 0.2, 0.85)
+    get_parent().add_child(spark)
+    # Spawn particle ở phía trước boss (hướng player), bay về boss
+    spark.global_position = global_position + dir * 80
+    get_tree().create_timer(0.5).timeout.connect(spark.queue_free)
 
 func _play_spawn_sound():
     AudioManager.play_variation("drum_crash", 4.0, 0.8)
@@ -200,6 +261,9 @@ func _update_state(delta):
                 state_timer = randf_range(0.5, 1.0)
         BossState.LASER_CHARGE:
             velocity *= 0.3
+            # v3.8: Particle buildup at boss during charge phase
+            if SettingsManager.get_particle_multiplier() > 0 and randf() < 0.5:
+                _spawn_laser_charge_particle()
             if state_timer <= 0:
                 _fire_laser()
         BossState.LASER_FIRE:
