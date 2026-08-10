@@ -27,7 +27,8 @@ COPY server.py .
 EXPOSE 3000
 
 # Healthcheck (Coolify uses wget -qO- http://localhost:3000/health)
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 --start-period=30s \
+# Long start_period: DB schema init can take 30+ seconds on first run
+HEALTHCHECK --interval=10s --timeout=5s --retries=10 --start-period=120s \
     CMD wget -qO- http://localhost:3000/health || exit 1
 
 # Run server

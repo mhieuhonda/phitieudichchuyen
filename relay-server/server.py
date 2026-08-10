@@ -110,64 +110,79 @@ db_pool: asyncpg.Pool | None = None
 redis_client: redis_async.Redis | None = None
 
 async def init_db():
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist. Non-fatal: server starts even if DB fails."""
     global db_pool, redis_client
-    db_pool = await asyncpg.create_pool(
-        dsn=DB_DSN,
-        min_size=2,
-        max_size=10,
-        command_timeout=15.0,
-    )
-    redis_client = redis_async.from_url(REDIS_URL, decode_responses=True)
-    # Test connections
+    try:
+        db_pool = await asyncpg.create_pool(
+            dsn=DB_DSN,
+            min_size=1,
+            max_size=8,
+            command_timeout=30.0,
+        )
+        async with db_pool.acquire() as conn:
+            await conn.execute("SELECT 1")
+            log.info("Connected to PostgreSQL")
+    except Exception as e:
+        log.error(f"PostgreSQL connection FAILED: {e}")
+        db_pool = None
+        # Don't return — try Redis, server will start but DB endpoints will fail
+    try:
+        redis_client = redis_async.from_url(REDIS_URL, decode_responses=True)
+        await redis_client.ping()
+        log.info("Connected to Redis")
+    except Exception as e:
+        log.error(f"Redis connection FAILED: {e}")
+        redis_client = None
+    # Create schema (skip if DB unavailable)
+    if db_pool is None:
+        log.warning("Database unavailable — server starting in degraded mode (REST API will return 503)")
+        return
+    schema_statements = [
+        """CREATE TABLE IF NOT EXISTS users (
+            id BIGSERIAL PRIMARY KEY,
+            username VARCHAR(32) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            display_name VARCHAR(32) NOT NULL,
+            title VARCHAR(64) NOT NULL DEFAULT 'Tan Binh',
+            level INTEGER NOT NULL DEFAULT 1,
+            exp INTEGER NOT NULL DEFAULT 0,
+            online_streak INTEGER NOT NULL DEFAULT 0,
+            last_login_date DATE,
+            last_seen_at TIMESTAMPTZ,
+            total_matches INTEGER NOT NULL DEFAULT 0,
+            total_wins INTEGER NOT NULL DEFAULT 0,
+            total_kills INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )""",
+        """CREATE TABLE IF NOT EXISTS sessions (
+            token VARCHAR(64) PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            expires_at TIMESTAMPTZ NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS match_history (
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            match_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            kills INTEGER NOT NULL DEFAULT 0,
+            score INTEGER NOT NULL DEFAULT 0,
+            won BOOLEAN NOT NULL DEFAULT FALSE,
+            exp_gained INTEGER NOT NULL DEFAULT 0
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_users_level ON users(level DESC, exp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_match_history_user ON match_history(user_id, match_date DESC)",
+    ]
     async with db_pool.acquire() as conn:
-        await conn.execute("SELECT 1")
-        log.info("Connected to PostgreSQL")
-    await redis_client.ping()
-    log.info("Connected to Redis")
-    # Create schema
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id BIGSERIAL PRIMARY KEY,
-                username VARCHAR(32) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                display_name VARCHAR(32) NOT NULL,
-                title VARCHAR(64) NOT NULL DEFAULT 'Tân Binh',
-                level INTEGER NOT NULL DEFAULT 1,
-                exp INTEGER NOT NULL DEFAULT 0,
-                online_streak INTEGER NOT NULL DEFAULT 0,
-                last_login_date DATE,
-                last_seen_at TIMESTAMPTZ,
-                total_matches INTEGER NOT NULL DEFAULT 0,
-                total_wins INTEGER NOT NULL DEFAULT 0,
-                total_kills INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS sessions (
-                token VARCHAR(64) PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                expires_at TIMESTAMPTZ NOT NULL
-            )
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS match_history (
-                id BIGSERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                match_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                kills INTEGER NOT NULL DEFAULT 0,
-                score INTEGER NOT NULL DEFAULT 0,
-                won BOOLEAN NOT NULL DEFAULT FALSE,
-                exp_gained INTEGER NOT NULL DEFAULT 0
-            )
-        """)
-        await conn.execute("CREATE INDEX IF NOT EXISTS idx_users_level ON users(level DESC, exp DESC)")
-        await conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
-        await conn.execute("CREATE INDEX IF NOT EXISTS idx_match_history_user ON match_history(user_id, match_date DESC)")
-        log.info("Database schema initialized")
+        for i, stmt in enumerate(schema_statements):
+            try:
+                await conn.execute(stmt)
+                log.info(f"Schema statement {i+1}/{len(schema_statements)} OK")
+            except Exception as e:
+                log.error(f"Schema statement {i+1} FAILED: {e}")
+                log.error(f"Statement: {stmt[:200]}")
+                # Continue with other statements
+        log.info("Database schema initialization complete")
 
 async def close_db():
     global db_pool, redis_client
@@ -320,13 +335,14 @@ def user_to_public_dict(user: dict) -> dict:
 # === REST endpoints ===
 
 async def health_handler(request: web.Request) -> web.Response:
-    online = await get_online_count()
+    # v4.1: Healthcheck must NOT depend on Redis/PG — just verify HTTP server is up
     return web.json_response({
         "status": "ok",
         "service": "phitieu-multiplayer",
         "version": "4.1",
+        "db_ready": db_pool is not None,
+        "redis_ready": redis_client is not None,
         "clients_online": len(clients),
-        "users_online": online,
         "rooms_active": len(rooms),
     })
 
@@ -439,12 +455,13 @@ async def api_register(request: web.Request) -> web.Response:
             return web.json_response({"error": "Tên đăng nhập đã tồn tại"}, status=409)
         # Create user
         pw_hash = hash_password(password)
+        # Use parameter binding for Vietnamese title (safe with asyncpg UTF-8)
         row = await conn.fetchrow("""
             INSERT INTO users (username, password_hash, display_name, title)
-            VALUES ($1, $2, $3, 'Tân Binh')
+            VALUES ($1, $2, $3, $4)
             RETURNING id, username, display_name, title, level, exp, online_streak,
                       total_matches, total_wins, total_kills
-        """, username, pw_hash, display_name)
+        """, username, pw_hash, display_name, "Tân Binh")
     user = dict(row)
     await update_login_streak(user["id"])
     await refresh_user_seen(user["id"])
