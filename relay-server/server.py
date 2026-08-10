@@ -138,7 +138,7 @@ async def init_db():
         log.warning("Database unavailable — server starting in degraded mode (REST API will return 503)")
         return
     schema_statements = [
-        """CREATE TABLE IF NOT EXISTS users (
+        """CREATE TABLE IF NOT EXISTS phitieu_users (
             id BIGSERIAL PRIMARY KEY,
             username VARCHAR(32) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
@@ -154,24 +154,24 @@ async def init_db():
             total_kills INTEGER NOT NULL DEFAULT 0,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )""",
-        """CREATE TABLE IF NOT EXISTS sessions (
+        """CREATE TABLE IF NOT EXISTS phitieu_sessions (
             token VARCHAR(64) PRIMARY KEY,
-            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL REFERENCES phitieu_users(id) ON DELETE CASCADE,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             expires_at TIMESTAMPTZ NOT NULL
         )""",
-        """CREATE TABLE IF NOT EXISTS match_history (
+        """CREATE TABLE IF NOT EXISTS phitieu_match_history (
             id BIGSERIAL PRIMARY KEY,
-            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL REFERENCES phitieu_users(id) ON DELETE CASCADE,
             match_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             kills INTEGER NOT NULL DEFAULT 0,
             score INTEGER NOT NULL DEFAULT 0,
             won BOOLEAN NOT NULL DEFAULT FALSE,
             exp_gained INTEGER NOT NULL DEFAULT 0
         )""",
-        "CREATE INDEX IF NOT EXISTS idx_users_level ON users(level DESC, exp DESC)",
-        "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
-        "CREATE INDEX IF NOT EXISTS idx_match_history_user ON match_history(user_id, match_date DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_phitieu_users_level ON phitieu_users(level DESC, exp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_phitieu_sessions_user ON phitieu_sessions(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_phitieu_match_history_user ON phitieu_match_history(user_id, match_date DESC)",
     ]
     async with db_pool.acquire() as conn:
         for i, stmt in enumerate(schema_statements):
@@ -224,8 +224,8 @@ async def get_user_by_token(token: str) -> dict | None:
         return None
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow("""
-            SELECT u.* FROM users u
-            JOIN sessions s ON s.user_id = u.id
+            SELECT u.* FROM phitieu_users u
+            JOIN phitieu_sessions s ON s.user_id = u.id
             WHERE s.token = $1 AND s.expires_at > NOW()
         """, token)
         return dict(row) if row else None
@@ -234,21 +234,21 @@ async def create_session(user_id: int) -> str:
     token = generate_token()
     async with db_pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO sessions (token, user_id, expires_at)
+            INSERT INTO phitieu_sessions (token, user_id, expires_at)
             VALUES ($1, $2, NOW() + INTERVAL '%d seconds')
         """ % TOKEN_TTL_SEC, token, user_id)
     return token
 
 async def delete_session(token: str):
     async with db_pool.acquire() as conn:
-        await conn.execute("DELETE FROM sessions WHERE token = $1", token)
+        await conn.execute("DELETE FROM phitieu_sessions WHERE token = $1", token)
 
 async def update_login_streak(user_id: int) -> int:
     """Update online streak; returns new streak value."""
     today = date.today()
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT last_login_date, online_streak FROM users WHERE id = $1", user_id
+            "SELECT last_login_date, online_streak FROM phitieu_users WHERE id = $1", user_id
         )
         if not row:
             return 0
@@ -266,7 +266,7 @@ async def update_login_streak(user_id: int) -> int:
             else:
                 streak = 1
         await conn.execute(
-            "UPDATE users SET last_login_date = $1, online_streak = $2 WHERE id = $3",
+            "UPDATE phitieu_users SET last_login_date = $1, online_streak = $2 WHERE id = $3",
             today, streak, user_id,
         )
         return streak
@@ -279,7 +279,7 @@ async def refresh_user_seen(user_id: int):
     if db_pool:
         async with db_pool.acquire() as conn:
             await conn.execute(
-                "UPDATE users SET last_seen_at = NOW() WHERE id = $1", user_id
+                "UPDATE phitieu_users SET last_seen_at = NOW() WHERE id = $1", user_id
             )
 
 async def is_user_online(user_id: int) -> bool:
@@ -450,14 +450,14 @@ async def api_register(request: web.Request) -> web.Response:
         display_name = display_name[:32]
     # Check username exists
     async with db_pool.acquire() as conn:
-        existing = await conn.fetchval("SELECT id FROM users WHERE username = $1", username)
+        existing = await conn.fetchval("SELECT id FROM phitieu_users WHERE username = $1", username)
         if existing:
             return web.json_response({"error": "Tên đăng nhập đã tồn tại"}, status=409)
         # Create user
         pw_hash = hash_password(password)
         # Use parameter binding for Vietnamese title (safe with asyncpg UTF-8)
         row = await conn.fetchrow("""
-            INSERT INTO users (username, password_hash, display_name, title)
+            INSERT INTO phitieu_users (username, password_hash, display_name, title)
             VALUES ($1, $2, $3, $4)
             RETURNING id, username, display_name, title, level, exp, online_streak,
                       total_matches, total_wins, total_kills
@@ -482,7 +482,7 @@ async def api_login(request: web.Request) -> web.Response:
         row = await conn.fetchrow("""
             SELECT id, username, password_hash, display_name, title, level, exp,
                    online_streak, last_login_date, total_matches, total_wins, total_kills
-            FROM users WHERE username = $1
+            FROM phitieu_users WHERE username = $1
         """, username)
     if not row or not verify_password(password, row["password_hash"]):
         return web.json_response({"error": "Sai tên đăng nhập hoặc mật khẩu"}, status=401)
@@ -504,7 +504,7 @@ async def api_me(request: web.Request) -> web.Response:
         row = await conn.fetchrow("""
             SELECT id, username, display_name, title, level, exp, online_streak,
                    total_matches, total_wins, total_kills
-            FROM users WHERE id = $1
+            FROM phitieu_users WHERE id = $1
         """, user["id"])
     return web.json_response({"user": user_to_public_dict(dict(row))})
 
@@ -523,7 +523,7 @@ async def api_profile(request: web.Request) -> web.Response:
         row = await conn.fetchrow("""
             SELECT id, username, display_name, title, level, exp, online_streak,
                    total_matches, total_wins, total_kills
-            FROM users WHERE username = $1
+            FROM phitieu_users WHERE username = $1
         """, username)
     if not row:
         return web.json_response({"error": "Không tìm thấy người chơi"}, status=404)
@@ -541,7 +541,7 @@ async def api_leaderboard(request: web.Request) -> web.Response:
         rows = await conn.fetch("""
             SELECT id, username, display_name, title, level, exp, online_streak,
                    total_matches, total_wins, total_kills
-            FROM users
+            FROM phitieu_users
             ORDER BY level DESC, exp DESC, total_wins DESC
             LIMIT $1
         """, limit)
@@ -578,7 +578,7 @@ async def api_match_result(request: web.Request) -> web.Response:
     async with db_pool.acquire() as conn:
         async with conn.transaction():
             row = await conn.fetchrow("""
-                UPDATE users
+                UPDATE phitieu_users
                 SET exp = exp + $1,
                     level = GREATEST(level, 1),
                     total_matches = total_matches + 1,
@@ -592,18 +592,18 @@ async def api_match_result(request: web.Request) -> web.Response:
             new_level = level_from_exp(new_exp)
             new_title = title_for_level(new_level)
             await conn.execute("""
-                UPDATE users SET level = $1, title = $2 WHERE id = $3
+                UPDATE phitieu_users SET level = $1, title = $2 WHERE id = $3
             """, new_level, new_title, user["id"])
             # Save match history
             await conn.execute("""
-                INSERT INTO match_history (user_id, kills, score, won, exp_gained)
+                INSERT INTO phitieu_match_history (user_id, kills, score, won, exp_gained)
                 VALUES ($1, $2, $3, $4, $5)
             """, user["id"], kills, score, won, exp_gained)
             # Fetch full updated user
             row2 = await conn.fetchrow("""
                 SELECT id, username, display_name, title, level, exp, online_streak,
                        total_matches, total_wins, total_kills
-                FROM users WHERE id = $1
+                FROM phitieu_users WHERE id = $1
             """, user["id"])
     pub = user_to_public_dict(dict(row2))
     leveled_up = new_level > int(user["level"])
@@ -1053,7 +1053,7 @@ async def end_game_after(room: Room, delay: float):
             async with db_pool.acquire() as conn:
                 async with conn.transaction():
                     row = await conn.fetchrow("""
-                        UPDATE users
+                        UPDATE phitieu_users
                         SET exp = exp + $1,
                             total_matches = total_matches + 1,
                             total_kills = total_kills + $2,
@@ -1067,10 +1067,10 @@ async def end_game_after(room: Room, delay: float):
                         new_title = title_for_level(new_level)
                         old_level = int(c.user["level"])
                         await conn.execute("""
-                            UPDATE users SET level = $1, title = $2 WHERE id = $3
+                            UPDATE phitieu_users SET level = $1, title = $2 WHERE id = $3
                         """, new_level, new_title, c.user["id"])
                         await conn.execute("""
-                            INSERT INTO match_history (user_id, kills, score, won, exp_gained)
+                            INSERT INTO phitieu_match_history (user_id, kills, score, won, exp_gained)
                             VALUES ($1, $2, $3, $4, $5)
                         """, c.user["id"], kills, score, won, exp_gained)
                         if new_level > old_level:
