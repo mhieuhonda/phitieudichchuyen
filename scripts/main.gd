@@ -123,6 +123,8 @@ func _ready():
         AudioManager.play_music("defeat")  # nhạc căng thẳng cho boss fight
     else:
         AudioManager.play_music("game")
+    # v3.8: Stage intro banner
+    _show_stage_intro_banner()
 
 func _spawn_enemies():
     if StageManager.is_final_stage():
@@ -996,6 +998,32 @@ func _check_stage_time_warning():
         hud._add_kill_feed("⏱ Đã %d phút — cố gắng hoàn thành!" % int(elapsed / 60), Color(1.0, 0.6, 0.2))
         hud._show_big_banner("⏰ HÃY NHANH LÊN!", Color(1.0, 0.6, 0.2, 1.0), 2.0)
         AudioManager.play_variation("warning", 0.0, 0.95)
+
+## v3.8: Show stage intro banner at start of each stage
+## Hiển thị "ẢI X" / "ẢI CUỐI — BOSS" khi bắt đầu stage
+func _show_stage_intro_banner():
+    var stage = StageManager.current_stage
+    var text = ""
+    var color = Color(1.0, 0.85, 0.3, 1.0)
+    if stage == StageManager.FINAL_STAGE:
+        text = "⚠ ẢI CUỐI — BOSS ⚠"
+        color = Color(1.0, 0.3, 0.2, 1.0)
+    elif stage <= 5:
+        text = "ẢI %d — KHỞI ĐẦU" % stage
+        color = Color(0.4, 1.0, 0.5, 1.0)
+    elif stage <= 10:
+        text = "ẢI %d — TRUNG BÌNH" % stage
+        color = Color(0.4, 0.9, 1.0, 1.0)
+    elif stage <= 15:
+        text = "ẢI %d — KHÓ" % stage
+        color = Color(1.0, 0.7, 0.2, 1.0)
+    else:
+        text = "ẢI %d — RẤT KHÓ" % stage
+        color = Color(1.0, 0.4, 0.3, 1.0)
+    # Delay 0.3s để HUD ready
+    await get_tree().create_timer(0.3).timeout
+    hud._show_big_banner(text, color, 2.5)
+    AudioManager.play_variation("drum_crash", 1.0, 0.95)
 
 ## v3.8: Setup low-HP pickup arrow
 func _setup_low_hp_pickup_arrow():
