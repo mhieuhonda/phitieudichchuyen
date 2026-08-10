@@ -556,8 +556,9 @@ func _die():
         if is_instance_valid(dart):
             dart.queue_free()
     all_darts.clear()
-    # Death explosion
+    # v3.8: Multi-stage death explosion — 5 waves over 1.5s
     _spawn_death_explosion()
+    _spawn_delayed_death_waves()
     # Death sound
     AudioManager.play_variation("explosion", 6.0, 0.7)
     AudioManager.play_variation("drum_crash", 5.0, 0.6)
@@ -572,7 +573,26 @@ func _die():
         rage_aura.emitting = false
     collision_shape.set_deferred("disabled", true)
     GameManager.request_screen_shake(15.0, 1.0)
+    # v3.8: Additional screen shake waves for dramatic effect
+    var shake_tween = create_tween()
+    for i in 3:
+        shake_tween.tween_callback(func():
+            GameManager.request_screen_shake(10.0 - i * 2.0, 0.4))
+        shake_tween.tween_interval(0.3)
     boss_died.emit(self)
+
+## v3.8: Spawn delayed death waves — 4 additional explosions after initial
+func _spawn_delayed_death_waves():
+    if SettingsManager.get_particle_multiplier() <= 0:
+        return
+    for i in 4:
+        var delay = 0.2 + i * 0.25
+        var delay_tween = create_tween()
+        delay_tween.tween_interval(delay)
+        delay_tween.tween_callback(func():
+            if not is_instance_valid(self):
+                return
+            _spawn_single_death_wave(i))
 
 func _spawn_death_explosion():
     if SettingsManager.get_particle_multiplier() <= 0:
@@ -602,6 +622,38 @@ func _spawn_death_explosion():
             if is_instance_valid(particles):
                 particles.emitting = true)
         get_tree().create_timer(2.5).timeout.connect(particles.queue_free)
+
+## v3.8: Spawn 1 single death wave — staggered explosions sau initial
+func _spawn_single_death_wave(wave_idx: int):
+    if SettingsManager.get_particle_multiplier() <= 0:
+        return
+    var particles = CPUParticles2D.new()
+    particles.emitting = true
+    particles.one_shot = true
+    particles.explosiveness = 0.95
+    particles.amount = max(1, int(30 * SettingsManager.get_particle_multiplier()))
+    particles.lifetime = 0.9
+    particles.direction = Vector2(0, -1)
+    particles.spread = 180.0
+    particles.initial_velocity_min = 150 + wave_idx * 50
+    particles.initial_velocity_max = 300 + wave_idx * 80
+    particles.gravity = Vector2(0, 150)
+    particles.scale_amount_min = 3
+    particles.scale_amount_max = 8
+    # Color shift per wave: red → orange → yellow → white
+    var colors = [
+        Color(1.0, 0.3, 0.1, 0.95),
+        Color(1.0, 0.6, 0.2, 0.9),
+        Color(1.0, 0.85, 0.3, 0.9),
+        Color(1.0, 1.0, 0.9, 0.95)
+    ]
+    particles.color = colors[wave_idx % colors.size()]
+    get_parent().add_child(particles)
+    # Random offset around death position
+    particles.global_position = global_position + Vector2(randf_range(-50, 50), randf_range(-50, 50))
+    # Sound per wave
+    AudioManager.play_variation("explosion", 3.0 + wave_idx, 0.8 - wave_idx * 0.1)
+    get_tree().create_timer(2.0).timeout.connect(particles.queue_free)
 
 ## API cho player check
 func is_boss() -> bool:
