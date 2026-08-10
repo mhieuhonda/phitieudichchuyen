@@ -10,6 +10,12 @@ LABEL version="4.0"
 
 WORKDIR /app
 
+# Install wget (needed by Coolify healthcheck: wget -qO- http://localhost:3000/health)
+# python:3.12-slim doesn't include wget by default.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies first (cached layer)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
