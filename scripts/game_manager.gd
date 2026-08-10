@@ -458,6 +458,9 @@ func _complete_stage():
             ProgressionManager.unlock_achievement("stage_10_clear")
         if stage >= 15:
             ProgressionManager.unlock_achievement("stage_15_clear")
+        # v3.8: All stages cleared achievement
+        if StageManager.max_stage_unlocked >= StageManager.TOTAL_STAGES:
+            ProgressionManager.unlock_achievement("all_stages_clear")
         # Update player level theo stage đã mở khóa
         ProgressionManager.gain_xp_and_level(0)
         # v3.8: Perfect stage bonus — không chết trong ải = bonus HL Coin
@@ -465,6 +468,8 @@ func _complete_stage():
             var perfect_bonus = 50 + stage * 10  # ải càng cao, bonus càng lớn
             ProgressionManager.add_coins(perfect_bonus)
             _last_perfect_bonus = perfect_bonus
+            # v3.8: Perfect stage achievement
+            ProgressionManager.unlock_achievement("perfect_stage")
         else:
             _last_perfect_bonus = 0
         # v3.8: Speed bonus — hoàn thành dưới 60s = bonus HL Coin
@@ -472,6 +477,8 @@ func _complete_stage():
             var speed_bonus = 30 + int((60.0 - elapsed) * 1.0)
             ProgressionManager.add_coins(speed_bonus)
             _last_speed_bonus = speed_bonus
+            # v3.8: Speed runner achievement
+            ProgressionManager.unlock_achievement("speed_runner")
         else:
             _last_speed_bonus = 0
     # v3.8: Track total stage clears stat

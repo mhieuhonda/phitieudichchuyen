@@ -805,6 +805,11 @@ func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
             if streak_bonus > 0:
                 ProgressionManager.add_coins(streak_bonus)
                 hud._add_kill_feed("💰 Streak bonus: +%d HL Coin!" % streak_bonus, Color(1.0, 0.85, 0.2))
+            # v3.8: Kill streak achievements
+            if _kill_streak >= 5:
+                ProgressionManager.unlock_achievement("kill_streak_5")
+            if _kill_streak >= 10:
+                ProgressionManager.unlock_achievement("kill_streak_10")
     else:
         hud._add_kill_feed("%s đã bị tiêu diệt" % ai.ai_name, Color(1.0, 0.5, 0.2))
 

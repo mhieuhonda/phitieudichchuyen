@@ -85,6 +85,12 @@ const ACHIEVEMENTS_DEF = {
         "stage_5_clear": {"name": "Người Mới Vượt Ải", "desc": "Vượt ải 5", "coins": 100},
         "stage_10_clear": {"name": "Chiến Binh Lành Lẽ", "desc": "Vượt ải 10", "coins": 200},
         "stage_15_clear": {"name": "Cao Thủ", "desc": "Vượt ải 15", "coins": 300},
+        # v3.8: New achievements
+        "kill_streak_5": {"name": "Hạ Gục 5 Liên Tiếp", "desc": "Đạt kill streak 5", "coins": 80},
+        "kill_streak_10": {"name": "Bất Tử Chi Thân", "desc": "Đạt kill streak 10", "coins": 200},
+        "perfect_stage": {"name": "Hoàn Hảo", "desc": "Hoàn thành ải mà không chết", "coins": 100},
+        "speed_runner": {"name": "Tốc Độ Ánh Sáng", "desc": "Hoàn thành ải dưới 60 giây", "coins": 150},
+        "all_stages_clear": {"name": "Huyền Thoại Vượt Ải", "desc": "Hoàn thành tất cả 20 ải", "coins": 1000},
 }
 
 func _ready():
