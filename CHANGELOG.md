@@ -1,5 +1,87 @@
 # Changelog
 
+## v3.8 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### Combat Polish & Boss Arena Quality Update
+
+#### Sửa lỗi critical
+
+##### Bug player darts không bị AI né được (CRITICAL)
+- **FIX BUG**: Dart của player không bao giờ bị AI né, dù `ai_dodge_chance` config có thể lên tới 0.92 ở ải 19.
+  - Nguyên nhân: `player.gd::_spawn_single_dart()` không gọi `dart.add_to_group("darts")` (chỉ AI và boss mới add). Do đó `_check_incoming_darts()` trong `ai_player.gd` — vốn dùng `get_tree().get_nodes_in_group("darts")` để predict & dodge — không bao giờ thấy dart của player.
+  - Hệ quả: AI không dash né, không chuyển sang DODGING state khi player ném dart thẳng vào mình. Dodge chance config vô nghĩa với player dart.
+  - Sửa: thêm `dart.add_to_group("darts")` trong `player._spawn_single_dart()`.
+
+##### Bug HUD boss HP hiển thị sai
+- **FIX BUG**: HUD hiển thị "BOSS — 10,000,000 HP" hardcoded trong khi `StageManager.BOSS_MAX_HP` đã được đổi thành 12M từ v3.7. Dùng `_format_big_number()` helper để format dynamic text + comma-separated thousands.
+- **FIX BUG**: `boss_hp_bar` trong `hud.tscn` cũng khởi tạo `max_value = 10000000.0` thay vì 12M. Đã sửa thành 12M.
+
+##### Bug boss double-laser spawn
+- **FIX BUG**: `_choose_next_action()` trong `boss.gd` có thể spawn laser thứ hai trùng lặp nếu laser thứ nhất vẫn còn active khi boss vào IDLE state. Gây double damage + visual glitch (2 tia laser chồng lên nhau).
+  - Sửa: check `is_instance_valid(active_laser)` trước khi spawn laser mới. Nếu đang có laser active → idle ngắn rồi check lại.
+
+#### Thêm Pause menu (code-based)
+- Phím **P** hoặc **ESC** mở pause overlay với 4 nút: TIẾP TỤC / CHƠI LẠI ẢI / CÀI ĐẶT / VỀ MENU.
+- Phím **R** khi đang pause = quick retry stage.
+- Panel hiển thị thông tin ải hiện tại: "Ải X / 20 • ⏱ mm:ss".
+- Animated fade-in overlay + scale-in panel, premium styling.
+- Không cho pause khi stage đã kết thúc (cleared/failed).
+
+#### Thêm Low-HP vignette + Heartbeat
+- **Vignette**: full-screen tint đỏ pulse khi HP < 30%. Intensity scale theo HP% (càng thấp càng đậm) + sin pulse cho breathing effect.
+- **Heartbeat sound**: phát `heartbeat` SFX mỗi 1.5s khi HP < 30%, mỗi 1.0s khi HP < 20% (beat nhanh hơn, tăng tension). Tự tắt khi HP >= 30% hoặc player chết.
+
+#### Thêm Kill streak UI + Hit markers
+- **Kill streak label** (top-right HUD): DOUBLE/TRIPLE/QUADRA/PENTA KILL, KILLING SPREE, UNSTOPPABLE, GODLIKE. Auto-reset sau 5s không kill hoặc khi player chết. Color theo cấp độ.
+- **Hit marker** (✕ symbol center-top): hiển thị ngắn 0.25s khi dart của player trúng AI/boss. Animated scale-down + fade. Yellow cho thường, red cho crit.
+
+#### Cải thiện Boss HP UI
+- **Segment markers**: 11 vạch dọc chia HP bar thành 12 đoạn (mỗi đoạn ~8.33% HP). Vạch cuối highlight làm rage threshold indicator.
+- **Percentage label lớn** bên dưới bar: "87.3%". Color: yellow (>25%) → orange (<25%) → bright red (rage).
+- **Top label** cập nhật dynamic: "BOSS  87.3% HP  (1,524,000 / 12,000,000)" với comma-formatted thousands.
+
+#### Aim line ricochet preview
+- Khi aim, line sẽ predict điểm chạm tường gần nhất (4 tường map) và vẽ 1 đoạn ngắn sau ricochet theo hướng reflect (theo wall normal). Giúp player plan bank shots.
+- Respect `dart_ricochet_enabled` config + `dart_ricochet_speed_loss`.
+
+#### Boss off-screen indicator
+- Ở ải 20, nếu boss ngoài tầm nhìn camera, vẽ mũi tên tam giác đỏ ở rìa màn hình chỉ hướng boss.
+- Hiển thị "BOSS 1240px" cho biết khoảng cách tới boss.
+- Tự ẩn khi boss trên màn hình hoặc đã chết.
+
+#### Onboarding hints (chỉ ải 1, first time)
+- Code-based Panel với hướng dẫn: di chuyển (WASD/joystick), ném (RMB/red button), dịch chuyển (Space/blue button), pause (P/ESC), retry (R).
+- Tip về ricochet bank shots.
+- Nút "Đã hiểu — Vào game!" để dismiss. Chỉ hiện 1 lần per session, chỉ ở ải 1.
+
+#### Stage stats display
+- **Stage clear panel** giờ hiển thị: thời gian hoàn thành, PB (personal best) với badge "🏆 NEW PB!" nếu vừa đạt, số lần thử, mạng còn lại, thông báo mở khóa ải tiếp theo.
+- **Stage fail panel** giờ hiển thị: thời gian trước khi fail, mạng đã dùng / max, số lần thử, encouragement text.
+
+#### Reset progress confirm dialog
+- Nút "Reset Tiến Độ" trong stage select giờ hiện confirm dialog thay vì reset ngay. Title "⚠ XÓA TIẾN ĐỘ?" với body cảnh báo + 2 nút "✓ XÓA" (red) / "✕ Hủy" (green).
+
+#### Performance & code quality
+- **Player.gd**: thêm `class_name Player` để type-check an toàn (giống AIPlayer).
+- **HUD**: gộp `_get_dart_info()` + `_has_flying_darts()` thành `_get_dart_stats()` duy nhất — lặp qua `player.all_darts` 1 lần thay vì 2 lần mỗi frame. Giữ hàm cũ làm alias cho backward-compat.
+- **HUD**: dùng `GameManager.stage_alive_ai` (đã được duy trì chính xác) thay vì lặp qua group `ai_players` mỗi frame để đếm alive count (stage mode).
+- **AudioManager**: stop stream trước khi reuse pool player để tránh audio pop/click artifact.
+- **Map**: pickup cleanup chạy theo interval 1 giây thay vì mỗi frame. Trước đây lặp qua 15 pickup + tạo new RNG mỗi frame.
+
+#### Files thay đổi
+- `project.godot`: bump version 3.7 → 3.8, cập nhật description.
+- `scripts/main.gd`: +500 dòng — pause menu, vignette, kill streak, hit marker, heartbeat, boss indicator.
+- `scripts/hud.gd`: +200 dòng — segment markers, percentage label, onboarding, stage stats, dart stats cache.
+- `scripts/player.gd`: +100 dòng — class_name, dart group fix, aim ricochet preview, hit marker hook.
+- `scripts/boss.gd`: double-laser spawn fix.
+- `scripts/audio_manager.gd`: audio pop fix.
+- `scripts/map.gd`: pickup cleanup interval.
+- `scripts/menu.gd`: version label + new feature text.
+- `scripts/stage_select.gd`: reset confirm dialog.
+- `scenes/hud.tscn`: boss HP bar max_value 10M → 12M.
+
+---
+
 ## v3.7 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### Fix laser hitbox + Rebalance boss + Thêm chế độ Thế Giới

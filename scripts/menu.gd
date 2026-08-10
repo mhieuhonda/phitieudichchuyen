@@ -177,12 +177,12 @@ func _apply_premium_styling():
 
 func _refresh_ui():
         if version_label:
-                version_label.text = "v3.7 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v3.8 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#ffaa00][b]v3.7 MỚI:[/b][/color] Thế giới 4 vùng + 10 loài động vật + hệ thống class/đồng đội\n[color=#44ff88][b]Fix:[/b][/color] Lỗi laser boss không gây sát thương (abs Vector2 bug)\n[color=#ff4444][b]Cân bằng:[/b][/color] Boss ải 20 dmg < 4x player, laser đốt liên tục, độ khó ải tăng\n[color=#aa44ff][b]Meta:[/b][/color] HL Coin, uy tín, độ thân mật, thành tựu, nội chiến loài"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.8 MỚI:[/b][/color] Pause menu (P/ESC) + Quick Retry (R) + Hit markers + Kill streak UI\n[color=#44ff88][b]Fix:[/b][/color] Bug player darts không bị AI né được (thiếu 'darts' group) + Boss HP HUD sai (10M→12M) + Boss double-laser spawn\n[color=#55aaff][b]UI/UX:[/b][/color] Boss HP segments + % label + off-screen arrow + low-HP heartbeat + aim ricochet preview + onboarding hints + stage stats\n[color=#ff4444][b]Perf:[/b][/color] Cache dart count, audio pop fix, pickup cleanup interval"
                 else:
-                        new_feature_label.text = "[color=#ffaa00][b]v3.7 NEW:[/b][/color] 4-region world + 10 species + class/teammate system\n[color=#44ff88][b]Fix:[/b][/color] Boss laser hitbox bug (abs Vector2 returned Vector2, never damaged)\n[color=#ff4444][b]Balance:[/b][/color] Stage 20 boss dmg < 4x player, continuous laser burn, harder stages\n[color=#aa44ff][b]Meta:[/b][/color] HL Coin, reputation, intimacy, achievements, civil war"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.8 NEW:[/b][/color] Pause menu (P/ESC) + Quick Retry (R) + Hit markers + Kill streak UI\n[color=#44ff88][b]Fix:[/b][/color] Player darts not dodgeable by AI (missing 'darts' group) + Boss HP HUD mismatch (10M→12M) + Boss double-laser spawn\n[color=#55aaff][b]UI/UX:[/b][/color] Boss HP segments + % label + off-screen arrow + low-HP heartbeat + aim ricochet preview + onboarding hints + stage stats\n[color=#ff4444][b]Perf:[/b][/color] Cache dart count, audio pop fix, pickup cleanup interval"
         if play_button:
                 play_button.text = "⚔ VƯỢT ẢI" if I18N.is_vi() else "⚔ STAGES"
         if world_button:
