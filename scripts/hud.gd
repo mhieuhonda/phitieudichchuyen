@@ -52,6 +52,9 @@ extends CanvasLayer
 var _boss_hp_segments: Line2D = null
 # v3.8: Boss HP percentage text (hiển thị lớn bên dưới bar)
 var _boss_hp_pct_label: Label = null
+# v3.8: Onboarding hint panel (chỉ hiện ải 1 lần đầu)
+var _onboarding_panel: Panel = null
+var _onboarding_dismissed: bool = false
 
 var player: CharacterBody2D = null
 var zone_shrink_timer: float = 0.0
@@ -179,6 +182,123 @@ func set_stage(stage: int):
             stage_label.text = "ẢI %d / %d" % [stage, StageManager.TOTAL_STAGES]
             stage_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
     _refresh_ui()
+    # v3.8: Hiện onboarding hint panel nếu là ải 1 và chưa dismissed
+    if stage == 1 and not _onboarding_dismissed:
+        _show_onboarding_hint()
+
+## v3.8: Hiện onboarding panel — hướng dẫn cơ bản cho người chơi mới.
+## Chỉ hiện ở ải 1, có nút "Đã hiểu" để dismiss.
+func _show_onboarding_hint():
+    if _onboarding_panel and is_instance_valid(_onboarding_panel):
+        return  # đã tồn tại
+    if not _onboarding_panel:
+        _onboarding_panel = Panel.new()
+        _onboarding_panel.set_anchors_preset(Control.PRESET_CENTER)
+        _onboarding_panel.offset_left = -260
+        _onboarding_panel.offset_right = 260
+        _onboarding_panel.offset_top = -180
+        _onboarding_panel.offset_bottom = 180
+        _onboarding_panel.z_index = 180
+        var style = StyleBoxFlat.new()
+        style.bg_color = Color(0.04, 0.06, 0.10, 0.97)
+        style.border_color = Color(0.4, 0.6, 1.0, 0.6)
+        style.border_width_top = 3
+        style.border_width_bottom = 3
+        style.border_width_left = 3
+        style.border_width_right = 3
+        style.corner_radius_top_left = 14
+        style.corner_radius_top_right = 14
+        style.corner_radius_bottom_left = 14
+        style.corner_radius_bottom_right = 14
+        style.shadow_color = Color(0, 0, 0, 0.6)
+        style.shadow_size = 15
+        _onboarding_panel.add_theme_stylebox_override("panel", style)
+        add_child(_onboarding_panel)
+        # Title
+        var title = Label.new()
+        title.text = "🎯 HƯỚNG DẪN"
+        title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+        title.offset_left = -200
+        title.offset_right = 200
+        title.offset_top = 14
+        title.offset_bottom = 50
+        title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        title.add_theme_font_size_override("font_size", 24)
+        title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+        title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+        _onboarding_panel.add_child(title)
+        # Body
+        var body = Label.new()
+        body.text = "🎮 DI CHUYỂN: WASD / ←↑↓→ / Joystick trái
+
+🎯 NÉM PHI TIÊU:
+   • PC: Kéo chuột phải → thả để ném
+   • Mobile: Nút ĐỎ (NÉM) — kéo để nhắm
+
+✨ DỊCH CHUYỂN: Space (PC) / Nút XANH (DỊCH)
+   Dịch tới phi tiêu gần nhất để tiêu diệt địch trong bán kính 50px
+
+⚡ PAUSE: P hoặc ESC | R: Chơi lại ải
+
+💡 Mẹo: Phi tiêu NẢY khi chạm tường — hãy tận dụng góc bắn!"
+        body.set_anchors_preset(Control.PRESET_CENTER)
+        body.offset_left = -230
+        body.offset_right = 230
+        body.offset_top = -100
+        body.offset_bottom = 130
+        body.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+        body.add_theme_font_size_override("font_size", 13)
+        body.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
+        body.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+        body.add_theme_constant_override("shadow_offset_y", 1)
+        body.add_theme_constant_override("shadow_outline_size", 2)
+        _onboarding_panel.add_child(body)
+        # Dismiss button
+        var btn = Button.new()
+        btn.text = "✓ ĐÃ HIỂU — VÀO GAME!"
+        btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+        btn.offset_left = -120
+        btn.offset_right = 120
+        btn.offset_top = 130
+        btn.offset_bottom = 168
+        var style_n = StyleBoxFlat.new()
+        style_n.bg_color = Color(0.04, 0.18, 0.10, 0.95)
+        style_n.corner_radius_top_left = 10
+        style_n.corner_radius_top_right = 10
+        style_n.corner_radius_bottom_left = 10
+        style_n.corner_radius_bottom_right = 10
+        style_n.border_color = Color(0.3, 1.0, 0.5, 0.6)
+        style_n.border_width_top = 2
+        style_n.border_width_bottom = 2
+        style_n.border_width_left = 2
+        style_n.border_width_right = 2
+        var style_h = style_n.duplicate()
+        style_h.bg_color = Color(0.08, 0.25, 0.12, 0.98)
+        style_h.border_color = Color(0.3, 1.0, 0.5, 0.9)
+        btn.add_theme_stylebox_override("normal", style_n)
+        btn.add_theme_stylebox_override("hover", style_h)
+        btn.add_theme_stylebox_override("pressed", style_n)
+        btn.add_theme_stylebox_override("focus", style_n)
+        btn.pressed.connect(_dismiss_onboarding)
+        _onboarding_panel.add_child(btn)
+    # Animate scale-in
+    _onboarding_panel.scale = Vector2(0.85, 0.85)
+    _onboarding_panel.modulate.a = 0.0
+    var tween = create_tween().set_parallel(true)
+    tween.tween_property(_onboarding_panel, "scale", Vector2(1.0, 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+    tween.tween_property(_onboarding_panel, "modulate:a", 1.0, 0.2)
+
+func _dismiss_onboarding():
+    _onboarding_dismissed = true
+    if not _onboarding_panel:
+        return
+    var tween = create_tween().set_parallel(true)
+    tween.tween_property(_onboarding_panel, "scale", Vector2(0.92, 0.92), 0.12)
+    tween.tween_property(_onboarding_panel, "modulate:a", 0.0, 0.15)
+    tween.chain().tween_callback(func():
+        if is_instance_valid(_onboarding_panel):
+            _onboarding_panel.visible = false)
+    AudioManager.play_ui_click()
 
 ## v3.5: Set boss ref (khi vào ải 20)
 ## v3.8: FIX BUG — trước đây hardcode "BOSS — 10,000,000 HP" trong khi BOSS_MAX_HP
@@ -816,24 +936,35 @@ func _hide_big_banner():
     )
 
 # === v3.5: Stage Clear / Fail handlers ===
+## v3.8: Hiển thị thêm thông tin stats: best time, PB (personal best), retries
 
 func _on_stage_cleared(stage: int):
     _hide_big_banner()
     if stage_clear_panel:
         stage_clear_panel.visible = true
+        var elapsed = StageManager.get_elapsed_stage_time()
+        var elapsed_str = StageManager.format_time(elapsed)
+        var best_time = StageManager.best_time_per_stage.get(stage, -1.0)
+        var is_new_pb = best_time > 0 and elapsed <= best_time + 0.01
+        var deaths_used = StageManager.player_deaths_this_stage
+        var max_deaths = StageManager.get_max_deaths_per_stage(stage)
+        var attempts = StageManager.attempts_per_stage.get(stage, 1)
         if stage >= StageManager.TOTAL_STAGES:
             stage_clear_title.text = "🎉 HOÀN THÀNH GAME! 🎉"
             stage_clear_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-            stage_clear_subtitle.text = "Bạn đã vượt tất cả %d ải và tiêu diệt Boss!\nThời gian ải cuối: %s" % [StageManager.TOTAL_STAGES, StageManager.format_time(StageManager.get_elapsed_stage_time())]
+            stage_clear_subtitle.text = "Bạn đã vượt tất cả %d ải và tiêu diệt Boss!\nThời gian ải cuối: %s" % [StageManager.TOTAL_STAGES, elapsed_str]
             if stage_clear_next_btn:
                 stage_clear_next_btn.text = "VỀ MENU"
         else:
             stage_clear_title.text = "✦ VƯỢT ẢI %d! ✦" % stage
             stage_clear_title.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
-            stage_clear_subtitle.text = "Thời gian: %s\nMạng còn lại: %d\nĐã mở khóa ải %d!" % [
-                StageManager.format_time(StageManager.get_elapsed_stage_time()),
-                StageManager.get_max_deaths_per_stage(stage) - StageManager.player_deaths_this_stage,
-                stage + 1
+            var pb_text = ""
+            if is_new_pb and attempts > 1:
+                pb_text = " 🏆 NEW PB!"
+            elif best_time > 0:
+                pb_text = "\nBest: %s" % StageManager.format_time(best_time)
+            stage_clear_subtitle.text = "⏱ Thời gian: %s%s\n🎯 Số lần thử: %d\n❤ Mạng còn lại: %d / %d\n✓ Đã mở khóa ải %d!" % [
+                elapsed_str, pb_text, attempts, max_deaths - deaths_used, max_deaths, stage + 1
             ]
             if stage_clear_next_btn:
                 stage_clear_next_btn.text = "ẢI TIẾP THEO →"
@@ -846,7 +977,14 @@ func _on_stage_failed(stage: int):
         stage_fail_panel.visible = true
         stage_fail_title.text = "✗ THẤT BẠI ✗"
         stage_fail_title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
-        stage_fail_subtitle.text = "Bạn đã hết mạng ở ải %d.\nThử lại nhé!" % stage
+        var elapsed = StageManager.get_elapsed_stage_time()
+        var elapsed_str = StageManager.format_time(elapsed)
+        var attempts = StageManager.attempts_per_stage.get(stage, 1)
+        var deaths_used = StageManager.player_deaths_this_stage
+        var max_deaths = StageManager.get_max_deaths_per_stage(stage)
+        stage_fail_subtitle.text = "Bạn đã hết mạng ở ải %d.\n⏱ Thời gian: %s\n❤ Mạng: %d / %d (đã dùng hết)\n🎯 Lần thử: %d\n\nThử lại nhé!" % [
+            stage, elapsed_str, deaths_used, max_deaths, attempts
+        ]
         _refresh_ui()
     _show_big_banner("THẤT BẠI!", Color(1.0, 0.25, 0.25, 1.0), 2.5)
 
