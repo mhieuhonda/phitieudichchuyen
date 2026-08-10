@@ -48,6 +48,11 @@ extends CanvasLayer
 @onready var stage_fail_menu_btn: Button = $StageFailPanel/StageFailMenuBtn
 @onready var deaths_label: Label = $DeathsLabel
 
+# v3.8: Boss HP segment markers (12 segments, vạch trắng chia HP bar)
+var _boss_hp_segments: Line2D = null
+# v3.8: Boss HP percentage text (hiển thị lớn bên dưới bar)
+var _boss_hp_pct_label: Label = null
+
 var player: CharacterBody2D = null
 var zone_shrink_timer: float = 0.0
 var combo_display_timer: float = 0.0
@@ -178,6 +183,7 @@ func set_stage(stage: int):
 ## v3.5: Set boss ref (khi vào ải 20)
 ## v3.8: FIX BUG — trước đây hardcode "BOSS — 10,000,000 HP" trong khi BOSS_MAX_HP
 ## thực tế đã được đổi thành 12M (v3.7). Dùng dynamic text từ constant để đồng bộ.
+## v3.8: THÊM segment markers (12 vạch chia HP bar) + percentage label lớn.
 func set_boss(boss: Node2D):
     boss_ref = boss
     if boss_hp_container:
@@ -189,6 +195,60 @@ func set_boss(boss: Node2D):
     if boss_hp_bar:
         boss_hp_bar.max_value = StageManager.BOSS_MAX_HP
         boss_hp_bar.value = StageManager.BOSS_MAX_HP
+    # v3.8: Setup segment markers + percentage label
+    _setup_boss_hp_segments()
+    _setup_boss_hp_pct_label()
+
+## v3.8: Tạo 11 vạch dọc chia Boss HP bar thành 12 đoạn (mỗi đoạn = 8.33% HP).
+## Giúp player thấy rõ tiến độ damage. Vạch màu trắng mờ, vạch cuối (rage threshold
+## ở 12% HP) màu cam sáng.
+func _setup_boss_hp_segments():
+    if _boss_hp_segments and is_instance_valid(_boss_hp_segments):
+        _boss_hp_segments.queue_free()
+    if not boss_hp_bar:
+        return
+    _boss_hp_segments = Line2D.new()
+    _boss_hp_segments.width = 1.5
+    _boss_hp_segments.default_color = Color(1.0, 1.0, 1.0, 0.35)
+    _boss_hp_segments.z_index = 5
+    # Vẽ 11 vạch dọc (chia 12 đoạn)
+    var bar_rect = boss_hp_bar.get_rect()
+    var bar_w = bar_rect.size.x
+    var bar_h = bar_rect.size.y
+    var num_segments = 12
+    for i in range(1, num_segments):
+        var x = bar_rect.position.x + (bar_w * i) / float(num_segments)
+        # Vạch cuối (i=11) = 1/12 ≈ 8.33% HP → gần rage threshold (12%)
+        # Đánh dấu vạch rage bằng màu cam sáng
+        if i >= num_segments - 1:
+            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y - 2))
+            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y + bar_h + 2))
+            # Phải add_point liên tục vì Line2D vẽ nối điểm
+        else:
+            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y - 1))
+            _boss_hp_segments.add_point(Vector2(x, bar_rect.position.y + bar_h + 1))
+    boss_hp_bar.add_child(_boss_hp_segments)
+
+## v3.8: Setup label % HP lớn bên dưới bar — hiển thị "87.3%" rõ ràng
+func _setup_boss_hp_pct_label():
+    if _boss_hp_pct_label and is_instance_valid(_boss_hp_pct_label):
+        _boss_hp_pct_label.queue_free()
+    if not boss_hp_container:
+        return
+    _boss_hp_pct_label = Label.new()
+    _boss_hp_pct_label.text = "100.0%"
+    _boss_hp_pct_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+    _boss_hp_pct_label.offset_left = -60
+    _boss_hp_pct_label.offset_right = 60
+    _boss_hp_pct_label.offset_top = 1
+    _boss_hp_pct_label.offset_bottom = 18
+    _boss_hp_pct_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    _boss_hp_pct_label.add_theme_font_size_override("font_size", 11)
+    _boss_hp_pct_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3, 0.95))
+    _boss_hp_pct_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    _boss_hp_pct_label.add_theme_constant_override("shadow_offset_y", 1)
+    _boss_hp_pct_label.add_theme_constant_override("shadow_outline_size", 2)
+    boss_hp_container.add_child(_boss_hp_pct_label)
 
 ## v3.8: Format số lớn với dấu phẩy ngăn cách hàng nghìn (VD: 12000000 → "12,000,000")
 func _format_big_number(n: int) -> String:
@@ -550,6 +610,7 @@ func _on_match_time_changed(time_remaining: float):
     pass
 
 # v3.5: Boss HP handler
+## v3.8: Cập nhật thêm percentage label lớn bên dưới bar
 func _on_boss_hp_changed(hp: float, max_hp: float, is_rage: bool):
     if not boss_hp_bar:
         return
@@ -562,15 +623,28 @@ func _on_boss_hp_changed(hp: float, max_hp: float, is_rage: bool):
             fill.bg_color = Color(1.0, 0.4, 0.1, 1.0)  # cam sáng khi rage
         else:
             fill.bg_color = Color(0.85, 0.15, 0.1, 1.0)
-    # Cập nhật label
+    var pct = hp / max_hp * 100.0 if max_hp > 0 else 0
+    # Cập nhật label trên (tên + % HP)
     if boss_name_label:
-        var pct = hp / max_hp * 100.0 if max_hp > 0 else 0
         if is_rage:
             boss_name_label.text = "⚠ BOSS RAGE!  %.1f%% HP" % pct
             boss_name_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.2))
         else:
-            boss_name_label.text = "BOSS  %.1f%% HP  (%d / %d)" % [pct, int(hp), int(max_hp)]
+            boss_name_label.text = "BOSS  %.1f%% HP  (%s / %s)" % [
+                pct,
+                _format_big_number(int(hp)),
+                _format_big_number(int(max_hp))
+            ]
             boss_name_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.7))
+    # v3.8: Cập nhật % label lớn bên dưới
+    if _boss_hp_pct_label:
+        _boss_hp_pct_label.text = "%.1f%%" % pct
+        if is_rage:
+            _boss_hp_pct_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.1, 1.0))
+        elif pct < 25.0:
+            _boss_hp_pct_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2, 1.0))
+        else:
+            _boss_hp_pct_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3, 0.95))
 
 func _on_ai_count_changed(alive_count: int, total_count: int):
     if alive_label:

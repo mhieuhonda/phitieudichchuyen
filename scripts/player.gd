@@ -376,11 +376,72 @@ func _update_aim_line():
         if not is_aiming:
                 return
         aim_line.clear_points()
-        aim_line.add_point(Vector2.ZERO)
+        # v3.8: Vẽ aim line với điểm nảy (ricochet) dự đoán nếu dart sẽ chạm tường.
         var line_length = 80.0 + aim_power * 220.0
-        aim_line.add_point(aim_direction * line_length)
-        aim_line.default_color = Color(1.0, 0.15, 0.15, 0.9)
-        aim_line.width = 3.0 + aim_power * 2.0
+        var hit_dist = _predict_wall_hit_distance(aim_direction, line_length)
+        if hit_dist < line_length and GameManager.dart_ricochet_enabled:
+                # Có tường trong tầm — vẽ tới điểm chạm, rồi 1 đoạn ngắn sau nảy
+                var hit_point_local = aim_direction * hit_dist
+                var hit_point_global = global_position + hit_point_local
+                aim_line.add_point(Vector2.ZERO)
+                aim_line.add_point(hit_point_local)
+                # Hướng nảy: reflect theo normal của tường chạm
+                var normal = _get_wall_normal_at(hit_point_global)
+                var reflect_dir = (aim_direction - 2 * aim_direction.dot(normal) * normal).normalized()
+                var after_bounce_len = (line_length - hit_dist) * GameManager.dart_ricochet_speed_loss
+                aim_line.add_point(hit_point_local + reflect_dir * after_bounce_len)
+                aim_line.default_color = Color(1.0, 0.15, 0.15, 0.9)
+                aim_line.width = 3.0 + aim_power * 2.0
+        else:
+                # Không có tường trong tầm — vẽ đường thẳng
+                aim_line.add_point(Vector2.ZERO)
+                aim_line.add_point(aim_direction * line_length)
+                aim_line.default_color = Color(1.0, 0.15, 0.15, 0.9)
+                aim_line.width = 3.0 + aim_power * 2.0
+
+## v3.8: Dự đoán khoảng cách tới tường gần nhất theo hướng direction.
+## Trả về distance, hoặc max_dist nếu không chạm tường.
+func _predict_wall_hit_distance(direction: Vector2, max_dist: float) -> float:
+        if direction == Vector2.ZERO:
+                return max_dist
+        var origin = global_position
+        var map = GameManager.map_size
+        var min_t = max_dist
+        # Tường trái (x=0)
+        if direction.x < 0:
+                var t = (0 - origin.x) / direction.x
+                if t > 0 and t < min_t:
+                        min_t = t
+        # Tường phải (x=map.x)
+        if direction.x > 0:
+                var t = (map.x - origin.x) / direction.x
+                if t > 0 and t < min_t:
+                        min_t = t
+        # Tường trên (y=0)
+        if direction.y < 0:
+                var t = (0 - origin.y) / direction.y
+                if t > 0 and t < min_t:
+                        min_t = t
+        # Tường dưới (y=map.y)
+        if direction.y > 0:
+                var t = (map.y - origin.y) / direction.y
+                if t > 0 and t < min_t:
+                        min_t = t
+        return min_t
+
+## v3.8: Lấy normal của tường tại điểm chạm global (để tính hướng ricochet)
+func _get_wall_normal_at(hit_point_global: Vector2) -> Vector2:
+        var map = GameManager.map_size
+        var eps = 4.0
+        if abs(hit_point_global.x) < eps:
+                return Vector2(-1, 0)
+        if abs(hit_point_global.x - map.x) < eps:
+                return Vector2(1, 0)
+        if abs(hit_point_global.y) < eps:
+                return Vector2(0, -1)
+        if abs(hit_point_global.y - map.y) < eps:
+                return Vector2(0, 1)
+        return Vector2.LEFT  # fallback
 
 func _count_active_darts() -> int:
         var count = 0
