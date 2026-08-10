@@ -878,6 +878,47 @@ func heal(amount: float):
         _update_hp_bar()
         AudioManager.play_pickup_health()
         _spawn_floating_text("+%d HP" % int(amount), Color(0.3, 1.0, 0.3), global_position)
+        # v3.8: Spawn heart icon popup + green particle burst
+        _spawn_heal_effect()
+
+## v3.8: Hiệu ứng heal — heart icon floating + green particles
+func _spawn_heal_effect():
+        if SettingsManager.get_particle_multiplier() <= 0:
+                return
+        # Heart label popup
+        var heart = Label.new()
+        heart.text = "♥"
+        heart.add_theme_font_size_override("font_size", 32)
+        heart.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5, 1.0))
+        heart.add_theme_color_override("font_shadow_color", Color(0, 0.3, 0, 0.7))
+        heart.add_theme_constant_override("shadow_offset_y", 2)
+        heart.add_theme_constant_override("shadow_outline_size", 4)
+        heart.z_index = 100
+        heart.position = global_position + Vector2(-12, -30)
+        get_parent().add_child(heart)
+        var tween = heart.create_tween().set_parallel(true)
+        tween.tween_property(heart, "position:y", heart.position.y - 80, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+        tween.tween_property(heart, "modulate:a", 0.0, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+        tween.tween_property(heart, "scale", Vector2(1.4, 1.4), 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+        tween.chain().tween_callback(heart.queue_free)
+        # Green particle burst
+        var burst = CPUParticles2D.new()
+        burst.emitting = true
+        burst.one_shot = true
+        burst.explosiveness = 0.85
+        burst.amount = max(1, int(16 * SettingsManager.get_particle_multiplier()))
+        burst.lifetime = 0.5
+        burst.direction = Vector2(0, -1)
+        burst.spread = 90.0
+        burst.initial_velocity_min = 80
+        burst.initial_velocity_max = 160
+        burst.gravity = Vector2(0, 60)
+        burst.scale_amount_min = 2
+        burst.scale_amount_max = 5
+        burst.color = Color(0.3, 1.0, 0.4, 0.9)
+        get_parent().add_child(burst)
+        burst.global_position = global_position
+        get_tree().create_timer(0.9).timeout.connect(burst.queue_free)
 
 func refill_darts(bonus: int, duration: float):
         dart_bonus = max(dart_bonus, bonus)

@@ -638,6 +638,18 @@ func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
             SettingsManager.save_settings()
             if _kill_streak >= 3:
                 hud._add_kill_feed("🏆 NEW BEST STREAK: %d!" % _kill_streak, Color(1.0, 0.85, 0.2))
+        # v3.8: Kill streak bonus — thưởng HL Coin khi đạt milestone
+        if ProgressionManager:
+            var streak_bonus = 0
+            match _kill_streak:
+                3: streak_bonus = 10
+                5: streak_bonus = 25
+                7: streak_bonus = 50
+                10: streak_bonus = 100
+                _: if _kill_streak > 10 and _kill_streak % 5 == 0: streak_bonus = 100
+            if streak_bonus > 0:
+                ProgressionManager.add_coins(streak_bonus)
+                hud._add_kill_feed("💰 Streak bonus: +%d HL Coin!" % streak_bonus, Color(1.0, 0.85, 0.2))
     else:
         hud._add_kill_feed("%s đã bị tiêu diệt" % ai.ai_name, Color(1.0, 0.5, 0.2))
 
