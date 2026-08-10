@@ -35,6 +35,7 @@ var show_hit_markers: bool = true  # ✕ khi dart trúng đích
 var show_kill_streak: bool = true  # DOUBLE/TRIPLE KILL label
 var show_low_hp_vignette: bool = true  # red tint khi HP < 30%
 var show_boss_offscreen_arrow: bool = true  # mũi tên chỉ boss
+var show_minimap: bool = true  # minimap radar top-right
 
 # === UI CUSTOMIZATION (v1.2) ===
 var joystick_size: float = 1.0
@@ -226,6 +227,7 @@ func save_settings():
         config.set_value("ui_v38", "show_kill_streak", show_kill_streak)
         config.set_value("ui_v38", "show_low_hp_vignette", show_low_hp_vignette)
         config.set_value("ui_v38", "show_boss_offscreen_arrow", show_boss_offscreen_arrow)
+        config.set_value("ui_v38", "show_minimap", show_minimap)
         # v1.2: UI Customization
         config.set_value("ui_custom", "joystick_size", joystick_size)
         config.set_value("ui_custom", "button_size", button_size)
@@ -264,6 +266,7 @@ func _load_settings():
                 show_kill_streak = config.get_value("ui_v38", "show_kill_streak", true)
                 show_low_hp_vignette = config.get_value("ui_v38", "show_low_hp_vignette", true)
                 show_boss_offscreen_arrow = config.get_value("ui_v38", "show_boss_offscreen_arrow", true)
+                show_minimap = config.get_value("ui_v38", "show_minimap", true)
                 # v1.2: UI Customization
                 joystick_size = config.get_value("ui_custom", "joystick_size", 1.0)
                 button_size = config.get_value("ui_custom", "button_size", 1.0)

@@ -390,8 +390,22 @@ func _setup_v38_toggles():
         ba_toggle.add_theme_font_size_override("font_size", 12)
         ba_toggle.mouse_entered.connect(func(): AudioManager.play_ui_hover())
         hbox2.add_child(ba_toggle)
+        # Minimap toggle (3rd row)
+        var hbox3 = HBoxContainer.new()
+        hbox3.add_theme_constant_override("separation", 12)
+        vbox.add_child(hbox3)
+        var mm_toggle = CheckButton.new()
+        mm_toggle.text = "Minimap Radar\n(bản đồ nhỏ góc phải)"
+        mm_toggle.button_pressed = SettingsManager.show_minimap
+        mm_toggle.toggled.connect(func(v):
+                SettingsManager.show_minimap = v
+                SettingsManager.save_settings()
+                AudioManager.play_ui_click())
+        mm_toggle.add_theme_font_size_override("font_size", 12)
+        mm_toggle.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+        hbox3.add_child(mm_toggle)
         # Style all new toggles like the existing ones
-        for tog in [hm_toggle, ks_toggle, hp_toggle, ba_toggle]:
+        for tog in [hm_toggle, ks_toggle, hp_toggle, ba_toggle, mm_toggle]:
                 tog.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
                 tog.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
 

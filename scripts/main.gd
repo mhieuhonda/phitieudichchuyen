@@ -53,6 +53,12 @@ const HEARTBEAT_INTERVAL_MED: float = 1.5   # khi HP < 30%
 var _boss_indicator: Line2D = null
 var _boss_indicator_label: Label = null
 
+# v3.8: Minimap radar (top-right corner, 140x140)
+var _minimap: Panel = null
+var _minimap_draw: Control = null
+const MINIMAP_SIZE: float = 140.0
+const MINIMAP_MARGIN: float = 20.0
+
 func _ready():
     # v3.5: Khởi tạo stage mode
     var target_stage = 1
@@ -99,6 +105,7 @@ func _ready():
     _setup_kill_streak_label()
     _setup_hit_marker()
     _setup_boss_indicator()
+    _setup_minimap()
 
     # v3.5: Music khác nhau cho ải boss
     if StageManager.is_final_stage():
@@ -171,6 +178,11 @@ func _process(delta):
     _update_heartbeat(delta)
     # v3.8: Cập nhật boss off-screen indicator
     _update_boss_indicator()
+    # v3.8: Queue minimap redraw (Control.queue_redraw)
+    if _minimap_draw and is_instance_valid(_minimap_draw):
+        _minimap.visible = SettingsManager.show_minimap
+        if SettingsManager.show_minimap:
+            _minimap_draw.queue_redraw()
 
 ## v3.8: Setup pause menu (code-based, không cần scene riêng)
 func _setup_pause_menu():
@@ -778,3 +790,71 @@ func _update_boss_indicator():
         _boss_indicator_label.text = "BOSS %dpx" % dist
         _boss_indicator_label.position = arrow_pos_viewport + Vector2(-30, -25)
         _boss_indicator_label.visible = true
+
+## v3.8: Setup minimap radar — top-right corner, 140x140, semi-transparent.
+## Hiển thị player (cyan), AI (red), boss (large red), darts (yellow).
+func _setup_minimap():
+    _minimap = Panel.new()
+    _minimap.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+    _minimap.offset_left = -MINIMAP_SIZE - MINIMAP_MARGIN
+    _minimap.offset_right = -MINIMAP_MARGIN
+    _minimap.offset_top = MINIMAP_MARGIN + 50  # dưới top bar
+    _minimap.offset_bottom = MINIMAP_MARGIN + 50 + MINIMAP_SIZE
+    _minimap.z_index = 80
+    _minimap.modulate.a = 0.85
+    var style = StyleBoxFlat.new()
+    style.bg_color = Color(0.04, 0.06, 0.10, 0.85)
+    style.border_color = Color(0.4, 0.6, 1.0, 0.5)
+    style.border_width_top = 2
+    style.border_width_bottom = 2
+    style.border_width_left = 2
+    style.border_width_right = 2
+    style.corner_radius_top_left = 8
+    style.corner_radius_top_right = 8
+    style.corner_radius_bottom_left = 8
+    style.corner_radius_bottom_right = 8
+    _minimap.add_theme_stylebox_override("panel", style)
+    hud.add_child(_minimap)
+    # Custom draw control
+    _minimap_draw = Control.new()
+    _minimap_draw.set_anchors_preset(Control.PRESET_FULL_RECT)
+    _minimap_draw.draw.connect(_draw_minimap)
+    _minimap.add_child(_minimap_draw)
+
+## v3.8: Draw minimap content — player/AI/boss/darts as colored dots
+func _draw_minimap():
+    if not is_instance_valid(player):
+        return
+    var map_w = GameManager.map_size.x
+    var map_h = GameManager.map_size.y
+    if map_w <= 0 or map_h <= 0:
+        return
+    # Scale: map_size → MINIMAP_SIZE
+    var sx = MINIMAP_SIZE / map_w
+    var sy = MINIMAP_SIZE / map_h
+    # Draw zone circle
+    var zone_center_minimap = GameManager.zone_center * Vector2(sx, sy)
+    var zone_radius_minimap = GameManager.zone_radius * (sx + sy) * 0.5
+    _minimap_draw.draw_arc(zone_center_minimap, zone_radius_minimap, 0, TAU, 48, Color(0.3, 0.8, 0.5, 0.4), 1.0)
+    # Draw AI as red dots
+    for ai in get_tree().get_nodes_in_group("ai_players"):
+        if not is_instance_valid(ai) or not ("is_alive" in ai) or not ai.is_alive:
+            continue
+        var ai_pos_minimap = ai.global_position * Vector2(sx, sy)
+        var is_boss = ai.has_method("is_boss") and ai.is_boss()
+        if is_boss:
+            # Boss = larger orange dot
+            _minimap_draw.draw_circle(ai_pos_minimap, 5.0, Color(1.0, 0.4, 0.1, 0.95))
+            _minimap_draw.draw_arc(ai_pos_minimap, 7.0, 0, TAU, 24, Color(1.0, 0.6, 0.2, 0.5), 1.5)
+        else:
+            _minimap_draw.draw_circle(ai_pos_minimap, 2.5, Color(1.0, 0.3, 0.3, 0.9))
+    # Draw darts as yellow dots (only player's)
+    for dart in player.all_darts:
+        if not is_instance_valid(dart):
+            continue
+        var dart_pos_minimap = dart.global_position * Vector2(sx, sy)
+        _minimap_draw.draw_circle(dart_pos_minimap, 1.5, Color(1.0, 0.9, 0.3, 0.85))
+    # Draw player as cyan dot with white outline
+    var player_pos_minimap = player.global_position * Vector2(sx, sy)
+    _minimap_draw.draw_circle(player_pos_minimap, 4.0, Color(0.3, 1.0, 1.0, 0.95))
+    _minimap_draw.draw_arc(player_pos_minimap, 5.5, 0, TAU, 24, Color(1.0, 1.0, 1.0, 0.7), 1.5)
