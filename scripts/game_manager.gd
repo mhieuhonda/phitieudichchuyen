@@ -460,8 +460,39 @@ func _complete_stage():
             ProgressionManager.unlock_achievement("stage_15_clear")
         # Update player level theo stage đã mở khóa
         ProgressionManager.gain_xp_and_level(0)
+        # v3.8: Perfect stage bonus — không chết trong ải = bonus HL Coin
+        if StageManager.player_deaths_this_stage == 0:
+            var perfect_bonus = 50 + stage * 10  # ải càng cao, bonus càng lớn
+            ProgressionManager.add_coins(perfect_bonus)
+            _last_perfect_bonus = perfect_bonus
+        else:
+            _last_perfect_bonus = 0
+        # v3.8: Speed bonus — hoàn thành dưới 60s = bonus HL Coin
+        if elapsed < 60.0:
+            var speed_bonus = 30 + int((60.0 - elapsed) * 1.0)
+            ProgressionManager.add_coins(speed_bonus)
+            _last_speed_bonus = speed_bonus
+        else:
+            _last_speed_bonus = 0
+    # v3.8: Track total stage clears stat
+    if SettingsManager:
+        SettingsManager.total_stage_clears += 1
+        SettingsManager.save_settings()
     stage_cleared.emit(StageManager.current_stage)
     AudioManager.play_music("victory")
+
+# v3.8: Cache last bonus amounts để HUD hiển thị
+var _last_perfect_bonus: int = 0
+var _last_speed_bonus: int = 0
+
+## v3.8: API cho HUD lấy bonus info
+func get_last_stage_bonus() -> Dictionary:
+    return {
+        "perfect_bonus": _last_perfect_bonus,
+        "speed_bonus": _last_speed_bonus,
+        "is_perfect": _last_perfect_bonus > 0,
+        "is_speed": _last_speed_bonus > 0,
+    }
 
 ## Player chết trong stage — return true nếu respawn được, false nếu fail
 func on_player_died_in_stage() -> bool:

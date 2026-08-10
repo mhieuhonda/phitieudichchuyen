@@ -985,10 +985,17 @@ func _on_stage_cleared(stage: int):
         var deaths_used = StageManager.player_deaths_this_stage
         var max_deaths = StageManager.get_max_deaths_per_stage(stage)
         var attempts = StageManager.attempts_per_stage.get(stage, 1)
+        # v3.8: Bonus info từ GameManager
+        var bonus = GameManager.get_last_stage_bonus()
+        var bonus_text = ""
+        if bonus.is_perfect:
+            bonus_text += "\n💎 PERFECT! +%d HL Coin" % int(bonus.perfect_bonus)
+        if bonus.is_speed:
+            bonus_text += "\n⚡ SPEED BONUS! +%d HL Coin" % int(bonus.speed_bonus)
         if stage >= StageManager.TOTAL_STAGES:
             stage_clear_title.text = "🎉 HOÀN THÀNH GAME! 🎉"
             stage_clear_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-            stage_clear_subtitle.text = "Bạn đã vượt tất cả %d ải và tiêu diệt Boss!\nThời gian ải cuối: %s" % [StageManager.TOTAL_STAGES, elapsed_str]
+            stage_clear_subtitle.text = "Bạn đã vượt tất cả %d ải và tiêu diệt Boss!\nThời gian ải cuối: %s%s" % [StageManager.TOTAL_STAGES, elapsed_str, bonus_text]
             if stage_clear_next_btn:
                 stage_clear_next_btn.text = "VỀ MENU"
         else:
@@ -999,13 +1006,16 @@ func _on_stage_cleared(stage: int):
                 pb_text = " 🏆 NEW PB!"
             elif best_time > 0:
                 pb_text = "\nBest: %s" % StageManager.format_time(best_time)
-            stage_clear_subtitle.text = "⏱ Thời gian: %s%s\n🎯 Số lần thử: %d\n❤ Mạng còn lại: %d / %d\n✓ Đã mở khóa ải %d!" % [
-                elapsed_str, pb_text, attempts, max_deaths - deaths_used, max_deaths, stage + 1
+            stage_clear_subtitle.text = "⏱ Thời gian: %s%s\n🎯 Số lần thử: %d\n❤ Mạng còn lại: %d / %d\n✓ Đã mở khóa ải %d!%s" % [
+                elapsed_str, pb_text, attempts, max_deaths - deaths_used, max_deaths, stage + 1, bonus_text
             ]
             if stage_clear_next_btn:
                 stage_clear_next_btn.text = "ẢI TIẾP THEO →"
         _refresh_ui()
     _show_big_banner("VƯỢT ẢI!", Color(0.4, 1.0, 0.5, 1.0), 2.0)
+    # v3.8: Nếu có perfect/speed bonus, banner lớn hơn
+    if bonus.is_perfect:
+        _show_big_banner("💎 PERFECT ẢI!", Color(0.4, 1.0, 0.9, 1.0), 2.5)
 
 func _on_stage_failed(stage: int):
     _hide_big_banner()

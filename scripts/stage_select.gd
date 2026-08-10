@@ -47,19 +47,24 @@ func _populate_grid():
         var unlocked = StageManager.is_stage_unlocked(stage_num)
         var is_final = stage_num == StageManager.FINAL_STAGE
         var is_current = stage_num == StageManager.current_stage
+        # v3.8: Difficulty color coding
+        var difficulty_color = _get_difficulty_color(stage_num)
+        var difficulty_label = _get_difficulty_label(stage_num)
         # Build label
         var label_text = "ẢI %d" % stage_num
         if is_final:
             label_text = "ẢI %d\nBOSS" % stage_num
+        label_text += "\n" + difficulty_label
         if StageManager.best_time_per_stage.has(stage_num):
             label_text += "\n⏱ %s" % StageManager.format_time(StageManager.best_time_per_stage[stage_num])
         btn.text = label_text
-        btn.add_theme_font_size_override("font_size", 14)
+        btn.add_theme_font_size_override("font_size", 13)
         # Style theo trạng thái
         if is_final:
             _style_button(btn, COL_RED)
         elif unlocked:
-            _style_button(btn, COL_GREEN if not is_current else COL_GOLD)
+            # v3.8: Difficulty color nếu đã unlock
+            _style_button(btn, difficulty_color if not is_current else COL_GOLD)
         else:
             _style_locked_button(btn)
             btn.disabled = true
@@ -68,6 +73,30 @@ func _populate_grid():
             btn.pressed.connect(_on_stage_pressed.bind(stage_num))
             _setup_touch_scale(btn)
         grid.add_child(btn)
+
+## v3.8: Difficulty color theo ải
+func _get_difficulty_color(stage: int) -> Color:
+    if stage == StageManager.FINAL_STAGE:
+        return COL_RED
+    if stage <= 5:
+        return COL_GREEN  # easy
+    if stage <= 10:
+        return COL_CYAN  # medium
+    if stage <= 15:
+        return Color(1.0, 0.7, 0.2)  # orange, hard
+    return Color(1.0, 0.4, 0.3)  # red, very hard
+
+## v3.8: Difficulty text label
+func _get_difficulty_label(stage: int) -> String:
+    if stage == StageManager.FINAL_STAGE:
+        return "💀 BOSS"
+    if stage <= 5:
+        return "🟢 Dễ"
+    if stage <= 10:
+        return "🔵 TB"
+    if stage <= 15:
+        return "🟠 Khó"
+    return "🔴 RKhó"
 
 func _update_stats():
     var completed = StageManager.best_time_per_stage.size()
