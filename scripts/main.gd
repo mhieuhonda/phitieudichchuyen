@@ -1,7 +1,9 @@
 extends Node2D
 
-## Main - Scene chính (v1.0)
-## - Joystick ảo + mobile controls + skill buttons
+## Main - Scene chính (v3.4)
+## v3.4: Bỏ 3 skill buttons (Dash/Shield/Multishot). Chỉ còn 2 nút: Ném + Dịch.
+##       Thêm hiệu ứng shockwave khi teleport + screen flash khi kill.
+## - Joystick ảo + mobile controls
 ## - Match over handling
 ## - Camera shake
 
@@ -34,9 +36,6 @@ func _ready():
         mobile_controls.throw_started.connect(_on_mobile_throw_start)
         mobile_controls.throw_aim_updated.connect(_on_mobile_throw_aim)
         mobile_controls.throw_ended.connect(_on_mobile_throw_end)
-        mobile_controls.skill_dash_pressed.connect(_on_mobile_skill_dash)
-        mobile_controls.skill_shield_pressed.connect(_on_mobile_skill_shield)
-        mobile_controls.skill_multishot_pressed.connect(_on_mobile_skill_multishot)
 
     hud.set_player(player)
     _spawn_ai_players()
@@ -97,15 +96,6 @@ func _on_mobile_throw_aim(direction: Vector2, power: float):
 func _on_mobile_throw_end(direction: Vector2, power: float):
     player.throw_dart_mobile(direction, power)
 
-func _on_mobile_skill_dash():
-    player.activate_skill(GameManager.Skill.DASH)
-
-func _on_mobile_skill_shield():
-    player.activate_skill(GameManager.Skill.SHIELD)
-
-func _on_mobile_skill_multishot():
-    player.activate_skill(GameManager.Skill.MULTISHOT)
-
 func _on_player_died(p: CharacterBody2D):
     var killer = p.get_killer_name()
     if killer != "":
@@ -113,18 +103,88 @@ func _on_player_died(p: CharacterBody2D):
     else:
         hud._add_kill_feed("Bạn đã bị tiêu diệt!", Color(1.0, 0.2, 0.2))
     AudioManager.play_warning()
+    # v3.4: Screen flash đỏ khi player chết
+    _spawn_screen_flash(Color(1.0, 0.05, 0.05, 0.45), 0.4)
 
 func _on_player_respawned(p: CharacterBody2D):
     hud._add_kill_feed("Đã hồi sinh!", Color(0.2, 1.0, 0.2))
+    AudioManager.play_respawn()
     AudioManager.play_success()
+    # v3.4: Screen flash xanh nhạt khi hồi sinh
+    _spawn_screen_flash(Color(0.2, 1.0, 0.4, 0.30), 0.35)
 
+## v3.4: Hook teleport_performed — spawn shockwave ring + screen shake
 func _on_teleport_performed(p: CharacterBody2D, to_position: Vector2):
-    pass
+    _spawn_teleport_shockwave(to_position)
+    apply_screen_shake(6.0, 0.25)
+    AudioManager.play_teleport()
+
+## v3.4: Spawn shockwave ring (vòng tròn phóng to + fade) tại điểm dịch chuyển
+func _spawn_teleport_shockwave(at_pos: Vector2):
+    var ring = Line2D.new()
+    ring.width = 6.0
+    ring.default_color = Color(0.3, 1.0, 0.5, 0.9)
+    ring.z_index = 50
+    var segments = 48
+    var radius = 20.0
+    for i in segments + 1:
+        var angle = (i / float(segments)) * TAU
+        ring.add_point(Vector2(cos(angle), sin(angle)) * radius)
+    add_child(ring)
+    ring.global_position = at_pos
+    # Animate phóng to + fade
+    var tween = create_tween().set_parallel(true)
+    tween.tween_method(func(r: float):
+        ring.clear_points()
+        for i in segments + 1:
+            var angle = (i / float(segments)) * TAU
+            ring.add_point(Vector2(cos(angle), sin(angle)) * r)
+    , 20.0, 160.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+    tween.tween_property(ring, "default_color:a", 0.0, 0.45)
+    tween.chain().tween_callback(ring.queue_free)
+
+    # Thêm tia spark phát ra từ tâm
+    if SettingsManager.get_particle_multiplier() > 0:
+        var spark = CPUParticles2D.new()
+        spark.emitting = true
+        spark.one_shot = true
+        spark.explosiveness = 0.9
+        spark.amount = max(8, int(20 * SettingsManager.get_particle_multiplier()))
+        spark.lifetime = 0.45
+        spark.direction = Vector2(0, 0)
+        spark.spread = 180.0
+        spark.initial_velocity_min = 120
+        spark.initial_velocity_max = 280
+        spark.gravity = Vector2.ZERO
+        spark.scale_amount_min = 2
+        spark.scale_amount_max = 5
+        spark.color = Color(0.3, 1.0, 0.5, 0.85)
+        add_child(spark)
+        spark.global_position = at_pos
+        get_tree().create_timer(0.8).timeout.connect(spark.queue_free)
+
+## v3.4: Screen flash overlay (ColorRect full màn hình, fade out nhanh)
+func _spawn_screen_flash(color: Color, duration: float):
+    var flash = ColorRect.new()
+    flash.color = color
+    flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    flash.z_index = 100
+    flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+    add_child(flash)
+    # Đợi 1 frame để flash có kích thước thật
+    await get_tree().process_frame
+    var tween = create_tween()
+    tween.tween_property(flash, "color:a", 0.0, duration)
+    tween.tween_callback(flash.queue_free)
 
 func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
     if killer == player:
         hud._add_kill_feed("Bạn đã tiêu diệt %s!" % ai.ai_name, Color(0.2, 1.0, 0.2))
+        AudioManager.play_kill()
         AudioManager.play_achievement()
+        # v3.4: Flash vàng nhẹ khi player giết được AI
+        _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.20), 0.25)
+        apply_screen_shake(4.0, 0.2)
     elif killer and killer != ai:
         var killer_name = killer.ai_name if "ai_name" in killer else "Player"
         hud._add_kill_feed("%s bị %s tiêu diệt" % [ai.ai_name, killer_name], Color(1.0, 0.5, 0.2))
@@ -133,13 +193,17 @@ func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
 
 func _on_zone_shrank(new_radius: float):
     AudioManager.play_zone_shrink()
+    AudioManager.play_zone_warning()
+    apply_screen_shake(3.0, 0.4)
 
 func _on_combo_achieved(combo_count: int):
     AudioManager.play_combo(combo_count)
 
+## v3.4: Hook game_over — phát nhạc + screen flash nhẹ nếu player thắng
 func _on_game_over(winner_name: String, leaderboard: Array):
-    # HUD sẽ tự hiển thị results panel
-    pass
+    if not leaderboard.is_empty() and leaderboard[0].get("is_player", false):
+        _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.35), 0.8)
+    # HUD tự hiển thị results panel
 
 func apply_screen_shake(intensity: float, duration: float):
     shake_intensity = intensity

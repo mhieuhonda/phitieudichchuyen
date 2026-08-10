@@ -1,5 +1,74 @@
 # Changelog
 
+## v3.4 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### 2 nút tròn + Dọn dẹp Settings + Ảnh nền + Hiệu ứng mới
+
+#### Thay đổi giao diện (UI)
+- **Chỉ còn 2 nút chính trên màn hình điều khiển** (đã xóa 3 skills: Dash / Shield / Multishot):
+  - **Nút Dịch chuyển** — nút **TRÒN màu XANH LÁ** (`#33F266`), border glow xanh đậm.
+  - **Nút Ném phi tiêu** — nút **TRÒN màu ĐỎ** (`#FF3838`), border glow đỏ đậm.
+  - Cả hai nút đều có hiệu ứng pulse nhẹ + scale khi chạm + sound riêng.
+- **Nút "Chỉnh sửa giao diện"** đã được đưa ra thẳng **sảnh chờ (Menu chính)** —
+  không còn giấu sâu trong Settings. Nút này cũng vẫn có trong Settings → Giao Diện
+  để tiện truy cập từ hai nơi.
+- **Settings được tổ chức lại gọn gàng** theo 4 mục rõ ràng, mỗi mục có header
+  màu vàng đậm + spacer phân cách:
+  1. **🎨 ĐỒ HỌA** — Quality buttons (4), Toggles (FPS / Rung màn hình / Joystick).
+  2. **🔊 ÂM THANH** — Toggles (Sound / Music), 2 sliders (SFX / Music volume).
+  3. **🌐 NGÔN NGỮ** — Tiếng Việt / English.
+  4. **🎛 GIAO DIỆN** — Slider Joystick size / Button size / UI opacity (đã chuyển
+     từ UI Customization sang), nút CHỈNH SỬA GIAO DIỆN, Device info.
+
+#### Ảnh nền trận đấu
+- **Dùng `AnhNen.png` làm ảnh nền map 2000×2000**: `TextureRect` với
+  `stretch_mode = STRETCH_KEEP_ASPECT_COVERED` để ảnh nguồn (1672×941) tự scale
+  cover toàn bộ map. Thêm `BackgroundTint` (ColorRect alpha 0.35) để character
+  và zone nổi bật hơn trên nền.
+
+#### Hiệu ứng (Effects) mới
+- **Shockwave ring khi dịch chuyển**: vòng tròn Line2D phóng to 20→160px + fade,
+  kèm spark particles xanh lá phát ra từ tâm điểm dịch chuyển.
+- **Screen flash** khi: player chết (đỏ), hồi sinh (xanh nhạt), giết AI (vàng),
+  thắng trận (vàng đậm).
+- **Pulse animation** nhẹ cho 2 nút Dịch/Ném trên mobile — nút "sống động" hơn.
+- **Camera shake** khi: giết AI, zone shrink, teleport.
+- Thêm sound effects: `play_shockwave()`, `play_kill_flash()`, `play_zone_event()`
+  — mix nhiều variation để tạo cảm giác chiến đấu ấn tượng hơn.
+
+#### Hoàn thiện logic cốt lõi (Core Logic)
+- **Hook `_on_teleport_performed`** trong `main.gd` (trước đó là `pass`) — giờ spawn
+  shockwave + spark + screen shake + play teleport sound.
+- **Hook `_on_game_over`** trong `main.gd` (trước đó là `pass`) — giờ phát screen
+  flash vàng nếu player thắng.
+- **Hook `_on_teleport_performed`** trong `hud.gd` (trước đó là `pass`) — giờ ẩn
+  mid_flight_hint khi teleport hoàn tất.
+- **Hook `_on_ai_died`** trong `main.gd` — giờ phát kill sound, achievement sound,
+  screen flash vàng, camera shake khi player giết AI.
+
+#### Dọn dẹp (Cleanup)
+- **Xóa 3 nút skills** khỏi `mobile_controls.tscn` và `mobile_controls.gd` (Dash,
+  Shield, Multishot buttons + signals + handlers + touch indices).
+- **Xóa `SkillPanel`** khỏi `hud.tscn` và `hud.gd` (3 labels Dash/Shield/Multi
+  + hàm `_update_skill_ui` + `_on_skill_cooldown_updated`).
+- **Xóa 3 input actions** `skill_dash`, `skill_shield`, `skill_multishot` khỏi
+  `project.godot`.
+- **Cập nhật `settings_manager.DRAGGABLE_BUTTONS`** — chỉ còn 3 nút (joystick,
+  throw, teleport).
+- **`ui_customization.gd`**: chỉ còn 3 widget (joystick/throw/teleport), widget
+  Dịch và Ném được bo tròn + tô màu match với in-game.
+- **Player & AI code**: các hàm `activate_skill`, `_do_dash`, `_do_shield`,
+  `_do_multishot`, `_ai_dash` được giữ lại nhưng là no-op (trả về false) để tránh
+  vỡ code cũ. AI vẫn giữ kiting, prediction, dodge, flee, pickup seeking.
+- **Character skill_bonus**: vẫn hiển thị ở Character Screen như mô tả "đặc điểm"
+  nhân vật (cosmetic), không còn ảnh hưởng gameplay.
+
+#### Version
+- `config/version` trong `project.godot`: `3.3` → `3.4`
+- README và CHANGELOG được viết lại gọn gàng hơn.
+
+---
+
 ## v3.3 - Phi Tiêu Dịch Chuyển (2026-08-08)
 
 ### Code-based UI + Smarter AI + New Game Physics

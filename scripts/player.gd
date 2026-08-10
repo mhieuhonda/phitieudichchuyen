@@ -1,16 +1,15 @@
 extends CharacterBody2D
 
-## Player - Nhân vật người chơi (v3.0)
-## - Hỗ trợ CharacterData (chọn nhân vật, bonus chỉ số)
+## Player - Nhân vật người chơi (v3.4)
+## v3.4: Đã xóa 3 kỹ năng chủ động (Dash/Shield/Multishot). Chỉ còn Ném + Dịch.
+##       Các hàm activate_skill / _do_dash / _do_shield / _do_multishot vẫn giữ
+##       nhưng là no-op (trả về false) để tương thích với code cũ (nếu có).
+## - Hỗ trợ CharacterData (chọn nhân vật, bonus chỉ số HP/Speed/Dart)
 ## - Max HP scale theo size
 ## - Hồi 10% max HP khi ăn đối thủ
-## - 3 kỹ năng chủ động: Dash, Shield, Multishot
 ## - Joystick ảo + mobile controls
-## - Hiệu ứng: hit flash, level-up, floating damage text
+## - Hiệu ứng: hit flash, level-up, floating damage text, teleport shockwave
 ## - FIX: Không bị khóa di chuyển khi ném phi tiêu
-##
-## v3.0: Dọn dẹp - đã xóa Classic mode, Crown skill, SMG reward,
-##        Target highlight và mọi tham chiếu đến online/NetworkManager.
 
 const KILLER_NONE := ""
 
@@ -236,58 +235,16 @@ func _input(event: InputEvent):
 
         if event.is_action_pressed("teleport"):
                 _teleport_to_dart()
-        # Skills (PC)
-        if event.is_action_pressed("skill_dash"):
-                activate_skill(GameManager.Skill.DASH)
-        if event.is_action_pressed("skill_shield"):
-                activate_skill(GameManager.Skill.SHIELD)
-        if event.is_action_pressed("skill_multishot"):
-                activate_skill(GameManager.Skill.MULTISHOT)
+        # v3.4: Đã xóa 3 skills (Dash/Shield/Multishot) — không còn input actions này
 
-# === SKILLS ===
+# === SKILLS (v3.4: DEPRECATED — giữ lại hàm để tương thích, nhưng no-op) ===
 func activate_skill(skill: int) -> bool:
-        if not is_alive:
-                return false
-        if skill_cooldowns[skill] > 0:
-                AudioManager.play_error()
-                return false
-        match skill:
-                GameManager.Skill.DASH:
-                        return _do_dash()
-                GameManager.Skill.SHIELD:
-                        return _do_shield()
-                GameManager.Skill.MULTISHOT:
-                        return _do_multishot()
+        # v3.4: Skills đã bị xóa. Hàm giữ lại để tránh lỗi nếu code cũ gọi.
         return false
 
 func _do_dash() -> bool:
-        var dir = Vector2.ZERO
-        if Input.is_action_pressed("move_up"): dir.y -= 1
-        if Input.is_action_pressed("move_down"): dir.y += 1
-        if Input.is_action_pressed("move_left"): dir.x -= 1
-        if Input.is_action_pressed("move_right"): dir.x += 1
-        if joystick_ref and joystick_ref.is_active():
-                dir = joystick_ref.get_direction()
-        if dir == Vector2.ZERO:
-                dir = aim_direction if aim_direction != Vector2.ZERO else Vector2.RIGHT
-        dir = dir.normalized()
-        dash_direction = dir
-        is_dashing = true
-        dash_timer = GameManager.skill_dash_duration
-        # v3.3: Bất tử ngắn khi dash
-        dash_invincibility_timer = GameManager.skill_dash_duration + GameManager.dash_invincibility_frames
-
-        # Character bonus: Dash cooldown reduced for assassin
-        var cd = GameManager.skill_dash_cooldown
-        if char_skill_bonus == "dash":
-                cd *= 0.7  # 30% reduction
-        skill_cooldowns[GameManager.Skill.DASH] = cd
-
-        _spawn_dash_effect(dir)
-        AudioManager.play_whoosh()
-        skill_activated.emit(GameManager.Skill.DASH)
-        GameManager.skill_used.emit(player_id, "dash")
-        return true
+        # v3.4: deprecated — không còn dash
+        return false
 
 ## v3.3: Áp dụng hiệu ứng slow khi bị trúng dart
 func apply_hit_slow(duration: float, factor: float):
@@ -295,20 +252,8 @@ func apply_hit_slow(duration: float, factor: float):
         hit_slow_factor = factor
 
 func _do_shield() -> bool:
-        shield_active = true
-        # Character bonus: Shield longer for brawler
-        var duration = GameManager.skill_shield_duration
-        if char_skill_bonus == "shield":
-                duration *= 1.5
-        shield_timer = duration
-        skill_cooldowns[GameManager.Skill.SHIELD] = GameManager.skill_shield_cooldown
-        if shield_sprite:
-                shield_sprite.visible = true
-        AudioManager.play_powerup()
-        _spawn_shield_effect()
-        skill_activated.emit(GameManager.Skill.SHIELD)
-        GameManager.skill_used.emit(player_id, "shield")
-        return true
+        # v3.4: deprecated — không còn shield
+        return false
 
 func _deactivate_shield():
         shield_active = false
@@ -316,16 +261,11 @@ func _deactivate_shield():
                 shield_sprite.visible = false
 
 func _do_multishot() -> bool:
-        multishot_ready = true
-        skill_cooldowns[GameManager.Skill.MULTISHOT] = GameManager.skill_multishot_cooldown
-        AudioManager.play_powerup()
-        _spawn_buff_effect(Color(1.0, 0.6, 0.2))
-        skill_activated.emit(GameManager.Skill.MULTISHOT)
-        GameManager.skill_used.emit(player_id, "multishot")
-        return true
+        # v3.4: deprecated — không còn multishot
+        return false
 
 func is_shield_active() -> bool:
-        return shield_active
+        return false  # v3.4: luôn false — không còn shield
 
 # === MOBILE API ===
 func start_aim_mobile():
@@ -401,21 +341,7 @@ func _throw_dart_desktop(mouse_pos: Vector2):
         _spawn_dart(direction, power)
 
 func _spawn_dart(direction: Vector2, power: float):
-        # Character bonus: Multishot fires more for mage
-        var multishot_count = GameManager.skill_multishot_dart_count
-        if multishot_ready and char_skill_bonus == "multishot":
-                multishot_count += 1  # Extra dart for mage
-
-        if multishot_ready:
-                multishot_ready = false
-                var spread = GameManager.skill_multishot_spread
-                for i in multishot_count:
-                        var t = (i - (multishot_count - 1) / 2.0) / max(1, multishot_count - 1)
-                        var offset_angle = t * spread
-                        var dir = direction.rotated(offset_angle)
-                        _spawn_single_dart(dir, power * (0.9 + 0.2 * (1.0 - abs(t))))
-                AudioManager.play_combo(3)
-                return
+        # v3.4: Đã xóa multishot — luôn ném 1 phi tiêu duy nhất
         _spawn_single_dart(direction, power)
 
 func _spawn_single_dart(direction: Vector2, power: float):

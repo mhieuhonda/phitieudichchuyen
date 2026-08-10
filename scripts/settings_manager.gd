@@ -51,10 +51,9 @@ var use_custom_layout: bool = false
 # "vi" (Tiếng Việt) hoặc "en" (English)
 var language: String = "vi"
 
-# Tên các nút có thể kéo thả (dùng trong ui_customization.gd)
+# v3.4: Tên các nút có thể kéo thả (đã xóa 3 skill buttons)
 const DRAGGABLE_BUTTONS: Array = [
         "joystick", "throw", "teleport",
-        "skill_dash", "skill_shield", "skill_multishot"
 ]
 
 # === DAILY LOGIN REWARD (v2.2) ===

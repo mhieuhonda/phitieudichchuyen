@@ -1,13 +1,16 @@
 extends Node2D
 
-## Map - Bản đồ game (v1.2)
-## - Map đẹp hơn với gradient, chướng ngại vật đa dạng
+## Map - Bản đồ game (v3.4)
+## v3.4: Dùng AnhNen.png làm ảnh nền trận đấu, scale vừa map 2000x2000.
+##       Thêm darken overlay nhẹ để character/zone nổi bật hơn.
+## v1.2: Map đẹp hơn với gradient, chướng ngại vật đa dạng
 ## - Hiệu ứng khu vực sáng tối
 ## - Pickups rải đều
 
 @onready var zone_circle: Line2D = $ZoneCircle
 @onready var zone_fill: Polygon2D = $ZoneFill
-@onready var background: ColorRect = $Background
+@onready var background_sprite: TextureRect = $BackgroundSprite
+@onready var background_tint: ColorRect = $BackgroundTint
 @onready var grid_layer: Node2D = $GridLayer
 @onready var decor_layer: Node2D = $DecorLayer
 
@@ -31,25 +34,34 @@ func _process(_delta):
     _cleanup_pickups()
 
 func _setup_background():
-    if background:
-        # v3.3: Code-based background (AnhNen.png đã bị xóa)
-        background.size = GameManager.map_size
-        background.color = Color(0.04, 0.05, 0.09, 1.0)
-        # Vẽ các mảng sáng/tối ngẫu nhiên tạo chiều sâu
-        for i in 12:
-            var blob = Polygon2D.new()
-            var segments = 24
-            var pts = PackedVector2Array()
-            var center = Vector2(rng.randf_range(0, GameManager.map_size.x),
-                                  rng.randf_range(0, GameManager.map_size.y))
-            var radius = rng.randf_range(150, 350)
-            for j in segments:
-                var angle = (j / float(segments)) * TAU
-                var r = radius * (0.7 + 0.3 * sin(angle * 3 + i))
-                pts.append(center + Vector2(cos(angle), sin(angle)) * r)
-            blob.polygon = pts
-            blob.color = Color(0.08, 0.07, 0.14, 0.4) if i % 2 == 0 else Color(0.05, 0.06, 0.10, 0.3)
-            background.add_child(blob)
+        # v3.4: Dùng AnhNen.png làm ảnh nền — scale vừa map 2000x2000
+        if background_sprite:
+                background_sprite.size = GameManager.map_size
+                # TextureRect với stretch_mode = STRETCH_SCALE_ASPECT_COVER sẽ tự scale
+                # ảnh nguồn (1672x941) để cover toàn bộ 2000x2000.
+                # Nếu ảnh có tỉ lệ khác map, một phần sẽ bị crop — đây là hành vi mong muốn
+                # để ảnh lấp đầy map không để khoảng trống.
+                if background_tint:
+                        background_tint.size = GameManager.map_size
+        # Vẽ các mảng sáng/tối ngẫu nhiên tạo chiều sâu — vẽ lên decor_layer
+        # để không che sprite nền (chỉ tạo chiều sâu nhẹ)
+        for i in 8:
+                var blob = Polygon2D.new()
+                var segments = 24
+                var pts = PackedVector2Array()
+                var center = Vector2(rng.randf_range(0, GameManager.map_size.x),
+                                      rng.randf_range(0, GameManager.map_size.y))
+                var radius = rng.randf_range(150, 350)
+                for j in segments:
+                        var angle = (j / float(segments)) * TAU
+                        var r = radius * (0.7 + 0.3 * sin(angle * 3 + i))
+                        pts.append(center + Vector2(cos(angle), sin(angle)) * r)
+                blob.polygon = pts
+                blob.color = Color(0.08, 0.07, 0.14, 0.25) if i % 2 == 0 else Color(0.05, 0.06, 0.10, 0.20)
+                if decor_layer:
+                        decor_layer.add_child(blob)
+                elif background_sprite:
+                        background_sprite.add_child(blob)
 
 func _create_grid():
     if not grid_layer:

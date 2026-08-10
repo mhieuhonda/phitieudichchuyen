@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://player003"]
+[gd_scene load_steps=3 format=3 uid="uid://player003"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/sprites/shield.png" id="2_shield"]
 

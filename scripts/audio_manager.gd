@@ -329,3 +329,18 @@ func play_aim_start():
 
 func play_spawn():
     play_variation("spawn", 0.0, 1.0)
+
+## v3.4: Thêm sound cho shockwave (dùng bass + zap mix) — hiệu ứng dịch chuyển mạnh
+func play_shockwave():
+    play_variation("bass", 3.0, 0.85)
+    play_variation("zap", 2.0, 1.1)
+
+## v3.4: Sound cho screen flash kill (dùng achievement + drum crash)
+func play_kill_flash():
+    play_variation("drum_crash", 1.0, 1.0)
+    play_variation("achievement", 1.0, 1.0)
+
+## v3.4: Sound cho zone shrink (dùng alarm + zone_shrink)
+func play_zone_event():
+    play_variation("zone_shrink", 0.0, 1.0)
+    play_variation("alarm", -3.0, 0.95)
