@@ -1,10 +1,13 @@
 class_name AIPlayer
 extends CharacterBody2D
 
-## AIPlayer - NPC đối thủ (v3.4)
+## AIPlayer - NPC đối thủ (v3.5)
+## v3.5:
+##   - Anti kill-steal: AI chỉ nhắm player, KHÔNG tấn công AI khác
+##   - Khi bị tiêu diệt, thông báo cho GameManager.on_ai_killed_in_stage()
+##   - Respawn bị vô hiệu hóa trong stage mode (AI chết là chết thật)
+##   - Thông số AI được cấu hình động qua StageManager
 ## v3.4: Bỏ dash (skill đã bị loại bỏ). AI vẫn có: kiting, prediction, né dart,
-##       flee khi HP thấp, pursuit speed boost, chủ động nhặt pickup.
-## v3.3: AI thông minh hơn - kiting, prediction tốt hơn, né dart chủ động,
 ##       flee khi HP thấp, pursuit speed boost, chủ động nhặt pickup.
 ## - Max HP scale theo size (giống player)
 ## - Hồi 10% max HP khi ăn đối thủ
@@ -79,6 +82,10 @@ func _ready():
         add_to_group("ai_players")
         current_size = GameManager.initial_player_radius
         current_max_hp = GameManager.compute_max_hp_for_size(current_size)
+        # v3.5: Scale HP theo stage config
+        if GameManager.is_stage_mode and StageManager:
+                var cfg = StageManager.get_ai_intelligence_for_stage(StageManager.current_stage)
+                current_max_hp *= cfg["ai_hp_mult"]
         current_hp = current_max_hp
         ai_id = ai_name_index
         if ai_name == "":
@@ -414,6 +421,8 @@ func _find_nearest_player() -> Node2D:
         target_player = nearest
         return nearest
 
+## v3.5: AI không nhắm vào AI khác (chỉ nhắm player) — tránh kill-steal
+
 ## v3.3: Tìm pickup gần nhất (health hoặc dart refill)
 func _find_nearest_pickup() -> Node2D:
         var pickups = get_tree().get_nodes_in_group("pickups")
@@ -549,6 +558,7 @@ func _spawn_ai_teleport_effect(pos: Vector2, was_flying: bool):
         get_tree().create_timer(0.8).timeout.connect(particles.queue_free)
 
 func _check_teleport_kill(pos: Vector2):
+        # v3.5: AI chỉ tấn công player (anti kill-steal) — không tấn công AI khác
         var players = get_tree().get_nodes_in_group("players")
         for p in players:
                 if not is_instance_valid(p) or not p.is_alive: continue
@@ -558,40 +568,33 @@ func _check_teleport_kill(pos: Vector2):
                                 _spawn_ai_teleport_effect(p.global_position, false)
                                 continue
                         if p.has_method("take_damage_from"):
-                                p.take_damage_from(9999.0, self)
-                        if not p.is_alive:
-                                ai_score += GameManager.score_per_kill
-                                ai_kills += 1
-                                _grow_size(GameManager.size_per_kill)
-                                _heal_on_kill()
-                                GameManager.update_ai_score(ai_id, ai_score)
-                                GameManager.update_ai_kills(ai_id, ai_kills)
-                                AudioManager.play_kill()
+                                p.take_damage_from(80.0, self)  # AI teleport hit = 80 dmg (không kill)
+                        # v3.5: AI không còn "ăn" player để tránh kill-steal
 
 func _on_dart_stuck(dart: Node2D): pass
 func _on_dart_expired(dart: Node2D): all_darts.erase(dart)
 func _on_dart_consumed(dart: Node2D): all_darts.erase(dart)
 
 func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
+        # v3.5: Anti kill-steal — AI dart chỉ gây damage cho player, không cho AI khác
+        if hit_player.is_in_group("ai_players") and hit_player != self:
+                return  # bỏ qua — không gây damage cho AI khác
         if hit_player.has_method("take_damage_from"):
                 var was_alive = hit_player.is_alive if "is_alive" in hit_player else true
-                # v3.3: Damage scale theo dart power
                 var dmg = GameManager.dart_hit_damage * dart.power
                 hit_player.take_damage_from(dmg, self)
                 if was_alive and "is_alive" in hit_player and not hit_player.is_alive:
-                        ai_score += GameManager.score_per_kill
-                        ai_kills += 1
-                        _grow_size(GameManager.size_per_kill)
-                        _heal_on_kill()
-                        GameManager.update_ai_score(ai_id, ai_score)
-                        GameManager.update_ai_kills(ai_id, ai_kills)
-                        AudioManager.play_kill()
+                        # v3.5: Nếu player bị AI giết — không ghi score cho AI
+                        pass
 
 func kill(killer: Node2D):
         if not is_alive:
                 return
         is_alive = false
         GameManager.set_ai_alive(ai_id, false)
+        # v3.5: Thông báo cho stage manager
+        if GameManager.is_stage_mode:
+                GameManager.on_ai_killed_in_stage()
         if SettingsManager.get_particle_multiplier() > 0:
                 var death_particles = CPUParticles2D.new()
                 death_particles.emitting = true; death_particles.one_shot = true; death_particles.explosiveness = 0.9
@@ -612,11 +615,20 @@ func kill(killer: Node2D):
                 ai_died.emit(self, killer)
         else:
                 ai_died.emit(self, null)
-        var self_ref = self
-        get_tree().create_timer(GameManager.respawn_time).timeout.connect(func():
-                if is_instance_valid(self_ref):
-                        self_ref._respawn()
-        )
+        # v3.5: Stage mode — AI không respawn (chỉ player mới respawn)
+        if not GameManager.is_stage_mode:
+                var self_ref = self
+                get_tree().create_timer(GameManager.respawn_time).timeout.connect(func():
+                        if is_instance_valid(self_ref):
+                                self_ref._respawn()
+                )
+        else:
+                # Stage mode: ẩn hoàn toàn sau 1.5s, không respawn
+                var self_ref2 = self
+                get_tree().create_timer(1.5).timeout.connect(func():
+                        if is_instance_valid(self_ref2):
+                                self_ref2.queue_free()
+                )
 
 func take_damage_from(amount: float, attacker: Node2D):
         if not is_alive:
@@ -624,6 +636,9 @@ func take_damage_from(amount: float, attacker: Node2D):
         # Shield miễn damage
         if ai_shield_active:
                 return
+        # v3.5: Anti kill-steal — AI chỉ nhận damage từ player hoặc boss, không từ AI khác
+        if attacker and attacker.is_in_group("ai_players") and not (attacker.has_method("is_boss") and attacker.is_boss()):
+                return  # AI khác bắn trúng → không gây damage
         current_hp -= amount
         _update_hp_bar()
         _spawn_damage_number(amount)
@@ -634,15 +649,17 @@ func take_damage_from(amount: float, attacker: Node2D):
         # v3.3: Khi bị bắn → có thể flee (phản ứng smart)
         if current_ai_state in [AIState.WANDERING, AIState.IDLE, AIState.HUNTING, AIState.KITING]:
                 if attacker and is_instance_valid(attacker):
-                        target_player = attacker
-                        # Nếu HP thấp → flee, nếu không → kiting
-                        var hp_ratio = current_hp / current_max_hp if current_max_hp > 0 else 0
-                        if hp_ratio < GameManager.ai_flee_hp_threshold:
-                                current_ai_state = AIState.FLEEING
-                                state_timer = randf_range(1.5, 2.5)
-                        else:
-                                current_ai_state = AIState.KITING
-                                state_timer = randf_range(1.0, 2.0)
+                        # v3.5: AI chỉ phản ứng với attacker là player
+                        if attacker.is_in_group("players"):
+                                target_player = attacker
+                                # Nếu HP thấp → flee, nếu không → kiting
+                                var hp_ratio = current_hp / current_max_hp if current_max_hp > 0 else 0
+                                if hp_ratio < GameManager.ai_flee_hp_threshold:
+                                        current_ai_state = AIState.FLEEING
+                                        state_timer = randf_range(1.5, 2.5)
+                                else:
+                                        current_ai_state = AIState.KITING
+                                        state_timer = randf_range(1.0, 2.0)
         if current_hp <= 0:
                 current_hp = 0
                 kill(attacker)

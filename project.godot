@@ -11,10 +11,10 @@ config_version=5
 [application]
 
 config/name="Phi Tiêu Dịch Chuyển"
-config/description="Ném phi tiêu - Dịch chuyển - Nuốt đối thủ! Game 2D top-down offline PvP."
+config/description="Vượt 20 ải - Ném phi tiêu - Dịch chuyển - Tiêu diệt Boss! Game 2D top-down offline."
 run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
-config/version="3.4"
+config/version="3.5"
 config/icon="res://icon.svg"
 
 [autoload]
@@ -24,6 +24,7 @@ GameManager="*res://scripts/game_manager.gd"
 AudioManager="*res://scripts/audio_manager.gd"
 CharacterData="*res://scripts/character_data.gd"
 I18N="*res://scripts/i18n.gd"
+StageManager="*res://scripts/stage_manager.gd"
 
 [display]
 

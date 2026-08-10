@@ -101,6 +101,22 @@ const TRANSLATIONS := {
         "death_recap.damage_taken": {"vi": "Damage nhận: %d", "en": "Damage taken: %d"},
         "death_recap.survival_time": {"vi": "Sống sót: %s", "en": "Survived: %s"},
         "death_recap.kills": {"vi": "Giết: %d", "en": "Kills: %d"},
+        # === v3.5: STAGE MODE ===
+        "stage.title": {"vi": "VƯỢT ẢI", "en": "STAGES"},
+        "stage.current": {"vi": "Ải %d / %d", "en": "Stage %d / %d"},
+        "stage.final": {"vi": "ẢI CUỐI — BOSS", "en": "FINAL — BOSS"},
+        "stage.clear": {"vi": "VƯỢT ẢI!", "en": "STAGE CLEAR!"},
+        "stage.fail": {"vi": "THẤT BẠI!", "en": "FAILED!"},
+        "stage.next": {"vi": "ẢI TIẾP THEO →", "en": "NEXT STAGE →"},
+        "stage.retry": {"vi": "THỬ LẠI", "en": "RETRY"},
+        "stage.deaths_left": {"vi": "Mạng: %d", "en": "Lives: %d"},
+        "stage.enemy_count": {"vi": "Địch: %d/%d", "en": "Enemies: %d/%d"},
+        "stage.boss_hp": {"vi": "BOSS  %.1f%% HP", "en": "BOSS  %.1f%% HP"},
+        "stage.boss_rage": {"vi": "⚠ BOSS RAGE!", "en": "⚠ BOSS RAGE!"},
+        "stage.continue_btn": {"vi": "▶ CHƠI TIẠP", "en": "▶ CONTINUE"},
+        "stage.play_btn": {"vi": "⚔ VƯỢT ẢI", "en": "⚔ STAGES"},
+        "stage.reset": {"vi": "🗑 RESET TIẾN ĐỘ", "en": "🗑 RESET PROGRESS"},
+        "stage.progress": {"vi": "Tiến độ: %d / %d ải", "en": "Progress: %d / %d stages"},
 }
 
 var _current_lang: String = DEFAULT_LANG

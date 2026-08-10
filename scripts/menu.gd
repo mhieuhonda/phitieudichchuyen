@@ -1,14 +1,18 @@
 extends Control
 
-## Menu - Menu chính / Sảnh chờ (v3.4)
+## Menu - Menu chính / Sảnh chờ (v3.5)
+## v3.5:
+##   - Nút "VƯỢT ẢI" thay cho "CHƠI NGAY" — vào màn hình chọn ải
+##   - Nút "CHƠI TIẾP" nếu có ải đang chơi dở (tiếp tục ải hiện tại)
+##   - Hiển thị tiến độ vượt ải (X/20) trên sảnh chờ
 ## v3.4: Đưa nút "CHỈNH SỬA GIAO DIỆN" ra ngoài sảnh chờ (trước nằm trong Settings).
 ##       Bỏ 3 skill buttons khỏi mobile controls; UI chỉ còn 2 nút chính.
 ## v3.3: Code-based UI - bỏ hoàn toàn PNG buttons. Tất cả nút bấm đều là Button
 ##       (Godot Control) với StyleBoxFlat tạo hiệu ứng hover, gradient, dark theme
 ##       vàng-tím nhất quán. Sắp xếp gọn gàng bằng VBoxContainer trong CenterContainer.
-## v3.0: Dọn dẹp - đã xóa nút Hướng Dẫn (Guide), xóa mọi tham chiếu online/zombie/gift code
 
 @onready var play_button: Button = $CenterContainer/MenuVBox/PlayButton
+@onready var continue_button: Button = $CenterContainer/MenuVBox/ContinueButton
 @onready var characters_button: Button = $CenterContainer/MenuVBox/CharactersButton
 @onready var settings_button: Button = $CenterContainer/MenuVBox/SettingsButton
 @onready var ui_customize_button: Button = $CenterContainer/MenuVBox/UICustomizeButton
@@ -16,6 +20,7 @@ extends Control
 @onready var version_label: Label = $VersionLabel
 @onready var new_feature_label: RichTextLabel = $CenterContainer/MenuVBox/NewFeatureLabel
 @onready var game_title: Label = $CenterContainer/MenuVBox/GameTitle
+@onready var progress_label: Label = $CenterContainer/MenuVBox/ProgressLabel
 
 # Scale animation
 const SCALE_UP := Vector2(1.06, 1.06)
@@ -36,6 +41,8 @@ const COL_BORDER := Color(0.35, 0.30, 0.55, 0.55)
 
 func _ready():
         play_button.pressed.connect(_on_play_pressed)
+        if continue_button:
+                continue_button.pressed.connect(_on_continue_pressed)
         characters_button.pressed.connect(_on_characters_pressed)
         settings_button.pressed.connect(_on_settings_pressed)
         ui_customize_button.pressed.connect(_on_ui_customize_pressed)
@@ -43,13 +50,18 @@ func _ready():
 
         # Style every button
         _style_primary_button(play_button, COL_GOLD)
+        if continue_button:
+                _style_button(continue_button, COL_GREEN)
         _style_button(characters_button, COL_CYAN)
         _style_button(settings_button, COL_PURPLE)
         _style_button(ui_customize_button, COL_GREEN)
         _style_button(quit_button, COL_RED)
 
         # Hover & click scale effects for ALL buttons
-        for btn in [play_button, characters_button, settings_button, ui_customize_button, quit_button]:
+        var buttons = [play_button, characters_button, settings_button, ui_customize_button, quit_button]
+        if continue_button:
+                buttons.append(continue_button)
+        for btn in buttons:
                 if btn:
                         btn.mouse_entered.connect(_on_btn_hover.bind(btn, true))
                         btn.mouse_exited.connect(_on_btn_hover.bind(btn, false))
@@ -158,14 +170,19 @@ func _apply_premium_styling():
 
 func _refresh_ui():
         if version_label:
-                version_label.text = "v3.4 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v3.5 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#ffaa00][b]v3.4 MỚI:[/b][/color] 2 nút tròn — Xanh = Dịch chuyển · Đỏ = Ném phi tiêu\n[color=#44aaff][b]12 Nhân Vật[/b][/color]: Tất cả đều mở khóa sẵn\n[color=#00ff88][b]Offline PvP[/b][/color]: Chơi với 5 AI trên bản đồ 2000×2000\n[color=#aa00ff][b]AI thông minh[/b][/color]: né phi tiêu, dự đoán di chuyển, kiting\n[color=#ff8844][b]Hiệu ứng [/b][/color]: ricochet, knockback, shockwave, screen flash"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.5 MỚI:[/b][/color] Vượt 20 ải — càng cao boss càng thông minh\n[color=#ff4444][b]ẢI 20 = BOSS CUỐI[/b][/color]: 10M HP, laser, sweep rage ở 10% HP\n[color=#44ff88][b]Cơ chế mới[/b][/color]: Dịch chuyển tới boss để gây sát thương lớn\n[color=#aa44ff][b]Cân bằng[/b][/color]: Fix kill-steal, AI chỉ tấn công player"
                 else:
-                        new_feature_label.text = "[color=#ffaa00][b]v3.4 NEW:[/b][/color] 2 round buttons — Green = Teleport · Red = Throw dart\n[color=#44aaff][b]12 Characters[/b][/color]: All unlocked\n[color=#00ff88][b]Offline PvP[/b][/color]: Play vs 5 AI on a 2000×2000 map\n[color=#aa00ff][b]Smarter AI[/b][/color]: dodge darts, predict movement, kiting\n[color=#ff8844][b]Effects[/b][/color]: ricochet, knockback, shockwave, screen flash"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.5 NEW:[/b][/color] 20 stages — higher stage, smarter boss\n[color=#ff4444][b]STAGE 20 = FINAL BOSS[/b][/color]: 10M HP, laser, rage sweep at 10% HP\n[color=#44ff88][b]New mechanic[/b][/color]: Teleport to boss for big damage\n[color=#aa44ff][b]Balanced[/b][/color]: Fixed kill-steal, AI only attacks player"
         if play_button:
-                play_button.text = I18N.t("menu.play")
+                play_button.text = "⚔ VƯỢT ẢI" if I18N.is_vi() else "⚔ STAGES"
+        if continue_button:
+                continue_button.text = "▶ CHƠI TIẾP" if I18N.is_vi() else "▶ CONTINUE"
+                # Chỉ hiện nút Continue nếu có ải đang chơi dở (current_stage > 1 hoặc đã vượt qua ải 1)
+                var has_progress = StageManager.max_stage_unlocked > 1 or StageManager.current_stage > 1
+                continue_button.visible = has_progress
         if characters_button:
                 characters_button.text = I18N.t("menu.characters")
         if settings_button:
@@ -174,8 +191,19 @@ func _refresh_ui():
                 ui_customize_button.text = I18N.t("settings.ui_customize")
         if quit_button:
                 quit_button.text = I18N.t("menu.quit")
+        # v3.5: Progress label
+        if progress_label:
+                var completed = StageManager.best_time_per_stage.size()
+                progress_label.text = "Tiến độ: %d / %d ải  •  ải cao nhất: %d" % [completed, StageManager.TOTAL_STAGES, StageManager.max_stage_unlocked]
+                progress_label.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
 
 func _on_play_pressed():
+        AudioManager.play_ui_click()
+        AudioManager.play_confirm()
+        get_tree().change_scene_to_file("res://scenes/stage_select.tscn")
+
+## v3.5: Chơi tiếp ải hiện tại
+func _on_continue_pressed():
         AudioManager.play_ui_click()
         AudioManager.play_confirm()
         get_tree().change_scene_to_file("res://scenes/main.tscn")

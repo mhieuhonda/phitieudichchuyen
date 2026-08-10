@@ -1,5 +1,170 @@
 # Changelog
 
+## v3.5 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### Vượt 20 ải + Boss cuối 10M HP + Lưu tiến độ local + Fix kill-steal
+
+#### Chế độ chơi mới: Vượt Ải
+- **Thay thế chế độ PvP 5 phút** bằng chế độ Vượt Ải (20 ải). Toàn bộ game
+  giờ là vượt ải — không còn khái niệm "trận đấu 5 phút".
+- **Cấu trúc ải:**
+  - Ải 1-5: 1 AI, info thấp (dodge 0.15-0.30, accuracy 0.50-0.62)
+  - Ải 6-10: 2 AI, info trung bình (dodge 0.30-0.55, accuracy 0.62-0.78)
+  - Ải 11-15: 3 AI, info cao (dodge 0.55-0.75, accuracy 0.78-0.89)
+  - Ải 16-19: 4 AI, info rất cao (dodge 0.75-0.85, accuracy 0.89-0.95)
+  - **Ải 20: BOSS CUỐI** — 10M HP, laser, rage sweep, không có AI thường
+- **Số mạng giới hạn mỗi ải**: ải 1-10 = 3 mạng, ải 11-15 = 4 mạng,
+  ải 16-20 = 5 mạng. Hết mạng → thất bại ải, phải thử lại.
+- **Vòng bo không thu nhỏ** trong stage mode — map full 2000×2000.
+
+#### Boss cuối (Ải 20)
+- **Sprite `Boss.png`** (1536×1024) được dùng làm hình boss, scale 0.12.
+- **10,000,000 HP** (10 triệu). Hiển thị bằng thanh máu lớn trên cùng màn hình.
+- **Sát thương 4x player dart** (= 100 damage/hit). Boss ném phi tiêu mỗi 2.5s.
+- **Laser attack:**
+  - **Phase 1 (cảnh báo 1s)**: tia laser mờ mờ (alpha 0.25) để player né.
+    Sound alarm beep lặp lại mỗi 0.25s.
+  - **Phase 2 (bắn 1.5s)**: tia sáng đậm, gây sát thương liên tục.
+    Đứng giữa tia (center 24px) = **2x damage** (200 dmg/s).
+    Đứng rìa tia (70px) = **1x damage** (100 dmg/s).
+    Linear interpolate giữa center và rìa.
+  - **Cooldown 4s** giữa các đợt laser.
+- **Spinning sweep (rage mode ở 10% HP = 1M HP):**
+  - Quét 1.5 vòng (540°) trong 4 giây.
+  - Damage mạnh hơn 30% so với laser thường.
+  - Aura particle đỏ quanh boss khi rage.
+  - Move speed tăng từ 60 → 90 khi rage.
+  - Sound: drum_crash + bass + alarm khi trigger rage.
+- **Cách gây damage lên boss:**
+  - **Dịch chuyển tới boss** = 250,000 damage/lần (2.5% HP).
+    Cần 40 lần dịch chuyển để kill boss (không tính chip damage).
+  - **Dart trúng boss** = 6.25 chip damage (25 * 0.25).
+  - **Knockback zone** (ngoài kill zone nhưng trong knockback zone) = báo "MISS".
+- **Sound effects cho boss:**
+  - `play_boss_spawn`: drum_crash + alarm + bass
+  - `play_boss_laser_warning`: alarm beep
+  - `play_boss_laser_fire`: laser + bass
+  - `play_boss_rage`: drum_crash + bass + alarm
+  - `play_boss_sweep`: whoosh + laser
+  - `play_boss_hurt`: hit impact
+  - `play_boss_death`: explosion + drum_crash + bass
+  - `play_stage_clear`: success + drum_crash + achievement
+  - `play_stage_fail`: error + warning
+- **Death explosion**: 3 đợt particle (đỏ/vàng/tím) stagger 0.15s, screen shake 15.0 trong 1s.
+
+#### Lưu tiến độ local
+- **`StageManager` autoload** mới — quản lý 20 ải, save/load `user://progress.cfg`.
+- **Dữ liệu lưu:**
+  - `current_stage`: ải đang chơi (1..20)
+  - `max_stage_unlocked`: ải cao nhất đã mở khóa (1..20)
+  - `attempts_per_stage`: số lần thử mỗi ải
+  - `best_time_per_stage`: thời gian hoàn thành tốt nhất mỗi ải
+  - `total_deaths`: tổng số lần chết
+  - `total_boss_kills`: tổng số boss đã giết
+- **API công khai:** `start_stage(n)`, `complete_stage(time)`, `fail_stage()`,
+  `is_stage_unlocked(n)`, `reset_progress()`, `get_ai_count_for_stage(n)`,
+  `get_ai_intelligence_for_stage(n)`, `get_max_deaths_per_stage(n)`.
+
+#### Màn hình chọn ải (StageSelect)
+- **Scene mới `stage_select.tscn`** — hiển thị 20 ải dạng lưới 5 cột.
+- Mỗi nút ải hiển thị: số ải, "BOSS" nếu là ải 20, best time nếu đã hoàn thành.
+- ải chưa mở khóa bị mờ + disabled.
+- ải hiện tại có viền vàng nổi bật.
+- Nút "🗑 RESET TIẾN ĐỘ" để chơi lại từ đầu.
+- Thống kê: đã hoàn thành X/20, tổng số lần thử, tổng số chết, boss đã giết.
+
+#### Menu chính (v3.5)
+- **Nút "⚔ VƯỢT ẢI"** thay cho "CHƠI NGAY" — vào màn hình chọn ải.
+- **Nút "▶ CHƠI TIẾP"** — chỉ hiện khi có ải đang chơi dở (current_stage > 1
+  hoặc max_stage_unlocked > 1). Vào thẳng ải hiện tại.
+- **ProgressLabel** ở cuối menu: "Tiến độ: X / 20 ải · ải cao nhất: Y".
+
+#### HUD (v3.5)
+- **StageLabel** thay cho MatchTimer countdown — "ẢI X / 20" (vàng) hoặc
+  "ẢI CUỐI — BOSS" (đỏ) nếu ải 20.
+- **MatchTimerLabel** hiển thị thời gian đã trôi qua trong ải (⏱ MM:SS) thay
+  vì countdown.
+- **DeathsLabel** (góc phải trên): "Mạng: X" — đỏ nếu còn ≤1 mạng.
+- **BossHpContainer**: panel lớn ở trên cùng giữa, chứa BossNameLabel +
+  BossHpBar (ProgressBar 600px). Hiển thị "BOSS  X.X% HP (current/max)"
+  hoặc "⚠ BOSS RAGE!  X.X% HP" khi rage.
+- **AliveLabel**: "Địch: X/Y" thay cho "Sống: X".
+- **ZoneTimerLabel**: "Bo: ∞" (stage mode không thu nhỏ bo).
+- **StageClearPanel**: "✦ VƯỢT ẢI X! ✦" với subtitle hiển thị time/mạng còn lại/
+  ải đã mở khóa. 2 nút: "ẢI TIẾP THEO →" và "VỀ MENU".
+  - Ải 20: "🎉 HOÀN THÀNH GAME! 🎉" — nút "VỀ MENU".
+- **StageFailPanel**: "✗ THẤT BẠI ✗" với subtitle "Bạn đã hết mạng ở ải X.
+  Thử lại nhé!" — 2 nút: "THỬ LẠI" và "VỀ MENU".
+- **Boss HP bar fill color**: đỏ đậm (#D92619) thường, cam sáng (#FF661A) khi rage.
+
+#### Cân bằng game (fix kill-steal)
+- **AI không tấn công AI khác** — chỉ nhắm player. Trong `AIPlayer._find_nearest_player()`
+  chỉ tìm trong group "players", không tìm trong "ai_players".
+- **AI dart không gây damage cho AI khác** — `AIPlayer._on_dart_hit_player()`
+  return sớm nếu `hit_player.is_in_group("ai_players") and hit_player != self`.
+- **AI teleport không còn instakill player** — giảm từ 9999 damage → 80 damage.
+- **AI chỉ nhận damage từ player hoặc boss** — `AIPlayer.take_damage_from()`
+  return sớm nếu attacker là AI thường (không phải boss).
+- **AI không respawn trong stage mode** — chết là chết thật, bị `queue_free()`
+  sau 1.5s. Chỉ player mới được respawn.
+- **Player respawn ở vị trí an toàn** — `_find_safe_respawn_position()` thử 8 vị trí
+  ngẫu nhiên trong zone, chọn vị trí có khoảng cách lớn nhất tới enemy gần nhất.
+- **Player không respawn nếu stage đã kết thúc** — kiểm tra `stage_failed` và
+  `stage_cleared_flag` trong `_respawn()`.
+
+#### Bug fixes
+- **Fix print debug** trong `GameManager.reset_game()` — xóa `print("[GameManager]
+  Daily reward...")` (debug log không cần thiết).
+- **Fix boss không nhận damage từ dart** — thêm `owner_player_id = 9999` vào
+  `Boss.gd` để dart.gd `_on_body_entered` check `body.owner_player_id !=
+  owner_player_id` hoạt động đúng.
+- **Fix HUD `_on_match_time_changed`** — trong stage mode, signal emit `-1.0`
+  làm sentinel, HUD tự tính thời gian trong `_process()`.
+- **Fix `Zone.shrink_zone()`** — return sớm trong stage mode để không thu nhỏ bo.
+- **Fix `_process` trong GameManager** — chỉ emit `match_time_changed` và kiểm
+  tra end_match trong non-stage mode. Stage mode emit `-1.0` sentinel.
+
+#### Localization (v3.5)
+- Thêm 16 i18n keys mới cho stage mode: `stage.title`, `stage.current`,
+  `stage.final`, `stage.clear`, `stage.fail`, `stage.next`, `stage.retry`,
+  `stage.deaths_left`, `stage.enemy_count`, `stage.boss_hp`, `stage.boss_rage`,
+  `stage.continue_btn`, `stage.play_btn`, `stage.reset`, `stage.progress`.
+
+#### Project config (v3.5)
+- `config/version = "3.5"`
+- `config/description` cập nhật: "Vượt 20 ải - Ném phi tiêu - Dịch chuyển -
+  Tiêu diệt Boss! Game 2D top-down offline."
+- Thêm autoload `StageManager="*res://scripts/stage_manager.gd"` (singleton thứ 6).
+
+#### Files mới
+- `scripts/stage_manager.gd` — autoload quản lý 20 ải + save/load
+- `scripts/boss.gd` — class Boss với laser, sweep, rage mode
+- `scripts/boss_laser.gd` — class BossLaser (warning phase + active phase)
+- `scripts/stage_select.gd` — màn hình chọn ải
+- `scenes/boss.tscn` — boss scene (CharacterBody2D + Sprite + CollisionShape2D +
+  HpBar + NameLabel + RageAura + LaserAnchor)
+- `scenes/boss_laser.tscn` — laser scene (Node2D + BeamLine + CenterLine)
+- `scenes/stage_select.tscn` — stage selection screen
+- `assets/sprites/Boss.png` — boss sprite (1536×1024, RGBA)
+
+#### Files sửa
+- `project.godot` — version 3.5, thêm StageManager autoload
+- `scripts/game_manager.gd` — stage mode support, signals mới (stage_cleared,
+  stage_failed_signal, ai_count_changed, boss_hp_changed), API mới
+- `scripts/main.gd` — spawn boss cho ải 20, AI theo stage, stage clear/fail handlers
+- `scripts/player.gd` — teleport damage cho boss, stage fail check, safe respawn
+- `scripts/ai_player.gd` — anti kill-steal, no respawn in stage mode, HP scale theo stage
+- `scripts/hud.gd` — boss HP bar, stage UI, stage clear/fail panels
+- `scripts/menu.gd` — nút Vượt Ải, Continue, progress label
+- `scripts/audio_manager.gd` — 8 boss/stage sound helpers mới
+- `scripts/i18n.gd` — 16 stage mode keys
+- `scenes/menu.tscn` — thêm ContinueButton, ProgressLabel
+- `scenes/hud.tscn` — thêm StageLabel, BossHpContainer, StageClearPanel, StageFailPanel, DeathsLabel
+- `README.md` — viết lại gọn gàng cho v3.5
+- `CHANGELOG.md` — thêm entry v3.5
+
+---
+
 ## v3.4 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### 2 nút tròn + Dọn dẹp Settings + Ảnh nền + Hiệu ứng mới

@@ -1,15 +1,16 @@
 extends Node
 
-## GameManager - Quản lý trạng thái toàn cục của game (v1.0)
+## GameManager - Quản lý trạng thái toàn cục của game (v3.5)
 ## Singleton autoload, điều khiển điểm số, combo, respawn, vòng bo, pickups
 ##
-## v1.0 changes:
-## - Match time limit (mặc định 5 phút = 300s)
-## - Max HP scale theo size: bigger = more HP
-## - Heal 10% max HP khi ăn đối thủ
-## - Track score/kill cho mọi người chơi (player + AI) cho leaderboard
-## - Active skills system (Dash, Shield, Multishot)
-## - Game over signal với leaderboard data
+## v3.5 changes:
+## - Hỗ trợ Stage Mode (vượt ải) qua StageManager autoload
+## - Stage Mode: không thu nhỏ vòng bo, không có match time limit
+## - Anti kill-steal: AI không gây damage cho AI khác, chỉ cho player
+## - Khi player chết: nếu còn lượt chết (theo stage) → respawn tại vị trí an toàn
+## - Khi hết lượt chết → fail stage
+## - Khi tất cả AI/Boss bị tiêu diệt → complete stage
+## v1.0: Match time limit, max HP scale theo size, heal 10% max HP khi ăn đối thủ
 
 signal player_score_changed(new_score: int)
 signal player_size_changed(new_size: float)
@@ -23,6 +24,11 @@ signal match_time_changed(time_remaining: float)
 signal skill_used(player_id: int, skill_id: String)
 # v2.2: Daily login reward signal
 signal daily_reward_granted(streak: int, hp_bonus_percent: float)
+# v3.5: Stage signals
+signal stage_cleared(stage: int)
+signal stage_failed_signal(stage: int)
+signal ai_count_changed(alive_count: int, total_count: int)
+signal boss_hp_changed(hp: float, max_hp: float, is_rage: bool)
 
 # === CẤU HÌNH ===
 @export_group("Phi Tiêu")
@@ -116,6 +122,14 @@ var total_kills: int = 0
 var time_remaining: float = 0.0
 var match_warning_played: bool = false
 
+# v3.5: Stage mode state
+var is_stage_mode: bool = true  # default true từ v3.5 — toàn bộ game là vượt ải
+var stage_total_ai: int = 0     # tổng số AI/Boss cần tiêu diệt trong ải
+var stage_alive_ai: int = 0     # số AI/Boss còn sống
+var stage_failed: bool = false
+var stage_cleared_flag: bool = false
+var stage_boss_ref: Node2D = null  # ref tới boss nếu ải 20
+
 # === LEADERBOARD ===
 # Mỗi entry: { "id": int, "name": String, "score": int, "kills": int, "is_player": bool, "alive": bool }
 var leaderboard_entries: Array = []
@@ -130,17 +144,20 @@ func _ready():
 func _process(delta):
     if game_active and not game_ended:
         game_time += delta
-        time_remaining = max(0.0, match_duration - game_time)
-        match_time_changed.emit(time_remaining)
-
-        # Cảnh báo 30s cuối
-        if not match_warning_played and time_remaining <= match_end_warning_time and time_remaining > 0:
-            match_warning_played = true
-            AudioManager.play_warning()
-
-        # Kết thúc trận khi hết giờ
-        if time_remaining <= 0:
-            end_match()
+        # v3.5: Trong stage mode không dùng match time
+        if not is_stage_mode:
+            time_remaining = max(0.0, match_duration - game_time)
+            match_time_changed.emit(time_remaining)
+            # Cảnh báo 30s cuối
+            if not match_warning_played and time_remaining <= match_end_warning_time and time_remaining > 0:
+                match_warning_played = true
+                AudioManager.play_warning()
+            # Kết thúc trận khi hết giờ
+            if time_remaining <= 0:
+                end_match()
+        else:
+            # Stage mode: emit thời gian đã trôi qua (âm để HUD biết là stage mode)
+            match_time_changed.emit(-1.0)
 
         if combo_count > 0:
             combo_timer -= delta
@@ -163,9 +180,12 @@ func reset_game():
             var bonus_hp = int(player_max_hp * daily.reward_hp_percent)
             player_max_hp += bonus_hp
             daily_reward_granted.emit(daily.streak_count, daily.reward_hp_percent)
-            print("[GameManager] Daily reward: streak=%d, +%.0f%% HP (+%d)" % [daily.streak_count, daily.reward_hp_percent * 100, bonus_hp])
     player_hp = player_max_hp
-    zone_radius = map_size.x * 0.45
+    # v3.5: Stage mode — vòng bo = full map (không thu nhỏ)
+    if is_stage_mode:
+        zone_radius = map_size.x * 0.55
+    else:
+        zone_radius = map_size.x * 0.45
     zone_center = map_size / 2.0
     game_active = true
     game_ended = false
@@ -178,6 +198,10 @@ func reset_game():
     player_kills = 0
     time_remaining = match_duration
     match_warning_played = false
+    # v3.5: Reset stage state
+    stage_failed = false
+    stage_cleared_flag = false
+    stage_boss_ref = null
     leaderboard_entries.clear()
     # Player entry
     leaderboard_entries.append({
@@ -252,6 +276,9 @@ func heal_percent(percent: float):
     heal(player_max_hp * percent)
 
 func shrink_zone():
+    # v3.5: Stage mode không thu nhỏ vòng bo
+    if is_stage_mode:
+        return
     if zone_radius > zone_min_radius:
         current_shrink_count += 1
         var actual_amount = zone_shrink_amount * pow(zone_shrink_acceleration, current_shrink_count - 1)
@@ -354,3 +381,96 @@ func end_match():
 
 func is_match_over() -> bool:
     return game_ended
+
+# === v3.5: STAGE MODE API ===
+
+## Bắt đầu ải mới — reset stage state
+func start_stage(stage: int):
+    is_stage_mode = true
+    reset_game()
+    StageManager.start_stage(stage)
+    stage_total_ai = StageManager.get_ai_count_for_stage(stage)
+    stage_alive_ai = stage_total_ai
+    if StageManager.is_final_stage():
+        stage_total_ai = 1  # 1 boss
+        stage_alive_ai = 1
+    ai_count_changed.emit(stage_alive_ai, stage_total_ai)
+
+## Đăng ký boss cho ải 20
+func register_boss(boss: Node2D):
+    stage_boss_ref = boss
+    boss.boss_damaged.connect(_on_boss_damaged)
+    boss.boss_died.connect(_on_boss_died)
+    boss.boss_rage_started.connect(_on_boss_rage)
+
+func _on_boss_damaged(_amount: float, hp: float, max_hp: float):
+    var is_rage = hp <= max_hp * StageManager.BOSS_RAGE_HP_PERCENT
+    boss_hp_changed.emit(hp, max_hp, is_rage)
+
+func _on_boss_died(_boss: Node2D):
+    stage_alive_ai = 0
+    ai_count_changed.emit(0, stage_total_ai)
+    boss_hp_changed.emit(0.0, StageManager.BOSS_MAX_HP, false)
+    _complete_stage()
+
+func _on_boss_rage(_boss: Node2D):
+    # HUD tự update rage indicator qua boss_hp_changed is_rage flag
+    pass
+
+## AI bị tiêu diệt (gọi từ AIPlayer.kill)
+func on_ai_killed_in_stage():
+    if stage_alive_ai > 0:
+        stage_alive_ai -= 1
+    ai_count_changed.emit(stage_alive_ai, stage_total_ai)
+    if stage_alive_ai <= 0 and not stage_cleared_flag:
+        _complete_stage()
+
+func _complete_stage():
+    if stage_cleared_flag or stage_failed:
+        return
+    stage_cleared_flag = true
+    game_active = false
+    var elapsed = StageManager.get_elapsed_stage_time()
+    StageManager.complete_stage(elapsed)
+    stage_cleared.emit(StageManager.current_stage)
+    AudioManager.play_music("victory")
+
+## Player chết trong stage — return true nếu respawn được, false nếu fail
+func on_player_died_in_stage() -> bool:
+    StageManager.register_player_death()
+    var max_deaths = StageManager.get_max_deaths_per_stage(StageManager.current_stage)
+    if StageManager.player_deaths_this_stage >= max_deaths:
+        _fail_stage()
+        return false
+    return true  # cho phép respawn
+
+func _fail_stage():
+    if stage_failed or stage_cleared_flag:
+        return
+    stage_failed = true
+    game_active = false
+    StageManager.fail_stage()
+    stage_failed_signal.emit(StageManager.current_stage)
+    AudioManager.play_music("defeat")
+
+## Reset stage flags (khi chơi lại ải)
+func reset_stage_flags():
+    stage_failed = false
+    stage_cleared_flag = false
+    stage_boss_ref = null
+    stage_alive_ai = stage_total_ai
+
+## Cấu hình AI theo stage hiện tại
+func apply_stage_ai_config():
+    if not is_stage_mode or not StageManager:
+        return
+    var cfg = StageManager.get_ai_intelligence_for_stage(StageManager.current_stage)
+    ai_dodge_chance = cfg["dodge_chance"]
+    ai_accuracy = cfg["accuracy"]
+    ai_mid_flight_teleport_chance = cfg["mid_flight_teleport_chance"]
+    ai_predict_lead_factor = cfg["predict_lead_factor"]
+    ai_kite_distance = cfg["kite_distance"]
+    ai_flee_hp_threshold = cfg["flee_hp_threshold"]
+    ai_pursuit_speed_mult = cfg["pursuit_speed_mult"]
+    ai_pickup_seeking = cfg["pickup_seeking"]
+    num_ai_players = StageManager.get_ai_count_for_stage(StageManager.current_stage)

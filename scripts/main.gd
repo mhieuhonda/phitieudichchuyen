@@ -1,11 +1,14 @@
 extends Node2D
 
-## Main - Scene chính (v3.4)
-## v3.4: Bỏ 3 skill buttons (Dash/Shield/Multishot). Chỉ còn 2 nút: Ném + Dịch.
-##       Thêm hiệu ứng shockwave khi teleport + screen flash khi kill.
-## - Joystick ảo + mobile controls
-## - Match over handling
-## - Camera shake
+## Main - Scene chính (v3.5)
+## v3.5: Chuyển sang Stage Mode (vượt ải).
+##   - Ải 1-19: spawn AI theo stage, độ khó tăng dần
+##   - Ải 20: spawn Boss (10M HP, laser, sweep rage)
+##   - Khi tất cả AI/Boss bị tiêu diệt → stage clear
+##   - Khi player chết quá số lần quy định → stage failed
+##   - Anti kill-steal: AI chỉ tấn công player, không tấn công AI khác
+## v3.4: Hook teleport_performed — spawn shockwave ring + screen shake
+## v3.1: Joystick ảo + mobile controls, Match over handling, Camera shake
 
 @onready var player: CharacterBody2D = $Player
 @onready var ai_container: Node2D = $AIPlayers
@@ -15,13 +18,21 @@ extends Node2D
 @onready var mobile_controls: Control = $UILayer/MobileControls
 
 var ai_scene: PackedScene = preload("res://scenes/ai_player.tscn")
+var boss_scene: PackedScene = preload("res://scenes/boss.tscn")
 var shake_intensity: float = 0.0
 var shake_duration: float = 0.0
 var shake_timer: float = 0.0
 var original_camera_offset: Vector2 = Vector2.ZERO
 
 func _ready():
-    GameManager.reset_game()
+    # v3.5: Khởi tạo stage mode
+    var target_stage = 1
+    if StageManager and StageManager.stage_active:
+        target_stage = StageManager.current_stage
+    elif StageManager:
+        target_stage = StageManager.current_stage
+    GameManager.start_stage(target_stage)
+    GameManager.apply_stage_ai_config()
     AIPlayer.reset_name_index()
 
     player.player_id = 0
@@ -38,20 +49,42 @@ func _ready():
         mobile_controls.throw_ended.connect(_on_mobile_throw_end)
 
     hud.set_player(player)
-    _spawn_ai_players()
+    hud.set_stage(StageManager.current_stage)
+    _spawn_enemies()
 
     player.player_died.connect(_on_player_died)
     player.player_respawned.connect(_on_player_respawned)
     player.teleport_performed.connect(_on_teleport_performed)
 
     GameManager.screen_shake_requested.connect(apply_screen_shake)
-    GameManager.zone_shrank.connect(_on_zone_shrank)
     GameManager.combo_achieved.connect(_on_combo_achieved)
+    GameManager.stage_cleared.connect(_on_stage_cleared)
+    GameManager.stage_failed_signal.connect(_on_stage_failed)
     GameManager.game_over.connect(_on_game_over)
 
     _setup_camera()
 
-    AudioManager.play_music("game")
+    # v3.5: Music khác nhau cho ải boss
+    if StageManager.is_final_stage():
+        AudioManager.play_music("defeat")  # nhạc căng thẳng cho boss fight
+    else:
+        AudioManager.play_music("game")
+
+func _spawn_enemies():
+    if StageManager.is_final_stage():
+        _spawn_boss()
+    else:
+        _spawn_ai_players()
+
+func _spawn_boss():
+    var boss = boss_scene.instantiate()
+    ai_container.add_child(boss)
+    # Spawn boss ở xa player
+    var angle = randf() * TAU
+    var dist = 600.0
+    boss.global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
+    GameManager.register_boss(boss)
+    hud.set_boss(boss)
 
 func _spawn_ai_players():
     for i in GameManager.num_ai_players:
@@ -59,9 +92,9 @@ func _spawn_ai_players():
         ai.ai_id = i
         ai_container.add_child(ai)
         var rng = RandomNumberGenerator.new()
-        rng.seed = i * 7 + 13
+        rng.seed = i * 7 + 13 + StageManager.current_stage  # đổi seed mỗi stage
         var angle = rng.randf() * TAU
-        var dist = rng.randf_range(100, 600)
+        var dist = rng.randf_range(200, 600)
         ai.global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
         ai.ai_died.connect(_on_ai_died)
 
@@ -103,14 +136,18 @@ func _on_player_died(p: CharacterBody2D):
     else:
         hud._add_kill_feed("Bạn đã bị tiêu diệt!", Color(1.0, 0.2, 0.2))
     AudioManager.play_warning()
-    # v3.4: Screen flash đỏ khi player chết
     _spawn_screen_flash(Color(1.0, 0.05, 0.05, 0.45), 0.4)
+    # v3.5: Kiểm tra stage fail
+    var can_respawn = GameManager.on_player_died_in_stage()
+    if not can_respawn:
+        # Stage fail — HUD sẽ hiển thị panel fail qua signal
+        pass
+    # Nếu respawn được, _respawn() sẽ tự động gọi sau delay
 
 func _on_player_respawned(p: CharacterBody2D):
     hud._add_kill_feed("Đã hồi sinh!", Color(0.2, 1.0, 0.2))
     AudioManager.play_respawn()
     AudioManager.play_success()
-    # v3.4: Screen flash xanh nhạt khi hồi sinh
     _spawn_screen_flash(Color(0.2, 1.0, 0.4, 0.30), 0.35)
 
 ## v3.4: Hook teleport_performed — spawn shockwave ring + screen shake
@@ -132,7 +169,6 @@ func _spawn_teleport_shockwave(at_pos: Vector2):
         ring.add_point(Vector2(cos(angle), sin(angle)) * radius)
     add_child(ring)
     ring.global_position = at_pos
-    # Animate phóng to + fade
     var tween = create_tween().set_parallel(true)
     tween.tween_method(func(r: float):
         ring.clear_points()
@@ -143,7 +179,6 @@ func _spawn_teleport_shockwave(at_pos: Vector2):
     tween.tween_property(ring, "default_color:a", 0.0, 0.45)
     tween.chain().tween_callback(ring.queue_free)
 
-    # Thêm tia spark phát ra từ tâm
     if SettingsManager.get_particle_multiplier() > 0:
         var spark = CPUParticles2D.new()
         spark.emitting = true
@@ -171,39 +206,47 @@ func _spawn_screen_flash(color: Color, duration: float):
     flash.z_index = 100
     flash.set_anchors_preset(Control.PRESET_FULL_RECT)
     add_child(flash)
-    # Đợi 1 frame để flash có kích thước thật
     await get_tree().process_frame
     var tween = create_tween()
     tween.tween_property(flash, "color:a", 0.0, duration)
     tween.tween_callback(flash.queue_free)
 
 func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
+    # v3.5: Stage mode — notify GameManager
+    GameManager.on_ai_killed_in_stage()
     if killer == player:
         hud._add_kill_feed("Bạn đã tiêu diệt %s!" % ai.ai_name, Color(0.2, 1.0, 0.2))
         AudioManager.play_kill()
         AudioManager.play_achievement()
-        # v3.4: Flash vàng nhẹ khi player giết được AI
         _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.20), 0.25)
         apply_screen_shake(4.0, 0.2)
-    elif killer and killer != ai:
-        var killer_name = killer.ai_name if "ai_name" in killer else "Player"
-        hud._add_kill_feed("%s bị %s tiêu diệt" % [ai.ai_name, killer_name], Color(1.0, 0.5, 0.2))
     else:
         hud._add_kill_feed("%s đã bị tiêu diệt" % ai.ai_name, Color(1.0, 0.5, 0.2))
 
-func _on_zone_shrank(new_radius: float):
-    AudioManager.play_zone_shrink()
-    AudioManager.play_zone_warning()
-    apply_screen_shake(3.0, 0.4)
-
 func _on_combo_achieved(combo_count: int):
     AudioManager.play_combo(combo_count)
+
+## v3.5: Stage clear handler
+func _on_stage_cleared(stage: int):
+    _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.35), 0.8)
+    apply_screen_shake(8.0, 0.5)
+    AudioManager.play_achievement()
+    AudioManager.play_variation("success", 2.0, 1.0)
+    AudioManager.play_variation("drum_crash", 3.0, 1.0)
+    # HUD sẽ hiển thị stage clear panel
+
+## v3.5: Stage fail handler
+func _on_stage_failed(stage: int):
+    _spawn_screen_flash(Color(1.0, 0.05, 0.05, 0.55), 1.0)
+    apply_screen_shake(12.0, 0.8)
+    AudioManager.play_warning()
+    AudioManager.play_variation("error", 2.0, 0.85)
+    # HUD sẽ hiển thị stage fail panel
 
 ## v3.4: Hook game_over — phát nhạc + screen flash nhẹ nếu player thắng
 func _on_game_over(winner_name: String, leaderboard: Array):
     if not leaderboard.is_empty() and leaderboard[0].get("is_player", false):
         _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.35), 0.8)
-    # HUD tự hiển thị results panel
 
 func apply_screen_shake(intensity: float, duration: float):
     shake_intensity = intensity

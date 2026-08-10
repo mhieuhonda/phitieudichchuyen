@@ -1,9 +1,12 @@
 extends CharacterBody2D
 
-## Player - Nhân vật người chơi (v3.4)
+## Player - Nhân vật người chơi (v3.5)
+## v3.5:
+##   - Hỗ trợ Stage Mode: chết quá số lần quy định → fail stage
+##   - Dịch chuyển tới Boss → gây 250k damage (thay vì kill)
+##   - Dart trúng Boss → 100 chip damage
+##   - Fix kill-steal: dart chỉ gây damage cho AI khác, không cho AI cùng team
 ## v3.4: Đã xóa 3 kỹ năng chủ động (Dash/Shield/Multishot). Chỉ còn Ném + Dịch.
-##       Các hàm activate_skill / _do_dash / _do_shield / _do_multishot vẫn giữ
-##       nhưng là no-op (trả về false) để tương thích với code cũ (nếu có).
 ## - Hỗ trợ CharacterData (chọn nhân vật, bonus chỉ số HP/Speed/Dart)
 ## - Max HP scale theo size
 ## - Hồi 10% max HP khi ăn đối thủ
@@ -421,7 +424,20 @@ func _check_teleport_kill(pos: Vector2):
                 if not is_instance_valid(ai) or not ai.is_alive:
                         continue
                 var dist = pos.distance_to(ai.global_position)
-                # Kill zone
+                # v3.5: Boss — gây damage lớn thay vì kill
+                if ai.has_method("is_boss") and ai.is_boss():
+                        # Trong bán kính boss → gây teleport damage
+                        if dist < GameManager.teleport_kill_radius + ai.current_size:
+                                ai.take_teleport_damage(StageManager.BOSS_TELEPORT_DAMAGE, self)
+                                _spawn_floating_text("-%d" % int(StageManager.BOSS_TELEPORT_DAMAGE),
+                                                Color(1.0, 0.3, 0.3), ai.global_position + Vector2(0, -60))
+                                GameManager.request_screen_shake(8.0, 0.3)
+                                continue
+                        # Ngoài kill zone nhưng trong knockback zone → báo MISS
+                        if dist < GameManager.teleport_knockback_radius + ai.current_size:
+                                _spawn_floating_text("MISS", Color(0.6, 0.6, 0.6), ai.global_position + Vector2(0, -40))
+                                continue
+                # Kill zone for regular AI
                 if dist < GameManager.teleport_kill_radius + ai.current_size:
                         # FIX: Check shield properly
                         if ai.ai_shield_active:
@@ -507,18 +523,25 @@ func _die():
         AudioManager.play_death()
         GameManager.set_player_alive(false)
         player_died.emit(self)
-        # v1.9 FIX: guard respawn callback
-        var self_ref = self
-        get_tree().create_timer(GameManager.respawn_time).timeout.connect(func():
-                if is_instance_valid(self_ref):
-                        self_ref._respawn()
-        )
+        # v3.5: Stage mode — check if player can respawn
+        var can_respawn = true
+        if GameManager.is_stage_mode:
+                can_respawn = GameManager.on_player_died_in_stage()
+        if can_respawn:
+                var self_ref = self
+                get_tree().create_timer(GameManager.respawn_time).timeout.connect(func():
+                        if is_instance_valid(self_ref):
+                                self_ref._respawn()
+                )
 
 func get_killer_name() -> String:
         return last_killer_name
 
 func _respawn():
-        if GameManager.is_match_over():
+        # v3.5: Don't respawn if stage ended (failed/cleared)
+        if GameManager.is_stage_mode and (GameManager.stage_failed or GameManager.stage_cleared_flag):
+                return
+        if not GameManager.is_stage_mode and GameManager.is_match_over():
                 return
         is_alive = true
         is_respawning = false
@@ -536,15 +559,39 @@ func _respawn():
                 name_label.visible = true
         if size_indicator:
                 size_indicator.visible = true
-        var angle = randf() * TAU
-        var dist = randf() * GameManager.zone_radius * 0.5
-        global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
+        # v3.5: Respawn ở vị trí an toàn — xa boss/AI nhất có thể
+        global_position = _find_safe_respawn_position()
         _update_hp_bar()
         _update_visual_size()
         _update_size_indicator()
         _spawn_teleport_effect(global_position, true, false)
         AudioManager.play_respawn()
         player_respawned.emit(self)
+
+## v3.5: Tìm vị trí respawn an toàn — xa tất cả AI/Boss
+func _find_safe_respawn_position() -> Vector2:
+        var best_pos = GameManager.zone_center
+        var best_dist = -1.0
+        var enemies = get_tree().get_nodes_in_group("ai_players")
+        # Thử 8 vị trí trong zone, chọn vị trí xa enemy nhất
+        for i in 8:
+                var angle = (i / 8.0) * TAU + randf_range(-0.3, 0.3)
+                var dist = randf_range(150, GameManager.zone_radius * 0.7)
+                var pos = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
+                # Tính khoảng cách tới enemy gần nhất
+                var min_enemy_dist = 99999.0
+                for enemy in enemies:
+                        if is_instance_valid(enemy) and enemy.is_alive:
+                                var d = pos.distance_to(enemy.global_position)
+                                if d < min_enemy_dist:
+                                        min_enemy_dist = d
+                if min_enemy_dist > best_dist:
+                        best_dist = min_enemy_dist
+                        best_pos = pos
+        # Clamp trong map
+        best_pos.x = clamp(best_pos.x, 50, GameManager.map_size.x - 50)
+        best_pos.y = clamp(best_pos.y, 50, GameManager.map_size.y - 50)
+        return best_pos
 
 func _spawn_teleport_effect(pos: Vector2, is_appear: bool, is_mid_flight: bool):
         if SettingsManager.get_particle_multiplier() <= 0:

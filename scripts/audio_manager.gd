@@ -344,3 +344,51 @@ func play_kill_flash():
 func play_zone_event():
     play_variation("zone_shrink", 0.0, 1.0)
     play_variation("alarm", -3.0, 0.95)
+
+## v3.5: Boss-specific sounds
+## Boss spawn: drum crash + alarm + bass
+func play_boss_spawn():
+    play_variation("drum_crash", 4.0, 0.8)
+    play_variation("alarm", 2.0, 0.7)
+    play_variation("bass", 5.0, 0.6)
+
+## Boss laser warning (charge phase): alarm beep
+func play_boss_laser_warning():
+    play_variation("alarm", 0.0, 1.1)
+
+## Boss laser fire: laser + bass
+func play_boss_laser_fire():
+    play_variation("laser", 4.0, 0.85)
+    play_variation("bass", 3.0, 0.7)
+
+## Boss rage roar (10% HP trigger): drum crash + bass + alarm
+func play_boss_rage():
+    play_variation("drum_crash", 5.0, 0.7)
+    play_variation("bass", 6.0, 0.5)
+    play_variation("alarm", 3.0, 0.8)
+
+## Boss sweep (rage spinning laser): whoosh + laser
+func play_boss_sweep():
+    play_variation("whoosh", 3.0, 1.1)
+    play_variation("laser", 3.0, 0.9)
+
+## Boss hurt (khi bị teleport/dart damage)
+func play_boss_hurt():
+    play_variation("hit", 2.0, 1.0)
+
+## Boss death explosion
+func play_boss_death():
+    play_variation("explosion", 6.0, 0.7)
+    play_variation("drum_crash", 5.0, 0.6)
+    play_variation("bass", 7.0, 0.4)
+
+## Stage clear
+func play_stage_clear():
+    play_variation("success", 2.0, 1.0)
+    play_variation("drum_crash", 3.0, 1.0)
+    play_variation("achievement", 1.0, 1.0)
+
+## Stage fail
+func play_stage_fail():
+    play_variation("error", 2.0, 0.85)
+    play_variation("warning", 1.0, 0.9)

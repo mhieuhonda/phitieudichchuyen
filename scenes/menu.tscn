@@ -46,7 +46,7 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(700, 110)
 layout_mode = 2
 bbcode_enabled = true
-text = "[color=#ffaa00][b]v3.4:[/b][/color] 2 nút tròn - Xanh dịch / Đỏ ném"
+text = "[color=#ffaa00][b]v3.5:[/b][/color] Vượt 20 ải — Boss cuối ở ải 20"
 
 [node name="Spacer1" type="Control" parent="CenterContainer/MenuVBox"]
 custom_minimum_size = Vector2(0, 12)
@@ -57,7 +57,14 @@ custom_minimum_size = Vector2(360, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 theme_override_colors/font_color = Color(1.0, 0.95, 0.4, 1.0)
-text = "CHƠI NGAY"
+text = "⚔ VƯỢT ẢI"
+
+[node name="ContinueButton" type="Button" parent="CenterContainer/MenuVBox"]
+visible = false
+custom_minimum_size = Vector2(360, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "▶ CHƠI TIẾP"
 
 [node name="CharactersButton" type="Button" parent="CenterContainer/MenuVBox"]
 custom_minimum_size = Vector2(360, 56)
@@ -83,6 +90,21 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "THOÁT"
 
+[node name="Spacer2" type="Control" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="ProgressLabel" type="Label" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(360, 24)
+layout_mode = 2
+text = "Tiến độ: 0 / 20 ải"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_constants/shadow_offset_y = 1
+theme_override_constants/shadow_outline_size = 2
+
 [node name="VersionLabel" type="Label" parent="."]
 layout_mode = 1
 anchors_preset = 2
@@ -98,4 +120,4 @@ theme_override_colors/font_color = Color(0.4, 0.55, 0.75, 0.7)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
 theme_override_constants/shadow_offset_y = 1
 theme_override_constants/shadow_outline_size = 2
-text = "v3.4 - Phi Tiêu Dịch Chuyển"
+text = "v3.5 - Phi Tiêu Dịch Chuyển"
