@@ -628,10 +628,16 @@ func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
         AudioManager.play_achievement()
         _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.20), 0.25)
         apply_screen_shake(4.0, 0.2)
-        # v3.8: Tăng kill streak
+        # v3.8: Tăng kill streak + track best
         _kill_streak += 1
         _kill_streak_timer = KILL_STREAK_WINDOW
         _update_kill_streak_label()
+        # v3.8: Update best kill streak record
+        if _kill_streak > SettingsManager.best_kill_streak:
+            SettingsManager.best_kill_streak = _kill_streak
+            SettingsManager.save_settings()
+            if _kill_streak >= 3:
+                hud._add_kill_feed("🏆 NEW BEST STREAK: %d!" % _kill_streak, Color(1.0, 0.85, 0.2))
     else:
         hud._add_kill_feed("%s đã bị tiêu diệt" % ai.ai_name, Color(1.0, 0.5, 0.2))
 

@@ -70,6 +70,10 @@ var daily_streak: int = 0  # số ngày liên tiếp
 var total_matches: int = 0
 var total_wins: int = 0
 var total_kills: int = 0
+# v3.8: Best kill streak (lưu lại kill streak cao nhất từng đạt)
+var best_kill_streak: int = 0
+# v3.8: Total stage clears + boss kills (cho stats display)
+var total_stage_clears: int = 0
 
 # === THIẾT BỊ ===
 var device_tier: int = DeviceTier.MID_RANGE
@@ -245,6 +249,9 @@ func save_settings():
         config.set_value("stats", "total_matches", total_matches)
         config.set_value("stats", "total_wins", total_wins)
         config.set_value("stats", "total_kills", total_kills)
+        # v3.8: Best kill streak + total stage clears
+        config.set_value("stats", "best_kill_streak", best_kill_streak)
+        config.set_value("stats", "total_stage_clears", total_stage_clears)
         # v2.4: Language
         config.set_value("i18n", "language", language)
         config.save(config_path)
@@ -284,6 +291,9 @@ func _load_settings():
                 total_matches = config.get_value("stats", "total_matches", 0)
                 total_wins = config.get_value("stats", "total_wins", 0)
                 total_kills = config.get_value("stats", "total_kills", 0)
+                # v3.8: Best kill streak + total stage clears
+                best_kill_streak = config.get_value("stats", "best_kill_streak", 0)
+                total_stage_clears = config.get_value("stats", "total_stage_clears", 0)
                 # v2.4: Language
                 language = config.get_value("i18n", "language", "vi")
                 

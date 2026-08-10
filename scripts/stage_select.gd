@@ -74,9 +74,13 @@ func _update_stats():
     var total_attempts = 0
     for stage in StageManager.attempts_per_stage.keys():
         total_attempts += StageManager.attempts_per_stage[stage]
-    stats_label.text = "Đã hoàn thành: %d/%d  •  Tổng số lần thử: %d  •  Tổng số chết: %d  •  Boss đã giết: %d" % [
+    # v3.8: Thêm best kill streak + total stage clears
+    stats_label.text = "Đã hoàn thành: %d/%d  •  Lần thử: %d  •  Chết: %d  •  Boss: %d\n🏆 Best kill streak: %d  •  Tổng trận: %d  •  Thắng: %d" % [
         completed, StageManager.TOTAL_STAGES, total_attempts,
-        StageManager.total_deaths, StageManager.total_boss_kills
+        StageManager.total_deaths, StageManager.total_boss_kills,
+        SettingsManager.best_kill_streak,
+        SettingsManager.total_matches,
+        SettingsManager.total_wins
     ]
 
 func _on_stage_pressed(stage: int):

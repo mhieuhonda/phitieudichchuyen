@@ -122,6 +122,9 @@ func _physics_process(delta):
         # Dash cooldown
         if dash_cooldown > 0:
                 dash_cooldown = max(0.0, dash_cooldown - delta)
+        # v3.8: Dodge burst cooldown
+        if _ai_dodge_cooldown > 0:
+                _ai_dodge_cooldown = max(0.0, _ai_dodge_cooldown - delta)
         # Teleport cooldown
         if teleport_cooldown > 0:
                 teleport_cooldown = max(0.0, teleport_cooldown - delta)
@@ -343,9 +346,39 @@ func _update_ai(delta):
                         if state_timer <= 0: _choose_new_state()
 
 ## v3.4: Đã xóa dash (skill bị loại bỏ). Hàm giữ lại để code cũ không vỡ.
-func _ai_dash(_dir: Vector2):
-        # No-op: skills đã bị xóa trong v3.4
-        return
+## v3.8: Reactivate thành "dodge burst" — vận tốc tức thời theo hướng _dir,
+## không phải skill dash dài. Giúp AI né dart hiệu quả hơn (đặc biệt ải cao).
+var _ai_dodge_cooldown: float = 0.0
+const AI_DODGE_BURST_FORCE: float = 380.0
+const AI_DODGE_COOLDOWN: float = 1.2  # giới hạn để không spam dash
+
+func _ai_dash(dir: Vector2):
+        if _ai_dodge_cooldown > 0:
+                return
+        if dir == Vector2.ZERO:
+                return
+        # v3.8: Dodge burst — vận tốc tức thời + cooldown ngắn
+        velocity = dir.normalized() * AI_DODGE_BURST_FORCE
+        _ai_dodge_cooldown = AI_DODGE_COOLDOWN
+        # Small visual effect (subtle cyan particle burst)
+        if SettingsManager.get_particle_multiplier() > 0:
+                var spark = CPUParticles2D.new()
+                spark.emitting = true
+                spark.one_shot = true
+                spark.explosiveness = 0.85
+                spark.amount = max(1, int(8 * SettingsManager.get_particle_multiplier()))
+                spark.lifetime = 0.25
+                spark.direction = -dir.normalized()
+                spark.spread = 35.0
+                spark.initial_velocity_min = 60
+                spark.initial_velocity_max = 120
+                spark.gravity = Vector2.ZERO
+                spark.scale_amount_min = 1
+                spark.scale_amount_max = 3
+                spark.color = Color(0.3, 1.0, 0.9, 0.7)
+                get_parent().add_child(spark)
+                spark.global_position = global_position
+                get_tree().create_timer(0.4).timeout.connect(spark.queue_free)
 
 func _choose_new_state():
         # v3.3: AI quyết định state dựa trên HP ratio, vị trí, target
