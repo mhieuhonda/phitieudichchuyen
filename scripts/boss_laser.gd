@@ -142,8 +142,21 @@ func _apply_phase_visual():
         center_line.width = center_width * 0.5
     elif phase == Phase.ACTIVE:
         if mode == Mode.STATIC:
-            beam_line.default_color = COLOR_ACTIVE_OUTER
-            center_line.default_color = COLOR_ACTIVE_CENTER
+            # v3.8: Phase 2 (boss HP < 50%) → laser cam đậm hơn thay vì đỏ
+            # Rage (HP < 12%) → laser trắng-rực sáng
+            if boss_ref and is_instance_valid(boss_ref) and "has_used_rage" in boss_ref:
+                if boss_ref.has_used_rage:
+                    beam_line.default_color = Color(1.0, 0.95, 0.85, 0.95)  # white-hot rage
+                    center_line.default_color = Color(1.0, 1.0, 0.7, 1.0)
+                elif boss_ref.has_used_phase2:
+                    beam_line.default_color = Color(1.0, 0.4, 0.15, 0.9)  # orange phase 2
+                    center_line.default_color = Color(1.0, 0.85, 0.4, 1.0)
+                else:
+                    beam_line.default_color = COLOR_ACTIVE_OUTER
+                    center_line.default_color = COLOR_ACTIVE_CENTER
+            else:
+                beam_line.default_color = COLOR_ACTIVE_OUTER
+                center_line.default_color = COLOR_ACTIVE_CENTER
         else:
             beam_line.default_color = COLOR_SWEEP_ACTIVE
             center_line.default_color = COLOR_SWEEP_CENTER
