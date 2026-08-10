@@ -763,7 +763,8 @@ func _on_match_time_changed(time_remaining: float):
     pass
 
 # v3.5: Boss HP handler
-## v3.8: Cập nhật thêm percentage label lớn bên dưới bar
+## v3.8: Cập nhật thêm percentage label lớn bên dưới bar + shake effect
+var _boss_hp_bar_shake_tween: Tween = null
 func _on_boss_hp_changed(hp: float, max_hp: float, is_rage: bool):
     if not boss_hp_bar:
         return
@@ -777,6 +778,16 @@ func _on_boss_hp_changed(hp: float, max_hp: float, is_rage: bool):
         else:
             fill.bg_color = Color(0.85, 0.15, 0.1, 1.0)
     var pct = hp / max_hp * 100.0 if max_hp > 0 else 0
+    # v3.8: Shake effect cho boss HP bar khi nhận damage
+    if boss_hp_container:
+        if _boss_hp_bar_shake_tween and is_instance_valid(_boss_hp_bar_shake_tween):
+            _boss_hp_bar_shake_tween.kill()
+        var orig_pos = boss_hp_container.position
+        _boss_hp_bar_shake_tween = create_tween().set_parallel(true)
+        _boss_hp_bar_shake_tween.tween_property(boss_hp_container, "position:x", orig_pos.x + 4, 0.04).set_trans(Tween.TRANS_SINE)
+        _boss_hp_bar_shake_tween.tween_property(boss_hp_container, "position:y", orig_pos.y - 2, 0.04).set_trans(Tween.TRANS_SINE)
+        _boss_hp_bar_shake_tween.chain().tween_property(boss_hp_container, "position:x", orig_pos.x - 3, 0.05).set_trans(Tween.TRANS_SINE)
+        _boss_hp_bar_shake_tween.chain().tween_property(boss_hp_container, "position", orig_pos, 0.05).set_trans(Tween.TRANS_SINE)
     # Cập nhật label trên (tên + % HP)
     if boss_name_label:
         if is_rage:

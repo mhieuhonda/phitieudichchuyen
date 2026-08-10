@@ -570,6 +570,10 @@ func _teleport_ai():
                                 best_dist = d
                                 target_dart = dart
         var was_flying = target_dart.is_flying()
+        # v3.8: Warning sound — báo cho player biết AI sắp dịch chuyển
+        # (chỉ khi AI đang nhắm player)
+        if is_instance_valid(target_player) and randf() < 0.7:
+                AudioManager.play_variation("warning", -4.0, 1.3)
         global_position = target_dart.get_teleport_position()
         target_dart.consume()
         all_darts.erase(target_dart)
