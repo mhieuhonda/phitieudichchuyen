@@ -377,16 +377,14 @@ func update_civil_war(delta: float):
 # === QUEST API ===
 
 func accept_quest(quest: Dictionary) -> bool:
+        # v4.0: FIX BUG — yêu cầu class/team giờ là SOFT (khuyên dùng), không chặn nhận quest.
+        # Trước v4.0: Player mới (current_class_id = -1, mutant) không nhận được 5/13 quest
+        # vì `require_class` chặn cứng. Giờ player có thể nhận bất kỳ quest nào, nhưng UI
+        # vẫn hiện cảnh báo "Khuyên dùng class X" để player biết sẽ khó hơn / thiếu bonus.
         if active_quests.size() >= 5:
                 return false
-        # Check yêu cầu class
-        if quest.has("require_class") and quest["require_class"] >= 0:
-                if current_class_id != quest["require_class"]:
-                        return false
-        # Check yêu cầu số lượng thành viên
-        if quest.has("require_min_team") and quest["require_min_team"] > 0:
-                if team.size() + 1 < quest["require_min_team"]:  # +1 cho player
-                        return false
+        # (Đã bỏ hard check require_class và require_min_team)
+        # Cảnh báo soft hiển thị ở tavern.gd::_build_quest_item
         # v3.9: Đảm bảo quest có reward_species key
         if not quest.has("reward_species") and quest.has("reward_rep_species"):
                 quest["reward_species"] = quest["reward_rep_species"]

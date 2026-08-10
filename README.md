@@ -1,9 +1,9 @@
 # Phi Tiêu Dịch Chuyển
 
 > Vượt 20 ải · Ném phi tiêu · Dịch chuyển · Tiêu diệt Boss
-> Game 2D top-down offline, Godot 4.7.
+> Game 2D top-down Godot 4.7 — Offline PvE + Online Multiplayer Deathmatch.
 
-![Version](https://img.shields.io/badge/version-3.9-gold.svg)
+![Version](https://img.shields.io/badge/version-4.0-gold.svg)
 ![Engine](https://img.shields.io/badge/Godot-4.7-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)

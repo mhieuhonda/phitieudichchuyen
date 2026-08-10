@@ -421,3 +421,16 @@ func get_device_tier_name() -> String:
                 DeviceTier.MID_RANGE: return "Trung Bình"
                 DeviceTier.HIGH_END: return "Máy Mạnh"
                 _: return "Trung Bình"
+
+# === v4.0: Generic key-value API for arbitrary data (multiplayer name, tutorial flags, etc.) ===
+func get_value(key: String, default: Variant = null) -> Variant:
+        var config = ConfigFile.new()
+        if config.load(config_path) != OK:
+                return default
+        return config.get_value("custom", key, default)
+
+func set_value(key: String, value: Variant) -> void:
+        var config = ConfigFile.new()
+        config.load(config_path)
+        config.set_value("custom", key, value)
+        config.save(config_path)

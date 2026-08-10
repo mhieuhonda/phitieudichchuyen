@@ -11,10 +11,10 @@ config_version=5
 [application]
 
 config/name="Phi Tiêu Dịch Chuyển"
-config/description="Vượt 20 ải - Ném phi tiêu - Dịch chuyển - Tiêu diệt Boss! Game 2D top-down offline. v3.9: Quest scene chơi được, meta-progression áp dụng vào combat, fix 30 bugs, cân bằng lại toàn diện."
+config/description="Vượt 20 ải - Ném phi tiêu - Dịch chuyển - Tiêu diệt Boss! Game 2D top-down với hướng dẫn chi tiết + Multiplayer online. v4.0: Hệ thống hướng dẫn chi tiết 12 trang + Sửa bug quest yêu cầu class + Multiplayer online deathmatch qua VPS."
 run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
-config/version="3.9"
+config/version="4.0"
 config/icon="res://icon.svg"
 
 [autoload]
@@ -28,6 +28,8 @@ StageManager="*res://scripts/stage_manager.gd"
 SpeciesData="*res://scripts/species_data.gd"
 ProgressionManager="*res://scripts/progression_manager.gd"
 WorldManager="*res://scripts/world_manager.gd"
+TutorialManager="*res://scripts/tutorial_manager.gd"
+MultiplayerManager="*res://scripts/multiplayer_manager.gd"
 
 [display]
 

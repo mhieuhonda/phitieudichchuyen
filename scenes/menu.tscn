@@ -43,10 +43,10 @@ text = "PHI TIÊU DỊCH CHUYỂN"
 horizontal_alignment = 1
 
 [node name="NewFeatureLabel" type="RichTextLabel" parent="CenterContainer/MenuVBox"]
-custom_minimum_size = Vector2(700, 110)
+custom_minimum_size = Vector2(700, 140)
 layout_mode = 2
 bbcode_enabled = true
-text = "[color=#ffaa00][b]v3.9:[/b][/color] Quest scene + meta-progression + 30 bug fixes + balance"
+text = "[color=#ffaa00][b]v4.0:[/b][/color] Tutorial + Multiplayer + Quest fix"
 
 [node name="Spacer1" type="Control" parent="CenterContainer/MenuVBox"]
 custom_minimum_size = Vector2(0, 12)
@@ -71,6 +71,18 @@ custom_minimum_size = Vector2(360, 56)
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "▶ CHƠI TIẾP"
+
+[node name="MultiplayerButton" type="Button" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(360, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "🌐 MULTIPLAYER"
+
+[node name="TutorialButton" type="Button" parent="CenterContainer/MenuVBox"]
+custom_minimum_size = Vector2(360, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "📖 HƯỚNG DẪN"
 
 [node name="CharactersButton" type="Button" parent="CenterContainer/MenuVBox"]
 custom_minimum_size = Vector2(360, 56)
@@ -126,4 +138,4 @@ theme_override_colors/font_color = Color(0.4, 0.55, 0.75, 0.7)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
 theme_override_constants/shadow_offset_y = 1
 theme_override_constants/shadow_outline_size = 2
-text = "v3.9 - Phi Tiêu Dịch Chuyển"
+text = "v4.0 - Phi Tiêu Dịch Chuyển"

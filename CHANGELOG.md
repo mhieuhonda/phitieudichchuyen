@@ -1,5 +1,84 @@
 # Changelog
 
+## v4.0 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### Hướng dẫn chi tiết + Sửa bug Quest + Multiplayer Online
+
+Bản v4.0 là bản cập nhật lớn với 3 tính năng quan trọng:
+
+#### 1. Hướng dẫn chi tiết cách chơi (Tutorial) — 12 trang
+
+Trước v4.0, người chơi mới phải tự mò mẫm cách chơi. v4.0 thêm hệ thống hướng dẫn chi tiết:
+
+- **Tutorial scene mới** (`scenes/tutorial.tscn` + `scripts/tutorial.gd`) — 12 trang với BBCode rich text:
+  1. Giới thiệu cốt truyện + mục tiêu
+  2. Điều khiển cơ bản (PC + Mobile)
+  3. Phi tiêu & Dịch chuyển (cơ chế chính)
+  4. Hệ thống nhân vật (12 chars, 4 loại)
+  5. Hệ thống Class / Loài (10 loài)
+  6. Hệ thống Quest
+  7. Hệ thống đồng đội
+  8. Hệ thống kỹ năng
+  9. HL Coin & Tiền Bối shop
+  10. Uy tín & Thân mật
+  11. Thành tựu
+  12. Multiplayer online (v4.0)
+- **Auto-open lần đầu** — `TutorialManager` autoload theo dõi `tutorial_seen`, tự động mở tutorial scene lần đầu vào menu.
+- **Nút "📖 HƯỚNG DẪN"** ở menu chính để mở lại bất cứ lúc nào.
+- **Hint contextual** (flags `first_combat_hint_shown`, `first_world_hint_shown`, ...) cho phép các scene hiển thị hint 1 lần đầu.
+- **Skip button** + nút Prev/Next + Page indicator — UI thân thiện.
+
+#### 2. Sửa bug Quest yêu cầu class
+
+**Bug:** Player mới (mutant, `current_class_id = -1`) không nhận được 5/13 quest vì `require_class` chặn cứng trong `progression_manager.gd::accept_quest()` và `tavern.gd::_build_quest_item()`.
+
+**Fix v4.0:** Chuyển `require_class` và `require_min_team` từ HARD requirement sang SOFT recommendation:
+- `accept_quest()` không còn chặn nhận quest — chỉ check `active_quests.size() < 5`.
+- Nút "Nhận" trong tavern luôn enable.
+- Display đổi từ "Yêu cầu class X" (đỏ) → "💡 Khuyên dùng class X (không có vẫn nhận được, nhưng khó hơn)" (vàng). Nếu đã có class khớp, hiện "✓ Class khớp: X (+bonus uy tín)" (xanh).
+- Tương tự với `require_min_team`.
+
+Player mới giờ có thể nhận bất kỳ quest nào. Mua class phù hợp vẫn được khuyến khích để nhận bonus uy tín.
+
+#### 3. Multiplayer Online — Deathmatch qua VPS
+
+**Architecture:**
+- **Server**: Python `aiohttp` WebSocket server (`relay-server/server.py`), chạy trong Docker container trên VPS qua Coolify.
+- **Reverse proxy**: Traefik v3.6 (đã có sẵn) routes `phitieu.louis.vangioitutien.com` → port 3000. TLS qua Let's Encrypt.
+- **Client**: Godot `WebSocketPeer` trong autoload `MultiplayerManager`.
+- **Protocol**: JSON messages over WebSocket. Server-authoritative cho hit detection và scores.
+
+**Tính năng multiplayer:**
+- **Lobby system**: Tạo phòng / Vào phòng / List rooms (tối đa 4 người/phòng).
+- **Chat**: Trong lobby và trong arena (Enter để gửi).
+- **Arena deathmatch**: 3 phút, 2-4 players, ném phi tiêu giết nhau, +1 score mỗi kill, hồi sinh sau 3s.
+- **HUD**: Score + HP, timer đếm ngược, kill feed, chat box, nút rời phòng.
+- **Auto-reconnect**: Client tự thử lại sau 3s nếu mất kết nối.
+- **Heartbeat**: Ping/pong mỗi 10s, server sweep stale clients mỗi 15s.
+- **Info page**: Truy cập `https://phitieu.louis.vangioitutien.com/` bằng browser xem trạng thái server + danh sách phòng.
+
+**Endpoints server:**
+- `GET /health` → JSON `{"status":"ok","clients_online":N,"rooms_active":N}` — Coolify healthcheck.
+- `GET /` → HTML info page (browser visits).
+- `WS /ws` → Game protocol.
+
+**Scenes/scripts mới:**
+- `scripts/multiplayer_manager.gd` — Autoload singleton, WebSocket client.
+- `scripts/multiplayer_lobby.gd` + `scenes/multiplayer_lobby.tscn` — Lobby UI.
+- `scripts/multiplayer_arena.gd` + `scenes/multiplayer_arena.tscn` — Arena gameplay.
+- `relay-server/server.py` + `Dockerfile` + `requirements.txt` — Python server.
+
+**Deploy:** Server được deploy qua Coolify API (app `colouis`, uuid `wjmx1ffgm1hj5xtxe17v0gd0`), base_dir `/relay-server`, port 3000, Traefik labels đã có sẵn cho `phitieu.louis.vangioitutien.com`.
+
+#### Cập nhật khác
+
+- `project.godot`: version 3.9 → 4.0, đăng ký 2 autoload mới (`TutorialManager`, `MultiplayerManager`).
+- `scripts/menu.gd` + `scenes/menu.tscn`: thêm 2 nút "🌐 MULTIPLAYER" và "📖 HƯỚNG DẪN". Auto-open tutorial lần đầu.
+- `scripts/settings_manager.gd`: thêm generic `get_value(key, default)` và `set_value(key, value)` để lobby lưu tên player.
+- `NewFeatureLabel` trong menu cập nhật thông tin v4.0.
+
+---
+
 ## v3.9 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### Quest Mode + Meta-Progression Combat + Balance Overhaul

@@ -14,6 +14,8 @@ extends Control
 @onready var play_button: Button = $CenterContainer/MenuVBox/PlayButton
 @onready var world_button: Button = $CenterContainer/MenuVBox/WorldButton
 @onready var continue_button: Button = $CenterContainer/MenuVBox/ContinueButton
+@onready var multiplayer_button: Button = $CenterContainer/MenuVBox/MultiplayerButton
+@onready var tutorial_button: Button = $CenterContainer/MenuVBox/TutorialButton
 @onready var characters_button: Button = $CenterContainer/MenuVBox/CharactersButton
 @onready var settings_button: Button = $CenterContainer/MenuVBox/SettingsButton
 @onready var ui_customize_button: Button = $CenterContainer/MenuVBox/UICustomizeButton
@@ -46,6 +48,10 @@ func _ready():
                 world_button.pressed.connect(_on_world_pressed)
         if continue_button:
                 continue_button.pressed.connect(_on_continue_pressed)
+        if multiplayer_button:
+                multiplayer_button.pressed.connect(_on_multiplayer_pressed)
+        if tutorial_button:
+                tutorial_button.pressed.connect(_on_tutorial_pressed)
         characters_button.pressed.connect(_on_characters_pressed)
         settings_button.pressed.connect(_on_settings_pressed)
         ui_customize_button.pressed.connect(_on_ui_customize_pressed)
@@ -57,6 +63,10 @@ func _ready():
                 _style_button(world_button, COL_CYAN)
         if continue_button:
                 _style_button(continue_button, COL_GREEN)
+        if multiplayer_button:
+                _style_button(multiplayer_button, COL_PURPLE)
+        if tutorial_button:
+                _style_button(tutorial_button, COL_GREEN)
         _style_button(characters_button, COL_CYAN)
         _style_button(settings_button, COL_PURPLE)
         _style_button(ui_customize_button, COL_GREEN)
@@ -68,6 +78,10 @@ func _ready():
                 buttons.append(world_button)
         if continue_button:
                 buttons.append(continue_button)
+        if multiplayer_button:
+                buttons.append(multiplayer_button)
+        if tutorial_button:
+                buttons.append(tutorial_button)
         for btn in buttons:
                 if btn:
                         btn.mouse_entered.connect(_on_btn_hover.bind(btn, true))
@@ -81,6 +95,8 @@ func _ready():
         _apply_premium_styling()
         _refresh_ui()
         AudioManager.play_music("menu")
+        # v4.0: Auto-open tutorial lần đầu chơi
+        TutorialManager.maybe_auto_open_tutorial()
 
 ## Setup touch scale animation (phóng to khi chạm, thu nhỏ khi thả)
 func _setup_touch_scale(btn: Control):
@@ -177,12 +193,12 @@ func _apply_premium_styling():
 
 func _refresh_ui():
         if version_label:
-                version_label.text = "v3.9 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v4.0 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#ffaa00][b]v3.9 MỚI:[/b][/color] Quest scene chơi được (kill/boss-mini/find) + Quest tab trong Sổ Tay + Áp dụng meta-progression vào combat (HP/dmg/speed/darts)\n[color=#44ff88][b]Fix 30 bugs:[/b][/color] AI damage scale theo stage + Player dart damage scale theo power + Boss HP segments vẽ đúng + Tiền bối không move cùng vùng + NPC tên không trùng + Day timer không tick trong combat + Xóa 2 dead scripts\n[color=#55aaff][b]Cân bằng:[/b][/color] AI dmg_mult 0.80→1.30 + HP mult 0.85→1.60 + Quest difficulty preset 4 cấp"
+                        new_feature_label.text = "[color=#ffaa00][b]v4.0 MỚI:[/b][/color] Hướng dẫn chi tiết 12 trang + Sửa bug quest yêu cầu class (player mới nhận được mọi quest) + Multiplayer online deathmatch qua VPS\n[color=#44ff88][b]Multiplayer:[/b][/color] Vào menu → 🌐 MULTIPLAYER → Tạo phòng → Mời bạn bè → Deathmatch 3 phút!\n[color=#55aaff][b]Server:[/b][/color] wss://phitieu.louis.vangioitutien.com/ws (Traefik + TLS)"
                 else:
-                        new_feature_label.text = "[color=#ffaa00][b]v3.9 NEW:[/b][/color] Playable Quest scene (kill/boss-mini/find) + Quest tab in Journal + Meta-progression applied to combat (HP/dmg/speed/darts)\n[color=#44ff88][b]Fix 30 bugs:[/b][/color] AI damage scales with stage + Player dart damage scales with power + Boss HP segments render correctly + Predecessor no longer moves to same region + NPC names no longer collide + Day timer no longer ticks during combat + Removed 2 dead scripts\n[color=#55aaff][b]Balance:[/b][/color] AI dmg_mult 0.80→1.30 + HP mult 0.85→1.60 + 4-tier Quest difficulty presets"
+                        new_feature_label.text = "[color=#ffaa00][b]v4.0 NEW:[/b][/color] Detailed 12-page tutorial + Fixed quest class-requirement bug (new players can accept all quests) + Online multiplayer deathmatch via VPS\n[color=#44ff88][b]Multiplayer:[/b][/color] Menu → 🌐 MULTIPLAYER → Create room → Invite friends → 3-min deathmatch!\n[color=#55aaff][b]Server:[/b][/color] wss://phitieu.louis.vangioitutien.com/ws (Traefik + TLS)"
         if play_button:
                 play_button.text = "⚔ VƯỢT ẢI" if I18N.is_vi() else "⚔ STAGES"
         if world_button:
@@ -192,6 +208,10 @@ func _refresh_ui():
                 # Chỉ hiện nút Continue nếu có ải đang chơi dở (current_stage > 1 hoặc đã vượt qua ải 1)
                 var has_progress = StageManager.max_stage_unlocked > 1 or StageManager.current_stage > 1
                 continue_button.visible = has_progress
+        if multiplayer_button:
+                multiplayer_button.text = "🌐 MULTIPLAYER" if I18N.is_vi() else "🌐 MULTIPLAYER"
+        if tutorial_button:
+                tutorial_button.text = "📖 HƯỚNG DẪN" if I18N.is_vi() else "📖 TUTORIAL"
         if characters_button:
                 characters_button.text = I18N.t("menu.characters")
         if settings_button:
@@ -237,6 +257,17 @@ func _on_settings_pressed():
 func _on_ui_customize_pressed():
         AudioManager.play_ui_click()
         get_tree().change_scene_to_file("res://scenes/ui_customization.tscn")
+
+## v4.0: Vào hướng dẫn chi tiết
+func _on_tutorial_pressed():
+        AudioManager.play_ui_click()
+        get_tree().change_scene_to_file("res://scenes/tutorial.tscn")
+
+## v4.0: Vào multiplayer lobby
+func _on_multiplayer_pressed():
+        AudioManager.play_ui_click()
+        AudioManager.play_confirm()
+        get_tree().change_scene_to_file("res://scenes/multiplayer_lobby.tscn")
 
 func _on_quit_pressed():
         AudioManager.play_cancel()

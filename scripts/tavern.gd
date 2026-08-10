@@ -138,26 +138,39 @@ func _build_quest_item(q: Dictionary, is_active: bool = false) -> PanelContainer
         if q.has("reward_species") and q["reward_species"] >= 0:
                 reward_str += " + %d uy tín %s" % [q.get("reward_rep", 0), SpeciesData.get_species_name(q["reward_species"])]
         vbox.add_child(_make_label(reward_str, Color(0.5, 1.0, 0.5)))
+        # v4.0: Hiện cảnh báo SOFT (khuyên dùng, không chặn nhận)
         var req_str = ""
         if q.has("require_class") and q["require_class"] >= 0:
-                req_str += "Yêu cầu class: %s" % SpeciesData.get_species_name(q["require_class"])
+                var has_class_now = ProgressionManager.current_class_id == q["require_class"]
+                if has_class_now:
+                        req_str += "✓ Class khớp: %s (+bonus uy tín)" % SpeciesData.get_species_name(q["require_class"])
+                else:
+                        req_str += "💡 Khuyên dùng class: %s (không có vẫn nhận được, nhưng khó hơn)" % SpeciesData.get_species_name(q["require_class"])
         if q.has("require_min_team") and q["require_min_team"] > 0:
-                if req_str != "": req_str += " | "
-                req_str += "Yêu cầu đội ≥ %d người" % q["require_min_team"]
+                if req_str != "": req_str += "\n"
+                var has_team_now = ProgressionManager.team.size() + 1 >= q["require_min_team"]
+                if has_team_now:
+                        req_str += "✓ Đội đủ ≥ %d người" % q["require_min_team"]
+                else:
+                        req_str += "💡 Khuyên dùng đội ≥ %d người (hiện có %d)" % [q["require_min_team"], ProgressionManager.team.size() + 1]
         if req_str != "":
                 var has_class = (not q.has("require_class")) or (ProgressionManager.current_class_id == q["require_class"])
                 var has_team = (not q.has("require_min_team")) or (ProgressionManager.team.size() + 1 >= q["require_min_team"])
-                var ok = has_class and has_team
-                vbox.add_child(_make_label(req_str, Color(1.0, 0.5, 0.3) if not ok else Color(0.7, 0.9, 0.7)))
+                var fully_met = has_class and has_team
+                var warn_color = Color(0.5, 1.0, 0.5) if fully_met else Color(1.0, 0.85, 0.3)  # xanh nếu đủ, vàng nếu thiếu
+                var warn_lbl = _make_label(req_str, warn_color)
+                warn_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+                warn_lbl.custom_minimum_size = Vector2(620, 0)
+                vbox.add_child(warn_lbl)
         hbox.add_child(vbox)
-        # Button
+        # Button — v4.0: luôn enable (soft requirement), chỉ disable khi quest đã hoàn thành
         if not is_active:
                 var btn = Button.new()
                 btn.text = "Nhận"
                 btn.custom_minimum_size = Vector2(100, 50)
-                var can = (not q.has("require_class") or ProgressionManager.current_class_id == q["require_class"]) and (not q.has("require_min_team") or ProgressionManager.team.size() + 1 >= q["require_min_team"])
-                _style_button(btn, Color(0.4, 0.9, 0.5) if can else Color(0.4, 0.4, 0.4))
-                btn.disabled = not can
+                # v4.0: nút luôn enabled vì yêu cầu giờ là soft (khuyên dùng)
+                _style_button(btn, Color(0.4, 0.9, 0.5))
+                btn.disabled = false
                 btn.pressed.connect(_on_accept_quest.bind(q))
                 hbox.add_child(btn)
         else:
