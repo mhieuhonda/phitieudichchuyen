@@ -989,6 +989,7 @@ func _on_stage_failed(stage: int):
     _show_big_banner("THẤT BẠI!", Color(1.0, 0.25, 0.25, 1.0), 2.5)
 
 # === Stage panel button handlers ===
+## v3.8: Thêm stage transition animation (fade to black + show stage number)
 
 func _on_stage_clear_next():
     AudioManager.play_ui_click()
@@ -996,10 +997,9 @@ func _on_stage_clear_next():
         # Hoàn thành game — về menu
         get_tree().change_scene_to_file("res://scenes/menu.tscn")
         return
-    # Sang ải tiếp theo
+    # Sang ải tiếp theo với transition animation
     var next_stage = current_stage + 1
-    StageManager.current_stage = next_stage
-    get_tree().reload_current_scene()
+    _play_stage_transition(next_stage, false)
 
 func _on_stage_clear_menu():
     AudioManager.play_ui_click()
@@ -1007,11 +1007,58 @@ func _on_stage_clear_menu():
 
 func _on_stage_fail_retry():
     AudioManager.play_ui_click()
-    get_tree().reload_current_scene()
+    # Retry với transition animation
+    _play_stage_transition(current_stage, true)
 
 func _on_stage_fail_menu():
     AudioManager.play_ui_click()
     get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
+## v3.8: Stage transition animation — fade to black, show "ẢI X" banner, reload scene
+func _play_stage_transition(target_stage: int, is_retry: bool):
+    # Tạo overlay đen full màn hình
+    var overlay = ColorRect.new()
+    overlay.color = Color(0, 0, 0, 0)
+    overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+    overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+    overlay.z_index = 300
+    add_child(overlay)
+    # Stage number label
+    var label = Label.new()
+    if is_retry:
+        label.text = "↻ THỬ LẠI ẢI %d" % target_stage
+    elif target_stage == StageManager.FINAL_STAGE:
+        label.text = "⚠ ẢI CUỐI — BOSS ⚠"
+    else:
+        label.text = "ẢI %d" % target_stage
+    label.set_anchors_preset(Control.PRESET_CENTER)
+    label.offset_left = -200
+    label.offset_right = 200
+    label.offset_top = -40
+    label.offset_bottom = 40
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    label.add_theme_font_size_override("font_size", 48)
+    label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+    label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+    label.add_theme_constant_override("shadow_offset_y", 3)
+    label.add_theme_constant_override("shadow_outline_size", 5)
+    label.modulate.a = 0.0
+    label.scale = Vector2(0.7, 0.7)
+    overlay.add_child(label)
+    # Animation: fade in → hold → fade out (with scene reload)
+    var tween = create_tween()
+    # Fade in
+    tween.tween_property(overlay, "color:a", 1.0, 0.4).set_trans(Tween.TRANS_QUAD)
+    tween.parallel().tween_property(label, "modulate:a", 1.0, 0.4)
+    tween.parallel().tween_property(label, "scale", Vector2(1.0, 1.0), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+    # Hold
+    tween.tween_interval(0.8)
+    # Fade out + reload scene
+    StageManager.current_stage = target_stage
+    AudioManager.play_variation("drum_crash", 2.0, 0.85)
+    tween.tween_callback(func():
+        get_tree().reload_current_scene())
 
 # === Results (legacy, dùng cho non-stage mode) ===
 

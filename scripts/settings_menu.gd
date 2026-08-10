@@ -105,6 +105,8 @@ func _ready():
         _apply_premium_styling()
         _load_current_settings()
         _refresh_ui()
+        # v3.8: Setup new UI toggles programmatically
+        _setup_v38_toggles()
 
 func _on_btn_hover(btn: Button, entering: bool):
         if not btn or not is_instance_valid(btn):
@@ -312,6 +314,86 @@ func _on_ui_customize_pressed():
 func _on_back_pressed():
         AudioManager.play_ui_click()
         get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
+## v3.8: Setup 4 toggles mới (Hit markers / Kill streak / Low-HP vignette / Boss arrow)
+## thêm vào cuối VBox (sau UI section hiện có) — code-based, không sửa .tscn.
+func _setup_v38_toggles():
+        var vbox = $ScrollContainer/VBox
+        if not vbox:
+                return
+        # Section divider
+        var spacer = Control.new()
+        spacer.custom_minimum_size = Vector2(0, 12)
+        vbox.add_child(spacer)
+        # Section label
+        var section = Label.new()
+        section.text = "✦ v3.8 NEW UI"
+        section.add_theme_font_size_override("font_size", 18)
+        section.add_theme_color_override("font_color", COL_GOLD)
+        section.add_theme_color_override("font_shadow_color", Color(0.3, 0.2, 0, 0.5))
+        vbox.add_child(section)
+        # Subtitle hint
+        var hint = Label.new()
+        hint.text = "Bật/tắt các tính năng UI mới thêm trong v3.8"
+        hint.add_theme_font_size_override("font_size", 12)
+        hint.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
+        vbox.add_child(hint)
+        # Toggles HBox
+        var hbox = HBoxContainer.new()
+        hbox.add_theme_constant_override("separation", 12)
+        vbox.add_child(hbox)
+        # Hit markers toggle
+        var hm_toggle = CheckButton.new()
+        hm_toggle.text = "Hit Markers\n(✕ khi trúng đích)"
+        hm_toggle.button_pressed = SettingsManager.show_hit_markers
+        hm_toggle.toggled.connect(func(v):
+                SettingsManager.show_hit_markers = v
+                SettingsManager.save_settings()
+                AudioManager.play_ui_click())
+        hm_toggle.add_theme_font_size_override("font_size", 12)
+        hm_toggle.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+        hbox.add_child(hm_toggle)
+        # Kill streak toggle
+        var ks_toggle = CheckButton.new()
+        ks_toggle.text = "Kill Streak\n(DOUBLE/TRIPLE KILL)"
+        ks_toggle.button_pressed = SettingsManager.show_kill_streak
+        ks_toggle.toggled.connect(func(v):
+                SettingsManager.show_kill_streak = v
+                SettingsManager.save_settings()
+                AudioManager.play_ui_click())
+        ks_toggle.add_theme_font_size_override("font_size", 12)
+        ks_toggle.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+        hbox.add_child(ks_toggle)
+        # 2nd row
+        var hbox2 = HBoxContainer.new()
+        hbox2.add_theme_constant_override("separation", 12)
+        vbox.add_child(hbox2)
+        # Low-HP vignette toggle
+        var hp_toggle = CheckButton.new()
+        hp_toggle.text = "Low-HP Vignette\n(đỏ mờ khi HP<30%)"
+        hp_toggle.button_pressed = SettingsManager.show_low_hp_vignette
+        hp_toggle.toggled.connect(func(v):
+                SettingsManager.show_low_hp_vignette = v
+                SettingsManager.save_settings()
+                AudioManager.play_ui_click())
+        hp_toggle.add_theme_font_size_override("font_size", 12)
+        hp_toggle.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+        hbox2.add_child(hp_toggle)
+        # Boss arrow toggle
+        var ba_toggle = CheckButton.new()
+        ba_toggle.text = "Boss Off-screen Arrow\n(mũi tên chỉ boss)"
+        ba_toggle.button_pressed = SettingsManager.show_boss_offscreen_arrow
+        ba_toggle.toggled.connect(func(v):
+                SettingsManager.show_boss_offscreen_arrow = v
+                SettingsManager.save_settings()
+                AudioManager.play_ui_click())
+        ba_toggle.add_theme_font_size_override("font_size", 12)
+        ba_toggle.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+        hbox2.add_child(ba_toggle)
+        # Style all new toggles like the existing ones
+        for tog in [hm_toggle, ks_toggle, hp_toggle, ba_toggle]:
+                tog.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
+                tog.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
 
 func _unhandled_input(event: InputEvent):
         if event.is_action_pressed("menu_back"):
