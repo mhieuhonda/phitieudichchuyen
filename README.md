@@ -37,37 +37,63 @@
 
 ## Có gì mới trong v3.8
 
+### Combat Polish & Boss Arena Quality Update
+
+Bản nâng cấp lớn với **30+ features mới**, **5 achievements mới**, **3 critical bug fixes**, **~2000+ dòng code mới**.
+
 ### Sửa lỗi critical
 - **Player darts không bị AI né được**: `player.gd::_spawn_single_dart()` thiếu `dart.add_to_group("darts")` → AI `_check_incoming_darts()` không bao giờ thấy dart của player → dodge_chance config vô nghĩa với player. Đã fix.
 - **HUD boss HP hiển thị sai**: hardcoded "10,000,000 HP" trong khi `BOSS_MAX_HP` = 12M từ v3.7. Đã dùng dynamic text + `_format_big_number()` helper.
 - **Boss double-laser spawn**: `_choose_next_action()` có thể spawn laser thứ hai khi laser đầu còn active. Đã check `is_instance_valid(active_laser)` trước.
 
-### Thêm mới
-- **Pause menu** (code-based): P/ESC mở overlay với 4 nút TIẾP TỤC/CHƠI LẠI/CÀI ĐẶT/VỀ MENU. R = quick retry.
-- **Minimap radar**: 140x140px panel ở góc phải hiển thị player (cyan), AI (red), boss (orange), darts (yellow), zone circle.
+### Combat & Boss Features
 - **Boss Phase 2 (50% HP)**: boss bắn 3-dart spread thay vì 1, move_speed +25%, dart interval 2.5s→1.8s. Banner "PHASE 2!" khi kích hoạt.
-- **Stage transition animation**: fade-to-black + label "ẢI X" / "ẢI CUỐI — BOSS" khi chuyển ải hoặc retry.
-- **Low-HP vignette + Heartbeat**: full-screen tint đỏ pulse + sound heartbeat khi HP < 30% (1.5s) hoặc < 20% (1.0s).
-- **Kill streak UI**: DOUBLE/TRIPLE/QUADRA/PENTA KILL, KILLING SPREE, UNSTOPPABLE, GODLIKE ở top-right HUD.
-- **Hit marker**: ✕ symbol center-top khi dart trúng AI/boss (0.25s animation).
-- **Boss HP segments + % label**: 11 vạch chia HP bar thành 12 đoạn + % lớn bên dưới.
-- **Boss off-screen arrow**: mũi tên đỏ ở rìa màn hình chỉ hướng boss khi boss ngoài tầm nhìn (chỉ ải 20).
-- **Aim ricochet preview**: line preview bending tại điểm chạm tường + hướng nảy.
-- **Dart glow power-scale**: glow color & intensity scale theo throw power (cyan→red).
-- **Onboarding hints**: panel hướng dẫn controls ở ải 1 lần đầu.
-- **Stage stats display**: time elapsed, PB badge 🏆, attempts, lives remaining ở stage clear/fail panel.
-- **Reset confirm dialog**: stage select giờ hỏi xác nhận trước khi xóa tiến độ.
+- **Boss dramatic entrance**: 3-wave particle burst + big screen shake khi boss spawn.
+- **Boss laser charge telegraph**: particles bay về phía boss trong 1s charge phase, báo hướng laser sẽ bắn.
+- **Boss laser color tint theo phase**: Phase 1 = đỏ, Phase 2 = cam, Rage = trắng-rực.
+- **Boss HP bar shake** khi nhận damage.
+- **Boss phase badge**: "PHASE 1" / "PHASE 2" / "⚠ RAGE" bên trái HP bar.
+- **Boss dramatic multi-stage death**: 7-wave explosion với color shift red→orange→yellow→white.
+- **AI dodge burst**: `_ai_dash()` reactivated — vận tốc tức thời 380 units/s với 1.2s cooldown.
+- **AI teleport warning sound**: 70% chance phát warning SFX trước khi AI teleport.
+- **AI hit spark + scale punch**: 8 particle burst + scale 1.15x khi AI bị hit.
+
+### UI/UX Features
+- **Pause menu** (code-based): P/ESC mở overlay với 4 nút. R = quick retry.
+- **Minimap radar**: 140x140px panel ở góc phải hiển thị player, AI, boss, darts, zone.
+- **Stage transition animation**: fade-to-black + label "ẢI X" khi chuyển ải.
+- **Stage intro banner**: "ẢI X — KHỞI ĐẦU/TRUNG BÌNH/KHÓ/RẤT KHÓ" khi bắt đầu stage.
+- **Stage time warning**: banner "⏰ HÃY NHANH LÊN!" khi stage time > 5 phút.
+- **Low-HP vignette + Heartbeat**: tint đỏ pulse + sound heartbeat khi HP < 30%.
+- **Low-HP health pickup arrow**: mũi tên xanh chỉ hướng health pickup gần nhất.
+- **Kill streak UI**: DOUBLE/TRIPLE/QUADRA/PENTA KILL, KILLING SPREE, UNSTOPPABLE, GODLIKE.
+- **Hit marker**: ✕ symbol center-top khi dart trúng AI/boss.
+- **Boss HP segments + % label**: 11 vạch chia HP bar + % lớn bên dưới.
+- **Boss off-screen arrow**: mũi tên đỏ chỉ hướng boss khi ngoài tầm nhìn.
+- **Aim ricochet preview**: line preview bending tại điểm chạm tường.
+- **Dart glow power-scale**: glow color & intensity scale theo throw power.
+- **Onboarding hints**: panel hướng dẫn controls ở ải 1.
+- **Stage stats display**: time, PB 🏆, attempts, lives, perfect/speed bonus.
+- **Reset confirm dialog**: hỏi xác nhận trước khi xóa tiến độ.
+- **Difficulty color coding** trong stage_select.
+- **Achievement toast notifications**: popup khi unlock achievement.
+- **Coin pickup feedback**: floating "+X 💰" + gold particle burst.
+- **Heal effect**: heart icon + green particle burst khi nhặt health.
+- **Pickup burst effect**: particle burst khi nhặt vật phẩm.
+
+### Reward Systems
+- **Perfect Stage bonus**: không chết = (50 + stage * 10) HL Coin.
+- **Speed bonus**: hoàn thành dưới 60s = (30 + (60 - elapsed)) HL Coin.
+- **Kill streak bonus**: 3=10, 5=25, 7=50, 10=100, +100 mỗi 5 sau 10.
+- **Best kill streak stat**: tracking kill streak cao nhất.
+- **5 achievements mới**: kill_streak_5/10, perfect_stage, speed_runner, all_stages_clear.
 
 ### Settings UI (v3.8 section)
 5 toggles mới trong Settings menu (saved/loaded qua ConfigFile):
-- Hit Markers
-- Kill Streak
-- Low-HP Vignette
-- Boss Off-screen Arrow
-- Minimap Radar
+- Hit Markers | Kill Streak | Low-HP Vignette | Boss Off-screen Arrow | Minimap Radar
 
 ### Tối ưu hiệu năng
-- Cache dart count: gộp `_get_dart_info()` + `_has_flying_darts()` thành `_get_dart_stats()` duy nhất.
+- Cache dart count: gộp `_get_dart_info()` + `_has_flying_darts()` thành `_get_dart_stats()`.
 - Dùng `GameManager.stage_alive_ai` thay vì lặp qua group `ai_players` mỗi frame.
 - AudioManager: stop stream trước khi reuse pool player (tránh audio pop).
 - Pickup cleanup: interval 1 giây thay vì mỗi frame.
@@ -128,7 +154,7 @@ phitieudichchuyen/
 
 | Version | Tóm tắt |
 |---|---|
-| **3.8** | Combat polish & boss arena quality update: Pause menu, kill streak, hit markers, low-HP heartbeat, boss off-screen arrow, aim ricochet preview, onboarding hints, stage stats, perf optimizations |
+| **3.8** | Combat polish & boss arena quality: Pause menu, minimap, Boss Phase 2, kill streak, hit markers, low-HP heartbeat, boss off-screen arrow, aim ricochet preview, onboarding, 5 achievements mới, perfect/speed bonus, perf optimizations |
 | 3.7 | Fix laser hitbox · Rebalance boss < 4x player · Tăng độ khó ải · Thêm chế độ Thế Giới (4 vùng, 10 loài, class, đồng đội, HL Coin, uy tín, thành tựu) |
 | 3.6 | Fix crash khi ấn VƯỢT ẢI + sửa double-count mạng/địch |
 | 3.5 | Vượt 20 ải · Boss 10M HP với laser + rage sweep · Lưu tiến độ local · Fix kill-steal |

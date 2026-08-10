@@ -4,6 +4,13 @@
 
 ### Combat Polish & Boss Arena Quality Update
 
+Phiên bản v3.8 là bản nâng cấp lớn tập trung vào:
+- **Combat polish**: hit markers, kill streak, AI dodge burst, dart glow
+- **Boss arena quality**: phase 2, phase badge, dramatic entrance/death, laser charge telegraph
+- **UX/UI**: pause menu, minimap radar, onboarding hints, stage transition, achievement toast
+- **Performance**: cache dart count, audio pop fix, pickup cleanup interval
+- **5 achievements mới** + perfect/speed bonus + kill streak rewards
+
 #### Sửa lỗi critical
 
 ##### Bug player darts không bị AI né được (CRITICAL)
@@ -109,17 +116,78 @@
 - **AudioManager**: stop stream trước khi reuse pool player để tránh audio pop/click artifact.
 - **Map**: pickup cleanup chạy theo interval 1 giây thay vì mỗi frame. Trước đây lặp qua 15 pickup + tạo new RNG mỗi frame.
 
-#### Files thay đổi
-- `project.godot`: bump version 3.7 → 3.8, cập nhật description.
-- `scripts/main.gd`: +500 dòng — pause menu, vignette, kill streak, hit marker, heartbeat, boss indicator.
-- `scripts/hud.gd`: +200 dòng — segment markers, percentage label, onboarding, stage stats, dart stats cache.
-- `scripts/player.gd`: +100 dòng — class_name, dart group fix, aim ricochet preview, hit marker hook.
-- `scripts/boss.gd`: double-laser spawn fix.
-- `scripts/audio_manager.gd`: audio pop fix.
-- `scripts/map.gd`: pickup cleanup interval.
-- `scripts/menu.gd`: version label + new feature text.
-- `scripts/stage_select.gd`: reset confirm dialog.
+#### AI improvements (v3.8)
+- **AI dodge burst reactivation**: `_ai_dash()` đã no-op từ v3.4 (skills removed), giờ reactivated thành "dodge burst" — vận tốc tức thời 380 units/s theo hướng dodge với 1.2s cooldown. AI giờ thực sự né dart khi `time_to_impact < 0.6s`, không chỉ dựa vào DODGING state (walk_speed * 1.3). Small cyan particle burst cho visual feedback.
+- **AI teleport warning sound**: 70% chance phát `warning` SFX (pitch 1.3) ngay trước khi AI teleport về phía player. Cho player cơ hội phản ứng.
+- **AI hit spark + scale punch**: khi AI bị dart trúng, spawn 8 yellow particle burst + scale 1.0→1.15→1.0 (0.18s). Visual feedback rõ ràng cho mỗi hit.
+
+#### Reward systems (v3.8)
+- **Perfect Stage bonus**: hoàn thành ải không chết = bonus HL Coin (50 + stage * 10). VD: ải 5 = 100, ải 20 = 250.
+- **Speed bonus**: hoàn thành ải dưới 60s = bonus HL Coin (30 + (60 - elapsed)). VD: 45s = 45 coin.
+- **Kill streak bonus**: thưởng HL Coin tại milestone (3=10, 5=25, 7=50, 10=100, +100 mỗi 5 sau 10).
+- **Best kill streak stat**: tracking kill streak cao nhất trong SettingsManager.
+- **Total stage clears stat**: tracking trong SettingsManager.
+
+#### Boss enhancements (v3.8)
+- **Boss Phase 2 (50% HP)**: boss bắn 3-dart spread thay vì 1, move_speed 60→75, dart interval 2.5s→1.8s. Banner "PHASE 2!" khi kích hoạt.
+- **Boss dramatic entrance**: 3-wave particle burst outward + big screen shake (8.0, 0.6s) khi boss spawn.
+- **Boss laser charge telegraph**: 3 particles bay về phía boss trong 1s charge phase, hướng cho biết laser sẽ bắn theo hướng nào.
+- **Boss laser color tint based on phase**: Phase 1 = đỏ, Phase 2 = cam, Rage = trắng-rực.
+- **Boss HP bar shake** khi nhận damage (4px x, -2px y → -3px x → 0).
+- **Boss phase badge**: "PHASE 1" / "PHASE 2" / "⚠ RAGE" bên trái BossHpContainer.
+- **Boss dramatic multi-stage death**: 7-wave explosion (3 initial + 4 delayed) với color shift red→orange→yellow→white, escalating velocity, 3 screen shake waves.
+
+#### Coin pickup feedback (v3.8)
+- Floating "+X 💰" text ở vị trí player khi nhận HL Coin (chỉ amount >= 5).
+- Gold particle burst (max 20 particles dựa trên amount).
+- Coin SFX at 1.1 pitch.
+- New ProgressionManager signal `coins_added(amount, total)`.
+
+#### Achievement toast notifications (v3.8)
+- Toast popup ở center-top khi unlock achievement: title, name, desc + coin reward.
+- Animated scale-in (0.85→1.0) + fade-in (0→1.0) 0.25s.
+- Auto-remove sau 3.5s với fade-out.
+- Sound: achievement SFX + sparkle variation.
+
+#### 5 achievements mới (v3.8)
+- `kill_streak_5`: "Hạ Gục 5 Liên Tiếp" — 80 HL Coin
+- `kill_streak_10`: "Bất Tử Chi Thân" — 200 HL Coin
+- `perfect_stage`: "Hoàn Hảo" — 100 HL Coin
+- `speed_runner`: "Tốc Độ Ánh Sáng" — 150 HL Coin
+- `all_stages_clear`: "Huyền Thoại Vượt Ải" — 1000 HL Coin
+- Total: 14 (v3.7) → 19 (v3.8) achievements.
+
+#### Additional UX features (v3.8)
+- **Stage intro banner** khi bắt đầu mỗi stage: "ẢI X — KHỞI ĐẦU/TRUNG BÌNH/KHÓ/RẤT KHÓ" hoặc "⚠ ẢI CUỐI — BOSS ⚠". Color theo difficulty, drum_crash sound.
+- **Stage time warning**: banner "⏰ HÃY NHANH LÊN!" khi stage time > 5 phút.
+- **Low-HP health pickup arrow**: mũi tên xanh ở rìa màn hình chỉ hướng health pickup gần nhất khi HP < 30% và pickup ngoài tầm nhìn. Label "♥ Xpx" cho biết khoảng cách.
+- **Difficulty color coding** trong stage_select: green (dễ) / cyan (TB) / orange (khó) / red (rất khó) / red large (boss).
+- **Stage select stats**: thêm best kill streak + total matches + total wins.
+- **Heal effect**: heart icon (♥) popup + green particle burst khi player nhặt health pickup.
+- **Pickup burst effect**: 14 particle burst khi nhặt vật phẩm (green cho health, gold cho dart refill).
+- **AI hit spark + scale punch**: 8 yellow particles + scale 1.15x khi AI bị hit.
+
+#### Files thay đổi (v3.8)
+- `project.godot`: bump version 3.7 → 3.8, cập nhật description với tóm tắt features.
+- `scripts/main.gd`: +800 dòng — pause menu, vignette, kill streak, hit marker, heartbeat, boss indicator, minimap radar, stage intro, achievement toast, coin pickup feedback, low-HP pickup arrow, stage time warning.
+- `scripts/hud.gd`: +400 dòng — segment markers, percentage label, phase badge, onboarding, stage stats, dart stats cache, boss HP bar shake, transition animation.
+- `scripts/player.gd`: +150 dòng — class_name Player, dart group fix, aim ricochet preview, hit marker hook, heal effect.
+- `scripts/boss.gd`: +200 dòng — double-laser fix, phase 2 logic, dramatic entrance, laser charge telegraph, multi-stage death, phase badge signal.
+- `scripts/boss_laser.gd`: phase-based color tint (red→orange→white-hot).
+- `scripts/ai_player.gd`: dodge burst reactivation, teleport warning sound, hit spark + scale punch.
+- `scripts/audio_manager.gd`: audio pop fix (stop before reuse).
+- `scripts/map.gd`: pickup cleanup interval (1s instead of every frame).
+- `scripts/menu.gd`: version label v3.8 + new feature text.
+- `scripts/stage_select.gd`: reset confirm dialog, difficulty color coding, extended stats.
+- `scripts/settings_menu.gd`: v3.8 NEW UI section with 5 toggles.
+- `scripts/settings_manager.gd`: 5 new UI toggles + best_kill_streak + total_stage_clears stats.
+- `scripts/game_manager.gd`: perfect/speed bonus logic, get_last_stage_bonus API, new achievement triggers.
+- `scripts/progression_manager.gd`: 5 new achievements, coins_added signal.
+- `scripts/pickup.gd`: pickup burst effect.
+- `scripts/dart.gd`: glow power-scale.
 - `scenes/hud.tscn`: boss HP bar max_value 10M → 12M.
+
+**Total: ~2000+ dòng code mới, 25 commits, 30+ features mới, 5 achievements mới.**
 
 ---
 
