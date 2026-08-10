@@ -52,6 +52,8 @@ extends CanvasLayer
 var _boss_hp_segments: Line2D = null
 # v3.8: Boss HP percentage text (hiển thị lớn bên dưới bar)
 var _boss_hp_pct_label: Label = null
+# v3.8: Boss phase badge (PHASE 1 / PHASE 2 / RAGE)
+var _boss_phase_badge: Label = null
 # v3.8: Onboarding hint panel (chỉ hiện ải 1 lần đầu)
 var _onboarding_panel: Panel = null
 var _onboarding_dismissed: bool = false
@@ -315,9 +317,32 @@ func set_boss(boss: Node2D):
     if boss_hp_bar:
         boss_hp_bar.max_value = StageManager.BOSS_MAX_HP
         boss_hp_bar.value = StageManager.BOSS_MAX_HP
-    # v3.8: Setup segment markers + percentage label
+    # v3.8: Setup segment markers + percentage label + phase badge
     _setup_boss_hp_segments()
     _setup_boss_hp_pct_label()
+    _setup_boss_phase_badge()
+
+## v3.8: Setup phase badge — hiển thị "PHASE 1" / "PHASE 2" / "⚠ RAGE"
+## bên trái của BossHpContainer. Đổi màu + text theo phase.
+func _setup_boss_phase_badge():
+    if _boss_phase_badge and is_instance_valid(_boss_phase_badge):
+        _boss_phase_badge.queue_free()
+    if not boss_hp_container:
+        return
+    _boss_phase_badge = Label.new()
+    _boss_phase_badge.text = "PHASE 1"
+    _boss_phase_badge.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+    _boss_phase_badge.offset_left = -55
+    _boss_phase_badge.offset_right = 0
+    _boss_phase_badge.offset_top = 8
+    _boss_phase_badge.offset_bottom = 24
+    _boss_phase_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+    _boss_phase_badge.add_theme_font_size_override("font_size", 11)
+    _boss_phase_badge.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0, 0.95))
+    _boss_phase_badge.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    _boss_phase_badge.add_theme_constant_override("shadow_offset_y", 1)
+    _boss_phase_badge.add_theme_constant_override("shadow_outline_size", 2)
+    boss_hp_container.add_child(_boss_phase_badge)
 
 ## v3.8: Tạo 11 vạch dọc chia Boss HP bar thành 12 đoạn (mỗi đoạn = 8.33% HP).
 ## Giúp player thấy rõ tiến độ damage. Vạch màu trắng mờ, vạch cuối (rage threshold
@@ -773,6 +798,17 @@ func _on_boss_hp_changed(hp: float, max_hp: float, is_rage: bool):
             _boss_hp_pct_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2, 1.0))
         else:
             _boss_hp_pct_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3, 0.95))
+    # v3.8: Cập nhật phase badge
+    if _boss_phase_badge:
+        if is_rage:
+            _boss_phase_badge.text = "⚠ RAGE"
+            _boss_phase_badge.add_theme_color_override("font_color", Color(1.0, 0.3, 0.1, 1.0))
+        elif pct < 50.0:
+            _boss_phase_badge.text = "PHASE 2"
+            _boss_phase_badge.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2, 1.0))
+        else:
+            _boss_phase_badge.text = "PHASE 1"
+            _boss_phase_badge.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0, 0.95))
 
 func _on_ai_count_changed(alive_count: int, total_count: int):
     if alive_label:

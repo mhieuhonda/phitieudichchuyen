@@ -54,9 +54,33 @@ func _apply_pickup(player: CharacterBody2D):
                 PickupType.HEALTH:
                         if player.has_method("heal"):
                                 player.heal(health_amount)
+                        _spawn_pickup_burst(Color(0.3, 1.0, 0.4, 0.95))
                 PickupType.DART_REFILL:
                         if player.has_method("refill_darts"):
                                 player.refill_darts(dart_refill_amount, dart_refill_duration)
+                        _spawn_pickup_burst(Color(1.0, 0.85, 0.2, 0.95))
+
+## v3.8: Spawn pickup burst particles (hiệu ứng nhặt vật phẩm rõ ràng hơn)
+func _spawn_pickup_burst(color: Color):
+        if SettingsManager.get_particle_multiplier() <= 0:
+                return
+        var burst = CPUParticles2D.new()
+        burst.emitting = true
+        burst.one_shot = true
+        burst.explosiveness = 0.85
+        burst.amount = max(1, int(14 * SettingsManager.get_particle_multiplier()))
+        burst.lifetime = 0.45
+        burst.direction = Vector2(0, -1)
+        burst.spread = 90.0
+        burst.initial_velocity_min = 80
+        burst.initial_velocity_max = 180
+        burst.gravity = Vector2(0, 80)
+        burst.scale_amount_min = 2
+        burst.scale_amount_max = 5
+        burst.color = color
+        get_parent().add_child(burst)
+        burst.global_position = global_position
+        get_tree().create_timer(0.8).timeout.connect(burst.queue_free)
 
 func _apply_pickup_ai(ai: CharacterBody2D):
         # Fix v1.4: trước đây dùng GameManager.player_max_hp làm ceiling cho
