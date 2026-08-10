@@ -68,8 +68,8 @@ const LASER_COOLDOWN_INTERVAL: float = 4.0  # 4s giữa các đợt laser
 # Damage flash
 var _hurt_flash_timer: float = 0.0
 
-# Boss damage = 4x player dart (100 dmg)
-const BOSS_DART_DAMAGE: float = 100.0
+# Boss damage (v3.7: < 4x player dart — player dart = 25, 4x = 100, boss = 80)
+const BOSS_DART_DAMAGE: float = 80.0
 
 signal boss_damaged(amount: float, current_hp: float, max_hp: float)
 signal boss_died(boss: Node2D)
@@ -258,7 +258,7 @@ func _fire_laser():
     get_parent().add_child(active_laser)
     active_laser.setup_static(
         dir, 1200.0, 80.0,
-        StageManager.BOSS_LASER_DAMAGE_PER_SEC * StageManager.BOSS_DAMAGE_MULTIPLIER / 4.0,  # = 100 dmg/s
+        StageManager.BOSS_LASER_DAMAGE_PER_SEC,  # v3.7: 80 dmg/s (< 4x = 100), liên tục mỗi frame
         1.0,  # warn đã chạy ở LASER_CHARGE, nhưng laser scene cũng có warn — ta set 0.01 để skip
         1.5,  # active duration
         self
@@ -284,7 +284,7 @@ func _fire_sweep():
     get_parent().add_child(active_laser)
     active_laser.setup_sweep(
         start_dir, 1200.0, 90.0,
-        StageManager.BOSS_LASER_DAMAGE_PER_SEC * StageManager.BOSS_DAMAGE_MULTIPLIER / 4.0 * 1.3,  # sweep mạnh hơn 30%
+        StageManager.BOSS_LASER_DAMAGE_PER_SEC * 1.2,  # v3.7: sweep mạnh hơn 20% (96 dmg/s, vẫn < 100)
         0.01,  # skip warn
         4.0,   # 4 giây quét
         self,

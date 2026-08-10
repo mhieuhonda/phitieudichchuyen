@@ -411,6 +411,10 @@ func _on_boss_died(_boss: Node2D):
     stage_alive_ai = 0
     ai_count_changed.emit(0, stage_total_ai)
     boss_hp_changed.emit(0.0, StageManager.BOSS_MAX_HP, false)
+    # v3.7: Reward HL Coin + achievement cho player
+    if ProgressionManager:
+        ProgressionManager.add_coins(500)
+        ProgressionManager.unlock_achievement("boss_slayer")
     _complete_stage()
 
 func _on_boss_rage(_boss: Node2D):
@@ -421,6 +425,10 @@ func _on_boss_rage(_boss: Node2D):
 func on_ai_killed_in_stage():
     if stage_alive_ai > 0:
         stage_alive_ai -= 1
+    # v3.7: Reward HL Coin nhỏ mỗi AI kill
+    if ProgressionManager:
+        ProgressionManager.add_coins(15)
+        ProgressionManager.unlock_achievement("first_blood")
     ai_count_changed.emit(stage_alive_ai, stage_total_ai)
     if stage_alive_ai <= 0 and not stage_cleared_flag:
         _complete_stage()
@@ -432,6 +440,17 @@ func _complete_stage():
     game_active = false
     var elapsed = StageManager.get_elapsed_stage_time()
     StageManager.complete_stage(elapsed)
+    # v3.7: Achievement theo ải
+    if ProgressionManager:
+        var stage = StageManager.current_stage
+        if stage >= 5:
+            ProgressionManager.unlock_achievement("stage_5_clear")
+        if stage >= 10:
+            ProgressionManager.unlock_achievement("stage_10_clear")
+        if stage >= 15:
+            ProgressionManager.unlock_achievement("stage_15_clear")
+        # Update player level theo stage đã mở khóa
+        ProgressionManager.gain_xp_and_level(0)
     stage_cleared.emit(StageManager.current_stage)
     AudioManager.play_music("victory")
 

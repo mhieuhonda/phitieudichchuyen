@@ -12,6 +12,7 @@ extends Control
 ##       vàng-tím nhất quán. Sắp xếp gọn gàng bằng VBoxContainer trong CenterContainer.
 
 @onready var play_button: Button = $CenterContainer/MenuVBox/PlayButton
+@onready var world_button: Button = $CenterContainer/MenuVBox/WorldButton
 @onready var continue_button: Button = $CenterContainer/MenuVBox/ContinueButton
 @onready var characters_button: Button = $CenterContainer/MenuVBox/CharactersButton
 @onready var settings_button: Button = $CenterContainer/MenuVBox/SettingsButton
@@ -41,6 +42,8 @@ const COL_BORDER := Color(0.35, 0.30, 0.55, 0.55)
 
 func _ready():
         play_button.pressed.connect(_on_play_pressed)
+        if world_button:
+                world_button.pressed.connect(_on_world_pressed)
         if continue_button:
                 continue_button.pressed.connect(_on_continue_pressed)
         characters_button.pressed.connect(_on_characters_pressed)
@@ -50,6 +53,8 @@ func _ready():
 
         # Style every button
         _style_primary_button(play_button, COL_GOLD)
+        if world_button:
+                _style_button(world_button, COL_CYAN)
         if continue_button:
                 _style_button(continue_button, COL_GREEN)
         _style_button(characters_button, COL_CYAN)
@@ -59,6 +64,8 @@ func _ready():
 
         # Hover & click scale effects for ALL buttons
         var buttons = [play_button, characters_button, settings_button, ui_customize_button, quit_button]
+        if world_button:
+                buttons.append(world_button)
         if continue_button:
                 buttons.append(continue_button)
         for btn in buttons:
@@ -170,14 +177,16 @@ func _apply_premium_styling():
 
 func _refresh_ui():
         if version_label:
-                version_label.text = "v3.6 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v3.7 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#ffaa00][b]v3.6 MỚI:[/b][/color] Fix crash khi ấn VƯỢT ẢI + sửa double-count mạng/địch\n[color=#44ff88][b]Cơ chế[/b][/color]: Ném phi tiêu → dịch chuyển → tiêu diệt đối thủ\n[color=#ff4444][b]ẢI 20 = BOSS CUỐI[/b][/color]: 10M HP, laser, sweep rage ở 10% HP\n[color=#aa44ff][b]Cân bằng[/b][/color]: Fix kill-steal, AI chỉ tấn công player"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.7 MỚI:[/b][/color] Thế giới 4 vùng + 10 loài động vật + hệ thống class/đồng đội\n[color=#44ff88][b]Fix:[/b][/color] Lỗi laser boss không gây sát thương (abs Vector2 bug)\n[color=#ff4444][b]Cân bằng:[/b][/color] Boss ải 20 dmg < 4x player, laser đốt liên tục, độ khó ải tăng\n[color=#aa44ff][b]Meta:[/b][/color] HL Coin, uy tín, độ thân mật, thành tựu, nội chiến loài"
                 else:
-                        new_feature_label.text = "[color=#ffaa00][b]v3.6 NEW:[/b][/color] Fixed crash on STAGES button + fixed lives/enemy double-count\n[color=#44ff88][b]Mechanic[/b][/color]: Throw dart → teleport → kill enemy\n[color=#ff4444][b]STAGE 20 = FINAL BOSS[/b][/color]: 10M HP, laser, rage sweep at 10% HP\n[color=#aa44ff][b]Balanced[/b][/color]: Fixed kill-steal, AI only attacks player"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.7 NEW:[/b][/color] 4-region world + 10 species + class/teammate system\n[color=#44ff88][b]Fix:[/b][/color] Boss laser hitbox bug (abs Vector2 returned Vector2, never damaged)\n[color=#ff4444][b]Balance:[/b][/color] Stage 20 boss dmg < 4x player, continuous laser burn, harder stages\n[color=#aa44ff][b]Meta:[/b][/color] HL Coin, reputation, intimacy, achievements, civil war"
         if play_button:
                 play_button.text = "⚔ VƯỢT ẢI" if I18N.is_vi() else "⚔ STAGES"
+        if world_button:
+                world_button.text = "🌍 THẾ GIỚI" if I18N.is_vi() else "🌍 WORLD"
         if continue_button:
                 continue_button.text = "▶ CHƠI TIẾP" if I18N.is_vi() else "▶ CONTINUE"
                 # Chỉ hiện nút Continue nếu có ải đang chơi dở (current_stage > 1 hoặc đã vượt qua ải 1)
@@ -201,6 +210,14 @@ func _on_play_pressed():
         AudioManager.play_ui_click()
         AudioManager.play_confirm()
         get_tree().change_scene_to_file("res://scenes/stage_select.tscn")
+
+## v3.7: Vào thế giới meta-game
+func _on_world_pressed():
+        AudioManager.play_ui_click()
+        AudioManager.play_confirm()
+        # Cấp player theo số ải vượt qua (1 ải = 1 level, max 5)
+        ProgressionManager.gain_xp_and_level(0)
+        get_tree().change_scene_to_file("res://scenes/world_map.tscn")
 
 ## v3.5: Chơi tiếp ải hiện tại
 func _on_continue_pressed():

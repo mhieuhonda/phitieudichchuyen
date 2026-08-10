@@ -1,5 +1,91 @@
 # Changelog
 
+## v3.7 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### Fix laser hitbox + Rebalance boss + Thêm chế độ Thế Giới
+
+#### Sửa lỗi laser boss không gây sát thương (CRITICAL)
+- **FIX BUG**: Tia laser của boss ải 20 không gây damage cho player.
+  - Nguyên nhân: trong `boss_laser.gd::_apply_damage()`, dòng
+    `var dist_perp = abs(to_player - direction * dist_along)` trả về
+    `Vector2` (hàm `abs()` trên Vector2 trả về Vector2 với từng component
+    được abs), chứ không phải scalar. Sau đó so sánh `dist_perp > width * 0.5`
+    (Vector2 > float) là so sánh không hợp lệ trong GDScript 2 → luôn trả về
+    `true` (hoặc error tùy runtime) → hàm return ngay → không bao giờ áp dụng
+    damage.
+  - Sửa: dùng `var perp_vec = to_player - direction * dist_along` rồi
+    `var dist_perp = perp_vec.length()` để có khoảng cách vuông góc đúng.
+  - Hệ quả: laser giờ áp dụng damage liên tục mỗi frame khi player đứng trong
+    tia, đúng theo thiết kế "đốt máu liên tục".
+
+#### Sửa laser chỉ trúng player đầu tiên
+- **FIX BUG**: `_apply_damage()` chỉ lấy `players[0]` trong group "players",
+  nếu player đầu tiên chết hoặc chưa spawn thì laser không damage ai khác.
+- Sửa: iterate qua TẤT CẢ player trong group, áp dụng damage cho từng con
+  đang alive và đứng trong tia laser.
+
+#### Rebalance boss ải 20
+- Yêu cầu spec: "sát thương bé hơn gấp 4 lần player nhưng đốt máu liên tục
+  bằng tia laser". Player dart damage = 25 → 4x = 100. Boss damage phải < 100.
+- Thay đổi:
+  - `BOSS_DART_DAMAGE`: 100 → **80** (< 4x = 100)
+  - `BOSS_LASER_DAMAGE_PER_SEC`: 100 → **80** (< 4x = 100, liên tục mỗi frame)
+  - `BOSS_LASER_CENTER_MULTIPLIER`: giữ 2.0 (center = 160 dmg/s, vẫn < 4x = 400/s)
+  - Sweep damage: 1.3x → **1.2x** (96 dmg/s, vẫn < 100)
+  - `BOSS_DAMAGE_MULTIPLIER`: 4.0 → **3.2** (< 4x player)
+  - `BOSS_MAX_HP`: 10M → **12M** (bù lại vì laser đã fix đúng sát thương)
+  - `BOSS_TELEPORT_DAMAGE`: 250k → **280k**
+  - `BOSS_RAGE_HP_PERCENT`: 10% → **12%**
+
+#### Tăng độ khó ải
+- Đường cong AI: dùng `t_curved = t * t * 0.6 + t * 0.4` thay vì linear →
+  ải giữa khó hơn đáng kể.
+- AI dodge: 0.15→0.85 thành **0.25→0.92**.
+- AI accuracy: 0.50→0.95 thành **0.60→0.97**.
+- AI pursuit speed: 1.05→1.30 thành **1.10→1.40**.
+- AI HP mult: 0.80→1.40 thành **0.90→1.55**.
+- AI damage mult: 0.70→1.10 thành **0.80→1.25**.
+- AI pickup seeking từ ải 8 → **ải 6**.
+- Số mạng/ải giảm: 1-5: 3→2, 6-10: 3→2, 11-15: 4→3, 16-19: 5→4, 20: 5→4.
+
+#### Thêm chế độ Thế Giới (RPG meta-game)
+- **3 autoloads mới**:
+  - `SpeciesData`: 10 loài động vật + chỉ số gốc (Magic/Physical/Agility, tổng 6).
+  - `ProgressionManager`: Level (max 5), 2 điểm/level, HL Coin, uy tín
+    (−100..100 cho mỗi loài), độ thân mật (0..100 cho NPC 3 sao), 14 thành
+    tựu, hệ thống class + mặt nạ đổi class, đội tạm thời (max 5 thành viên).
+  - `WorldManager`: 4 vùng (Rừng Thông, Núi Băng, Vương Quốc RuY Băng, Đế
+    Quốc Kẹo), 4 quán rượu, 10 thủ lĩnh với vị trí cố định theo lore, tiền
+    bối (NPC di chuyển ngẫu nhiên), quest pool theo vùng, NPC pool cho quán
+    rượu, hệ thống nội chiến loài (5% mỗi ngày trong game).
+- **5 scene UI mới**:
+  - `world_map.tscn`: bản đồ 4 vùng + nút vào quán rượu / tiền bối / thủ lĩnh.
+  - `tavern.tscn`: 2 tab (Quest Board + Chiêu mộ), hiển thị NPC với 3 cấp sao.
+  - `predecessor_shop.tscn`: mua 6 class chính (200 HL), mua mặt nạ (150 HL),
+    đổi class (cần 1 mặt nạ).
+  - `skill_master.tscn`: học skill từ 10 thủ lĩnh (100 HL, cần cùng class).
+  - `quest_log.tscn`: 3 tab (Stats / Đội / Thành tựu), phân bổ điểm chỉ số.
+- **Tích hợp vào menu chính**: nút "🌍 THẾ GIỚI" mới.
+- **Reward HL Coin khi kill**: AI = 15 HL, boss = 500 HL (tự động qua
+  `GameManager.on_ai_killed_in_stage` và `_on_boss_died`).
+- **14 thành tựu** với phần thưởng HL Coin.
+- **Spec lore đầy đủ**:
+  - Thủ lĩnh Gấu: lâu đài đế quốc kẹo.
+  - Thủ lĩnh Sói: tầng hầm lâu đài (quân bí mật đế quốc, hidden).
+  - Thủ lĩnh Chó: chỗ trốn bí ẩn trong đế quốc (hidden).
+  - Thủ lĩnh Mèo: lâu đài vương quốc ruy băng.
+  - Thủ lĩnh Sư Tử: đấu trường vương quốc (quân bí mật phe mèo, hidden).
+  - Thủ lĩnh Thỏ: hiệu trưởng trường phép núi băng.
+  - Thủ lĩnh Ngựa: biên giới núi băng.
+  - Thủ lĩnh Cáo: chòi canh rừng thông.
+  - Thủ lĩnh Hươu: rừng thông rải rác.
+  - Thủ lĩnh Chuột: đi loanh quanh khắp map (random gặp ở mọi vùng).
+- **Player là quái đột biến**: chỉ số gốc 1/1/1 (tổng 3, aka "111"), 5 level,
+  mỗi level +2 điểm nâng. Mua class ở Tiền Bối, đổi class bằng mặt nạ (không
+  reset chỉ số).
+
+---
+
 ## v3.6 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### Fix crash + Cân bằng lại số mạng / số địch

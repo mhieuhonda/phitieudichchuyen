@@ -36,14 +36,15 @@ var stage_start_time: float = 0.0
 var stage_active: bool = false
 var player_deaths_this_stage: int = 0
 
-# Boss config cho ải 20
-const BOSS_MAX_HP: float = 10000000.0
-const BOSS_TELEPORT_DAMAGE: float = 250000.0  # mỗi lần dịch chuyển tới boss = 250k dmg
-const BOSS_DART_DAMAGE: float = 100.0          # mỗi phi tiêu trúng boss = 100 dmg (chip)
-const BOSS_LASER_DAMAGE_PER_SEC: float = 100.0 # 4x player dart damage
-const BOSS_LASER_CENTER_MULTIPLIER: float = 2.0  # đứng giữa laser = 2x damage
-const BOSS_RAGE_HP_PERCENT: float = 0.10       # 10% HP -> rage mode
-const BOSS_DAMAGE_MULTIPLIER: float = 4.0      # boss hit 4x mạnh hơn player
+# Boss config cho ải 20 (v3.7: rebalance — sát thương < 4x player dart)
+# Player dart damage = 25 → 4x = 100. Boss dmg phải < 100.
+const BOSS_MAX_HP: float = 12000000.0       # v3.7: 12M (tăng từ 10M) vì laser đã fix sát thương
+const BOSS_TELEPORT_DAMAGE: float = 280000.0  # mỗi lần dịch chuyển tới boss = 280k dmg
+const BOSS_DART_DAMAGE: float = 80.0          # < 4x player dart (4x = 100)
+const BOSS_LASER_DAMAGE_PER_SEC: float = 80.0 # < 4x player dart, nhưng LIÊN TỤC mỗi frame
+const BOSS_LASER_CENTER_MULTIPLIER: float = 2.0  # đứng giữa laser = 2x damage (= 160/s, vẫn < 4x = 100*4=400/s, vì player dart 25)
+const BOSS_RAGE_HP_PERCENT: float = 0.12      # 12% HP -> rage mode (tăng nhẹ)
+const BOSS_DAMAGE_MULTIPLIER: float = 3.2      # v3.7: < 4x player (trước đây 4.0)
 
 func _ready():
     _load_progress()
@@ -133,33 +134,36 @@ func get_ai_count_for_stage(stage: int) -> int:
     return 4  # 16..19
 
 ## Thông số AI theo ải (dodge, accuracy, kiting, prediction...)
+## v3.7: Tăng độ khó — đường cong tăng nhanh hơn từ ải 1→19
 func get_ai_intelligence_for_stage(stage: int) -> Dictionary:
     # progress 0..1 theo stage (1 -> 0.0, 19 -> 1.0)
+    # v3.7: dùng curve mũ nhẹ để ải đầu khó hơn + ải cuối khó hơn nữa
     var t: float = clamp((float(stage) - 1.0) / 18.0, 0.0, 1.0)
+    var t_curved: float = t * t * 0.6 + t * 0.4  # ease-in: ải giữa khó hơn
     return {
-        "dodge_chance": lerp(0.15, 0.85, t),
-        "accuracy": lerp(0.50, 0.95, t),
-        "mid_flight_teleport_chance": lerp(0.20, 0.80, t),
-        "predict_lead_factor": lerp(0.80, 1.30, t),
-        "kite_distance": lerp(180.0, 320.0, t),
-        "flee_hp_threshold": lerp(0.25, 0.40, t),
-        "pursuit_speed_mult": lerp(1.05, 1.30, t),
-        "pickup_seeking": stage >= 8,
-        "ai_hp_mult": lerp(0.80, 1.40, t),
-        "ai_dmg_mult": lerp(0.70, 1.10, t),
+        "dodge_chance": lerp(0.25, 0.92, t_curved),       # v3.7: 0.15→0.85 thành 0.25→0.92
+        "accuracy": lerp(0.60, 0.97, t_curved),           # v3.7: 0.50→0.95 thành 0.60→0.97
+        "mid_flight_teleport_chance": lerp(0.30, 0.85, t_curved),  # v3.7: tăng từ 0.20→0.80
+        "predict_lead_factor": lerp(0.85, 1.40, t_curved),
+        "kite_distance": lerp(200.0, 340.0, t_curved),
+        "flee_hp_threshold": lerp(0.25, 0.45, t_curved),
+        "pursuit_speed_mult": lerp(1.10, 1.40, t_curved), # v3.7: tăng pursuit
+        "pickup_seeking": stage >= 6,                     # v3.7: AI nhặt pickup từ ải 6 (trước 8)
+        "ai_hp_mult": lerp(0.90, 1.55, t_curved),         # v3.7: tăng HP mult
+        "ai_dmg_mult": lerp(0.80, 1.25, t_curved),        # v3.7: tăng dmg mult
     }
 
-## Số lần chết tối đa trong ải trước khi fail
+## Số lần chết tối đa trong ải trước khi fail (v3.7: giảm để tăng độ khó)
 func get_max_deaths_per_stage(stage: int) -> int:
     if stage == FINAL_STAGE:
-        return 5  # ải boss cho phép 5 lần chết
+        return 4  # v3.7: ải boss 4 lần chết (trước 5)
     if stage <= 5:
-        return 3
+        return 2  # v3.7: 2 (trước 3)
     if stage <= 10:
-        return 3
+        return 2  # v3.7: 2 (trước 3)
     if stage <= 15:
-        return 4
-    return 5  # 16..19
+        return 3  # v3.7: 3 (trước 4)
+    return 4  # 16..19 (trước 5)
 
 # === SAVE / LOAD ===
 

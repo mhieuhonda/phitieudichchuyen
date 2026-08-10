@@ -186,32 +186,37 @@ func _update_beam_geometry():
 func _apply_damage(delta: float):
     if not boss_ref or not is_instance_valid(boss_ref):
         return
-    # Lấy player từ group (cache để tránh lặp)
-    if not is_instance_valid(player_ref):
-        player_ref = null
-    if not player_ref:
-        var players = get_tree().get_nodes_in_group("players")
-        if players.size() > 0:
-            player_ref = players[0]
-    if not is_instance_valid(player_ref) or not player_ref.is_alive:
+    # Lấy TẤT CẢ player từ group (fix v3.7: trước đây chỉ lấy players[0],
+    # nếu player chết hoặc chưa spawn thì laser không gây damage cho ai)
+    var players = get_tree().get_nodes_in_group("players")
+    if players.is_empty():
         return
     # Tính vị trí player tương đối với boss
-    var to_player = player_ref.global_position - boss_ref.global_position
-    var dist_along = to_player.dot(direction)
-    var dist_perp = abs(to_player - direction * dist_along)  # vector length perpendicular
-    # Trong phạm vi tia?
-    if dist_along < 0 or dist_along > length:
-        return
-    if dist_perp > width * 0.5:
-        return
-    # Tính damage: center = 2x, rìa = 1x (linear interpolate theo dist_perp)
-    var t_center = clamp(dist_perp / (center_width * 0.5), 0.0, 1.0)
-    var dmg_multiplier = lerp(center_multiplier, 1.0, t_center)
-    var dmg = damage_per_sec * dmg_multiplier * delta
-    if player_ref.has_method("take_damage_from"):
-        player_ref.take_damage_from(dmg, boss_ref)
+    for p in players:
+        if not is_instance_valid(p) or not p.get("is_alive"):
+            continue
+        var to_player = p.global_position - boss_ref.global_position
+        var dist_along = to_player.dot(direction)
+        # FIX v3.7: abs(Vector2) trả về Vector2 (không phải scalar).
+        # Phải dùng .length() để có khoảng cách vuông góc đúng.
+        # Đây là nguyên nhân laser không gây sát thương.
+        var perp_vec = to_player - direction * dist_along
+        var dist_perp = perp_vec.length()
+        # Trong phạm vi tia?
+        if dist_along < 0 or dist_along > length:
+            continue
+        if dist_perp > width * 0.5:
+            continue
+        # Tính damage: center = 2x, rìa = 1x (linear interpolate theo dist_perp)
+        var t_center = clamp(dist_perp / max(center_width * 0.5, 1.0), 0.0, 1.0)
+        var dmg_multiplier = lerp(center_multiplier, 1.0, t_center)
+        var dmg = damage_per_sec * dmg_multiplier * delta
+        if p.has_method("take_damage_from"):
+            p.take_damage_from(dmg, boss_ref)
+        # Cache player_ref để dùng cho hit flash effect bên dưới
+        player_ref = p
     # Hiệu ứng hit flash nhẹ cho player khi đứng trong laser
-    if randf() < 0.3:
+    if is_instance_valid(player_ref) and randf() < 0.3:
         var sprite = player_ref.get_node_or_null("Sprite")
         if sprite:
             sprite.modulate = Color(1.0, 0.4, 0.4, 1.0)
