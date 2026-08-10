@@ -59,11 +59,17 @@ var move_speed: float = 60.0
 var dart_scene: PackedScene = preload("res://scenes/dart.tscn")
 var all_darts: Array = []
 var dart_throw_cooldown: float = 0.0
-const DART_THROW_INTERVAL: float = 2.5  # ném 1 phi tiêu mỗi 2.5s
+# v3.8: Đổi từ const → var để phase 2 có thể giảm interval (2.5s → 1.8s)
+var DART_THROW_INTERVAL: float = 2.5  # ném 1 phi tiêu mỗi 2.5s (1.8s ở phase 2)
 
 # Cooldown giữa các đợt laser
 var laser_cooldown: float = 0.0
 const LASER_COOLDOWN_INTERVAL: float = 4.0  # 4s giữa các đợt laser
+
+# v3.8: Phase 2 — boss vào phase 2 ở 50% HP, bắn 3 dart spread thay vì 1
+var has_used_phase2: bool = false
+const BOSS_PHASE2_HP_PERCENT: float = 0.50
+const PHASE2_SPREAD_ANGLE: float = 0.35  # radians (~20° mỗi bên)
 
 # Damage flash
 var _hurt_flash_timer: float = 0.0
@@ -76,6 +82,7 @@ signal boss_died(boss: Node2D)
 signal boss_rage_started(boss: Node2D)
 signal boss_laser_warning(boss: Node2D)
 signal boss_laser_fired(boss: Node2D)
+signal boss_phase2_started(boss: Node2D)  # v3.8: phase 2 ở 50% HP
 
 func _ready():
     add_to_group("ai_players")  # để dart của player có thể trúng
@@ -318,6 +325,21 @@ func _throw_dart():
     if throw_dir == Vector2.ZERO:
         throw_dir = Vector2.RIGHT
     var power = clamp(dist / 800.0 + 0.3, GameManager.min_throw_power, GameManager.max_throw_power)
+    # v3.8: Phase 2 — bắn 3 dart spread (chính giữa + 2 bên) khi HP < 50%
+    if has_used_phase2:
+        _spawn_boss_dart(throw_dir, power)
+        _spawn_boss_dart(throw_dir.rotated(PHASE2_SPREAD_ANGLE), power * 0.9)
+        _spawn_boss_dart(throw_dir.rotated(-PHASE2_SPREAD_ANGLE), power * 0.9)
+        AudioManager.play_variation("throw", 1.0, 0.9)
+    else:
+        _spawn_boss_dart(throw_dir, power)
+        AudioManager.play_throw()
+    dart_throw_cooldown = DART_THROW_INTERVAL
+
+## v3.8: Helper — spawn 1 boss dart với direction + power cho trước
+func _spawn_boss_dart(throw_dir: Vector2, power: float):
+    if _count_active_darts() >= 5:  # phase 2 cho phép tối đa 5 darts
+        return
     var dart = dart_scene.instantiate()
     dart.global_position = global_position
     dart.set_direction(throw_dir, power)
@@ -330,8 +352,6 @@ func _throw_dart():
     dart.dart_consumed.connect(_on_dart_consumed)
     dart.dart_hit_player.connect(_on_dart_hit_player)
     all_darts.append(dart)
-    AudioManager.play_throw()
-    dart_throw_cooldown = DART_THROW_INTERVAL
 
 func _count_active_darts() -> int:
     var count = 0
@@ -369,6 +389,9 @@ func take_teleport_damage(amount: float, attacker: Node2D):
     if sprite:
         sprite.modulate = Color(1.0, 0.5, 0.5, 1.0)
     AudioManager.play_variation("hit", 2.0, 1.0)
+    # v3.8: Phase 2 trigger — 50% HP
+    if not has_used_phase2 and current_hp <= current_max_hp * BOSS_PHASE2_HP_PERCENT:
+        _enter_phase2()
     # Rage mode trigger
     if not has_used_rage and current_hp <= current_max_hp * StageManager.BOSS_RAGE_HP_PERCENT:
         _enter_rage_mode()
@@ -389,10 +412,27 @@ func take_damage_from(amount: float, attacker: Node2D):
     _hurt_flash_timer = 0.08
     if sprite:
         sprite.modulate = Color(1.0, 0.7, 0.7, 1.0)
+    # v3.8: Phase 2 trigger — 50% HP
+    if not has_used_phase2 and current_hp <= current_max_hp * BOSS_PHASE2_HP_PERCENT:
+        _enter_phase2()
     if not has_used_rage and current_hp <= current_max_hp * StageManager.BOSS_RAGE_HP_PERCENT:
         _enter_rage_mode()
     if current_hp <= 0:
         _die()
+
+## v3.8: Phase 2 — boss vào phase 2 ở 50% HP, bắn 3 dart spread thay vì 1.
+## Tăng move_speed nhẹ + giảm dart cooldown để fight căng hơn.
+func _enter_phase2():
+    has_used_phase2 = true
+    # Tăng move speed nhẹ (chưa bằng rage mode)
+    move_speed = 75.0
+    # Giãn dart throw interval (từ 2.5s → 1.8s)
+    DART_THROW_INTERVAL = 1.8
+    boss_phase2_started.emit(self)
+    AudioManager.play_variation("drum_crash", 3.0, 0.85)
+    AudioManager.play_variation("alarm", 2.0, 0.9)
+    AudioManager.play_variation("bass", 4.0, 0.6)
+    GameManager.request_screen_shake(6.0, 0.4)
 
 func _enter_rage_mode():
     has_used_rage = true

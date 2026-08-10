@@ -121,6 +121,16 @@ func _spawn_boss():
     boss.global_position = GameManager.zone_center + Vector2(cos(angle), sin(angle)) * dist
     GameManager.register_boss(boss)
     hud.set_boss(boss)
+    # v3.8: Hook boss phase 2 signal để show big banner
+    if boss.has_signal("boss_phase2_started"):
+        boss.boss_phase2_started.connect(_on_boss_phase2)
+
+## v3.8: Hook khi boss vào phase 2 (50% HP)
+func _on_boss_phase2(_boss: Node2D):
+    hud._add_kill_feed("⚠ BOSS PHASE 2 — Triple Dart Spread!", Color(1.0, 0.5, 0.2))
+    hud._show_big_banner("PHASE 2!", Color(1.0, 0.5, 0.2, 1.0), 2.0)
+    _spawn_screen_flash(Color(1.0, 0.4, 0.2, 0.30), 0.6)
+    apply_screen_shake(6.0, 0.4)
 
 func _spawn_ai_players():
     for i in GameManager.num_ai_players:
@@ -367,6 +377,11 @@ func _setup_hp_vignette():
 func _update_hp_vignette(delta):
     if not _hp_vignette or not is_instance_valid(player):
         return
+    # Respect settings toggle
+    if not SettingsManager.show_low_hp_vignette:
+        if _hp_vignette.color.a > 0.01:
+            _hp_vignette.color = Color(0.6, 0.05, 0.05, 0.0)
+        return
     var hp_ratio = GameManager.player_hp / GameManager.player_max_hp if GameManager.player_max_hp > 0 else 1.0
     var target_alpha = 0.0
     if hp_ratio < 0.30 and player.is_alive and GameManager.game_active:
@@ -407,6 +422,10 @@ func _update_kill_streak(delta):
 
 func _update_kill_streak_label():
     if not _kill_streak_label:
+        return
+    # Respect settings toggle
+    if not SettingsManager.show_kill_streak:
+        _kill_streak_label.visible = false
         return
     if _kill_streak < 2:
         _kill_streak_label.visible = false
@@ -468,6 +487,9 @@ func _setup_hit_marker():
 
 ## v3.8: Hiển thị hit marker ngắn (0.2s) khi dart trúng AI
 func show_hit_marker(is_crit: bool = false):
+    # Respect settings toggle
+    if not SettingsManager.show_hit_markers:
+        return
     if not _hit_marker:
         return
     if _hit_marker_tween and is_instance_valid(_hit_marker_tween):
@@ -688,6 +710,13 @@ func _setup_boss_indicator():
     hud.add_child(_boss_indicator_label)
 
 func _update_boss_indicator():
+    # Respect settings toggle
+    if not SettingsManager.show_boss_offscreen_arrow:
+        if _boss_indicator:
+            _boss_indicator.visible = false
+        if _boss_indicator_label:
+            _boss_indicator_label.visible = false
+        return
     if not StageManager.is_final_stage():
         if _boss_indicator:
             _boss_indicator.visible = false

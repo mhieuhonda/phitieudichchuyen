@@ -30,6 +30,11 @@ var sound_volume: float = 1.0
 var music_volume: float = 0.7
 var sound_enabled: bool = true
 var music_enabled: bool = true
+# v3.8: Toggles cho UI mới
+var show_hit_markers: bool = true  # ✕ khi dart trúng đích
+var show_kill_streak: bool = true  # DOUBLE/TRIPLE KILL label
+var show_low_hp_vignette: bool = true  # red tint khi HP < 30%
+var show_boss_offscreen_arrow: bool = true  # mũi tên chỉ boss
 
 # === UI CUSTOMIZATION (v1.2) ===
 var joystick_size: float = 1.0
@@ -216,6 +221,11 @@ func save_settings():
         config.set_value("audio", "sound_enabled", sound_enabled)
         config.set_value("audio", "music_enabled", music_enabled)
         config.set_value("device", "auto_detected", was_auto_detected)
+        # v3.8: UI toggles
+        config.set_value("ui_v38", "show_hit_markers", show_hit_markers)
+        config.set_value("ui_v38", "show_kill_streak", show_kill_streak)
+        config.set_value("ui_v38", "show_low_hp_vignette", show_low_hp_vignette)
+        config.set_value("ui_v38", "show_boss_offscreen_arrow", show_boss_offscreen_arrow)
         # v1.2: UI Customization
         config.set_value("ui_custom", "joystick_size", joystick_size)
         config.set_value("ui_custom", "button_size", button_size)
@@ -249,6 +259,11 @@ func _load_settings():
                 sound_enabled = config.get_value("audio", "sound_enabled", true)
                 music_enabled = config.get_value("audio", "music_enabled", true)
                 was_auto_detected = config.get_value("device", "auto_detected", false)
+                # v3.8: UI toggles
+                show_hit_markers = config.get_value("ui_v38", "show_hit_markers", true)
+                show_kill_streak = config.get_value("ui_v38", "show_kill_streak", true)
+                show_low_hp_vignette = config.get_value("ui_v38", "show_low_hp_vignette", true)
+                show_boss_offscreen_arrow = config.get_value("ui_v38", "show_boss_offscreen_arrow", true)
                 # v1.2: UI Customization
                 joystick_size = config.get_value("ui_custom", "joystick_size", 1.0)
                 button_size = config.get_value("ui_custom", "button_size", 1.0)

@@ -402,6 +402,15 @@ func register_boss(boss: Node2D):
     boss.boss_damaged.connect(_on_boss_damaged)
     boss.boss_died.connect(_on_boss_died)
     boss.boss_rage_started.connect(_on_boss_rage)
+    # v3.8: Phase 2 signal
+    if boss.has_signal("boss_phase2_started"):
+        boss.boss_phase2_started.connect(_on_boss_phase2)
+
+## v3.8: Hook cho boss phase 2 (50% HP)
+func _on_boss_phase2(_boss: Node2D):
+    # Tạm dùng stage_failed_signal path không — chỉ emit kill_feed message
+    # qua existing signal mechanism. HUD sẽ hiển thị big_banner.
+    pass
 
 func _on_boss_damaged(_amount: float, hp: float, max_hp: float):
     var is_rage = hp <= max_hp * StageManager.BOSS_RAGE_HP_PERCENT
