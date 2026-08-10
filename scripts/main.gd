@@ -59,6 +59,14 @@ var _minimap_draw: Control = null
 const MINIMAP_SIZE: float = 140.0
 const MINIMAP_MARGIN: float = 20.0
 
+# v3.8: Stage time warning (>5 min)
+var _stage_warning_shown: bool = false
+const STAGE_TIME_WARNING_THRESHOLD: float = 300.0  # 5 minutes
+
+# v3.8: Low HP pickup arrow (pointing to nearest health pickup when HP < 30%)
+var _pickup_arrow: Line2D = null
+var _pickup_arrow_label: Label = null
+
 func _ready():
     # v3.5: Khởi tạo stage mode
     var target_stage = 1
@@ -280,6 +288,10 @@ func _process(delta):
         _minimap.visible = SettingsManager.show_minimap
         if SettingsManager.show_minimap:
             _minimap_draw.queue_redraw()
+    # v3.8: Stage time warning (>5 min)
+    _check_stage_time_warning()
+    # v3.8: Low HP pickup arrow (point to nearest health pickup)
+    _update_low_hp_pickup_arrow()
 
 ## v3.8: Setup pause menu (code-based, không cần scene riêng)
 func _setup_pause_menu():
@@ -973,3 +985,105 @@ func _draw_minimap():
     var player_pos_minimap = player.global_position * Vector2(sx, sy)
     _minimap_draw.draw_circle(player_pos_minimap, 4.0, Color(0.3, 1.0, 1.0, 0.95))
     _minimap_draw.draw_arc(player_pos_minimap, 5.5, 0, TAU, 24, Color(1.0, 1.0, 1.0, 0.7), 1.5)
+
+## v3.8: Stage time warning — show banner khi stage time > 5 minutes
+func _check_stage_time_warning():
+    if _stage_warning_shown or not GameManager.game_active:
+        return
+    var elapsed = StageManager.get_elapsed_stage_time()
+    if elapsed >= STAGE_TIME_WARNING_THRESHOLD:
+        _stage_warning_shown = true
+        hud._add_kill_feed("⏱ Đã %d phút — cố gắng hoàn thành!" % int(elapsed / 60), Color(1.0, 0.6, 0.2))
+        hud._show_big_banner("⏰ HÃY NHANH LÊN!", Color(1.0, 0.6, 0.2, 1.0), 2.0)
+        AudioManager.play_variation("warning", 0.0, 0.95)
+
+## v3.8: Setup low-HP pickup arrow
+func _setup_low_hp_pickup_arrow():
+    _pickup_arrow = Line2D.new()
+    _pickup_arrow.width = 4.0
+    _pickup_arrow.default_color = Color(0.3, 1.0, 0.4, 0.9)
+    _pickup_arrow.z_index = 88
+    _pickup_arrow.visible = false
+    hud.add_child(_pickup_arrow)
+    _pickup_arrow_label = Label.new()
+    _pickup_arrow_label.text = ""
+    _pickup_arrow_label.add_theme_font_size_override("font_size", 12)
+    _pickup_arrow_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5, 0.95))
+    _pickup_arrow_label.add_theme_color_override("font_shadow_color", Color(0, 0.3, 0, 0.7))
+    _pickup_arrow_label.add_theme_constant_override("shadow_offset_y", 1)
+    _pickup_arrow_label.add_theme_constant_override("shadow_outline_size", 2)
+    _pickup_arrow_label.visible = false
+    hud.add_child(_pickup_arrow_label)
+
+## v3.8: Update low-HP pickup arrow — chỉ hướng tới health pickup gần nhất
+## khi HP < 30% và pickup đang ở ngoài tầm nhìn camera.
+func _update_low_hp_pickup_arrow():
+    if not _pickup_arrow:
+        _setup_low_hp_pickup_arrow()
+    # Check HP ratio
+    var hp_ratio = GameManager.player_hp / GameManager.player_max_hp if GameManager.player_max_hp > 0 else 1.0
+    if hp_ratio >= 0.30 or not is_instance_valid(player) or not player.is_alive:
+        if _pickup_arrow:
+            _pickup_arrow.visible = false
+        if _pickup_arrow_label:
+            _pickup_arrow_label.visible = false
+        return
+    # Find nearest health pickup
+    var nearest_pickup: Node2D = null
+    var nearest_dist: float = INF
+    for pk in get_tree().get_nodes_in_group("pickups"):
+        if not is_instance_valid(pk) or not ("is_active" in pk) or not pk.is_active:
+            continue
+        if not ("pickup_type" in pk):
+            continue
+        # Only HEALTH type
+        if pk.pickup_type != 0:  # Pickup.PickupType.HEALTH = 0
+            continue
+        var d = player.global_position.distance_to(pk.global_position)
+        if d < nearest_dist:
+            nearest_dist = d
+            nearest_pickup = pk
+    if not nearest_pickup:
+        if _pickup_arrow:
+            _pickup_arrow.visible = false
+        if _pickup_arrow_label:
+            _pickup_arrow_label.visible = false
+        return
+    # Check if pickup is on-screen
+    var cam_pos = camera.get_screen_center_position()
+    var viewport_size = get_viewport_rect().size
+    var half_view = viewport_size * 0.5
+    var rel = nearest_pickup.global_position - cam_pos
+    var on_screen = abs(rel.x) < half_view.x - 40 and abs(rel.y) < half_view.y - 40
+    if on_screen:
+        if _pickup_arrow:
+            _pickup_arrow.visible = false
+        if _pickup_arrow_label:
+            _pickup_arrow_label.visible = false
+        return
+    # Calculate arrow position (edge of viewport, hướng pickup)
+    var dir = (nearest_pickup.global_position - player.global_position).normalized()
+    if dir == Vector2.ZERO:
+        dir = Vector2.RIGHT
+    var edge_x = half_view.x * 0.78
+    var edge_y = half_view.y * 0.78
+    var t_x = edge_x / abs(dir.x) if abs(dir.x) > 0.001 else INF
+    var t_y = edge_y / abs(dir.y) if abs(dir.y) > 0.001 else INF
+    var t = min(t_x, t_y)
+    var arrow_pos = half_view + dir * t
+    # Draw triangle arrow
+    _pickup_arrow.clear_points()
+    var arrow_size = 16.0
+    var tip = arrow_pos + dir * arrow_size
+    var back = arrow_pos - dir * arrow_size * 0.5
+    var perp = Vector2(-dir.y, dir.x) * arrow_size * 0.65
+    _pickup_arrow.add_point(tip)
+    _pickup_arrow.add_point(back + perp)
+    _pickup_arrow.add_point(back - perp)
+    _pickup_arrow.add_point(tip)
+    _pickup_arrow.visible = true
+    # Update label
+    if _pickup_arrow_label:
+        _pickup_arrow_label.text = "♥ %dpx" % int(nearest_dist)
+        _pickup_arrow_label.position = arrow_pos + Vector2(-30, -22)
+        _pickup_arrow_label.visible = true
