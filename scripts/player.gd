@@ -493,7 +493,12 @@ func _on_dart_consumed(dart: Node2D):
 func _on_dart_hit_player(dart: Node2D, hit_player: Node2D):
         if hit_player.has_method("take_damage_from"):
                 var was_alive = hit_player.is_alive if "is_alive" in hit_player else true
+                # v3.8: Hit marker — báo cho main.gd biết dart đã trúng đích
+                # Player là con của main.gd trong scene tree, nên get_parent() chính là main.
+                var main_node = get_parent()
                 hit_player.take_damage_from(GameManager.dart_hit_damage, self)
+                if main_node and main_node.has_method("show_hit_marker"):
+                        main_node.show_hit_marker(false)
                 if was_alive and "is_alive" in hit_player and not hit_player.is_alive:
                         _register_kill_and_reward()
 

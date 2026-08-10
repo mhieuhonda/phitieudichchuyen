@@ -7,6 +7,7 @@ extends Node2D
 ##   - Khi tất cả AI/Boss bị tiêu diệt → stage clear
 ##   - Khi player chết quá số lần quy định → stage failed
 ##   - Anti kill-steal: AI chỉ tấn công player, không tấn công AI khác
+## v3.8: Pause menu (P/ESC), Quick Retry (R), low-HP vignette, kill streak UI
 ## v3.4: Hook teleport_performed — spawn shockwave ring + screen shake
 ## v3.1: Joystick ảo + mobile controls, Match over handling, Camera shake
 
@@ -23,6 +24,25 @@ var shake_intensity: float = 0.0
 var shake_duration: float = 0.0
 var shake_timer: float = 0.0
 var original_camera_offset: Vector2 = Vector2.ZERO
+
+# v3.8: Pause menu state
+var _pause_panel: Panel = null
+var _pause_overlay: ColorRect = null
+var _is_paused: bool = false
+
+# v3.8: Low-HP vignette
+var _hp_vignette: ColorRect = null
+var _hp_vignette_tween: Tween = null
+
+# v3.8: Kill streak label
+var _kill_streak_label: Label = null
+const KILL_STREAK_WINDOW: float = 5.0
+var _kill_streak: int = 0
+var _kill_streak_timer: float = 0.0
+
+# v3.8: Hit marker (X dấu khi dart trúng AI)
+var _hit_marker: Label = null
+var _hit_marker_tween: Tween = null
 
 func _ready():
     # v3.5: Khởi tạo stage mode
@@ -63,6 +83,12 @@ func _ready():
     GameManager.game_over.connect(_on_game_over)
 
     _setup_camera()
+
+    # v3.8: Setup pause menu, vignette, kill streak label
+    _setup_pause_menu()
+    _setup_hp_vignette()
+    _setup_kill_streak_label()
+    _setup_hit_marker()
 
     # v3.5: Music khác nhau cho ải boss
     if StageManager.is_final_stage():
@@ -106,16 +132,345 @@ func _setup_camera():
 func _process(delta):
     if not is_instance_valid(player):
         return
-    if player.is_alive:
+    if player.is_alive and not _is_paused:
         camera.position = player.global_position
 
-    if shake_timer > 0 and shake_duration > 0.001:
+    if shake_timer > 0 and shake_duration > 0.001 and not _is_paused:
         shake_timer -= delta
         var intensity = shake_intensity * (shake_timer / shake_duration)
         camera.offset = Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
     else:
         shake_timer = 0.0
         camera.offset = original_camera_offset
+
+    # v3.8: Cập nhật low-HP vignette
+    _update_hp_vignette(delta)
+    # v3.8: Cập nhật kill streak timer
+    _update_kill_streak(delta)
+
+## v3.8: Setup pause menu (code-based, không cần scene riêng)
+func _setup_pause_menu():
+    # Overlay tối phía sau panel
+    _pause_overlay = ColorRect.new()
+    _pause_overlay.color = Color(0, 0, 0, 0)
+    _pause_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+    _pause_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+    _pause_overlay.z_index = 200
+    hud.add_child(_pause_overlay)
+
+    # Panel chính
+    _pause_panel = Panel.new()
+    _pause_panel.set_anchors_preset(Control.PRESET_CENTER)
+    _pause_panel.offset_left = -180
+    _pause_panel.offset_right = 180
+    _pause_panel.offset_top = -200
+    _pause_panel.offset_bottom = 200
+    _pause_panel.z_index = 201
+    _pause_panel.visible = false
+    var style = StyleBoxFlat.new()
+    style.bg_color = Color(0.04, 0.04, 0.08, 0.97)
+    style.border_color = Color(0.6, 0.5, 0.85, 0.6)
+    style.border_width_top = 3
+    style.border_width_bottom = 3
+    style.border_width_left = 3
+    style.border_width_right = 3
+    style.corner_radius_top_left = 14
+    style.corner_radius_top_right = 14
+    style.corner_radius_bottom_left = 14
+    style.corner_radius_bottom_right = 14
+    style.shadow_color = Color(0, 0, 0, 0.6)
+    style.shadow_size = 20
+    _pause_panel.add_theme_stylebox_override("panel", style)
+    hud.add_child(_pause_panel)
+
+    # Title
+    var title = Label.new()
+    title.text = "⏸ TẠM DỪNG"
+    title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    title.offset_left = -150
+    title.offset_right = 150
+    title.offset_top = 18
+    title.offset_bottom = 60
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_size_override("font_size", 28)
+    title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+    title.add_theme_color_override("font_shadow_color", Color(0.4, 0.3, 0, 0.7))
+    title.add_theme_constant_override("shadow_offset_y", 2)
+    title.add_theme_constant_override("shadow_outline_size", 4)
+    _pause_panel.add_child(title)
+
+    # Stage info label
+    var info = Label.new()
+    info.name = "StageInfoLabel"
+    info.set_anchors_preset(Control.PRESET_CENTER_TOP)
+    info.offset_left = -150
+    info.offset_right = 150
+    info.offset_top = 68
+    info.offset_bottom = 90
+    info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    info.add_theme_font_size_override("font_size", 13)
+    info.add_theme_color_override("font_color", Color(0.75, 0.78, 0.88))
+    _pause_panel.add_child(info)
+
+    # VBox cho buttons
+    var vbox = VBoxContainer.new()
+    vbox.set_anchors_preset(Control.PRESET_CENTER)
+    vbox.offset_left = -130
+    vbox.offset_right = 130
+    vbox.offset_top = 90
+    vbox.offset_bottom = 360
+    vbox.add_theme_constant_override("separation", 12)
+    _pause_panel.add_child(vbox)
+
+    var btn_resume = _create_pause_button("▶ TIẾP TỤC", Color(0.04, 0.18, 0.10, 0.9), Color(0.3, 1.0, 0.5))
+    btn_resume.pressed.connect(_pause_resume)
+    vbox.add_child(btn_resume)
+
+    var btn_retry = _create_pause_button("↻ CHƠI LẠI ẢI", Color(0.14, 0.10, 0.04, 0.9), Color(1.0, 0.7, 0.3))
+    btn_retry.pressed.connect(_pause_retry)
+    vbox.add_child(btn_retry)
+
+    var btn_settings = _create_pause_button("⚙ CÀI ĐẶT", Color(0.08, 0.06, 0.14, 0.9), Color(0.7, 0.6, 1.0))
+    btn_settings.pressed.connect(_pause_settings)
+    vbox.add_child(btn_settings)
+
+    var btn_menu = _create_pause_button("✕ VỀ MENU", Color(0.14, 0.04, 0.04, 0.9), Color(1.0, 0.4, 0.3))
+    btn_menu.pressed.connect(_pause_to_menu)
+    vbox.add_child(btn_menu)
+
+    # Hint footer
+    var hint = Label.new()
+    hint.text = "ESC/P: tiếp tục  •  R: chơi lại"
+    hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+    hint.offset_left = -150
+    hint.offset_right = 150
+    hint.offset_top = 360
+    hint.offset_bottom = 385
+    hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    hint.add_theme_font_size_override("font_size", 11)
+    hint.add_theme_color_override("font_color", Color(0.55, 0.58, 0.68))
+    _pause_panel.add_child(hint)
+
+func _create_pause_button(text: String, bg: Color, accent: Color) -> Button:
+    var btn = Button.new()
+    btn.text = text
+    btn.custom_minimum_size = Vector2(260, 44)
+    var style_n = StyleBoxFlat.new()
+    style_n.bg_color = bg
+    style_n.corner_radius_top_left = 10
+    style_n.corner_radius_top_right = 10
+    style_n.corner_radius_bottom_left = 10
+    style_n.corner_radius_bottom_right = 10
+    style_n.border_color = Color(accent.r, accent.g, accent.b, 0.4)
+    style_n.border_width_top = 2
+    style_n.border_width_bottom = 2
+    style_n.border_width_left = 2
+    style_n.border_width_right = 2
+    style_n.content_margin_top = 10
+    style_n.content_margin_bottom = 10
+    var style_h = style_n.duplicate()
+    style_h.bg_color = Color(bg.r + 0.05, bg.g + 0.05, bg.b + 0.06, bg.a)
+    style_h.border_color = Color(accent.r, accent.g, accent.b, 0.85)
+    var style_p = style_n.duplicate()
+    style_p.bg_color = Color(bg.r * 0.6, bg.g * 0.6, bg.b * 0.6, bg.a)
+    btn.add_theme_stylebox_override("normal", style_n)
+    btn.add_theme_stylebox_override("hover", style_h)
+    btn.add_theme_stylebox_override("pressed", style_p)
+    btn.add_theme_stylebox_override("focus", style_n)
+    btn.mouse_entered.connect(func(): AudioManager.play_ui_hover())
+    return btn
+
+func _pause_show():
+    if _is_paused:
+        return
+    # Không cho pause khi stage đã kết thúc
+    if GameManager.stage_failed or GameManager.stage_cleared_flag:
+        return
+    _is_paused = true
+    get_tree().paused = true
+    _pause_panel.visible = true
+    # Update stage info
+    var info = _pause_panel.get_node_or_null("StageInfoLabel")
+    if info:
+        info.text = "Ải %d / %d  •  ⏱ %s" % [
+            StageManager.current_stage,
+            StageManager.TOTAL_STAGES,
+            StageManager.format_time(StageManager.get_elapsed_stage_time())
+        ]
+    # Fade in overlay
+    _pause_overlay.color = Color(0, 0, 0, 0)
+    var tween = create_tween()
+    tween.tween_property(_pause_overlay, "color:a", 0.65, 0.2).set_trans(Tween.TRANS_QUAD)
+    # Scale-in panel
+    _pause_panel.scale = Vector2(0.85, 0.85)
+    _pause_panel.modulate.a = 0.0
+    var tween2 = create_tween().set_parallel(true)
+    tween2.tween_property(_pause_panel, "scale", Vector2(1.0, 1.0), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+    tween2.tween_property(_pause_panel, "modulate:a", 1.0, 0.15)
+    AudioManager.play_ui_click()
+
+func _pause_resume():
+    if not _is_paused:
+        return
+    _is_paused = false
+    get_tree().paused = false
+    var tween = create_tween().set_parallel(true)
+    tween.tween_property(_pause_overlay, "color:a", 0.0, 0.15)
+    tween.tween_property(_pause_panel, "scale", Vector2(0.92, 0.92), 0.12)
+    tween.tween_property(_pause_panel, "modulate:a", 0.0, 0.15)
+    tween.chain().tween_callback(func():
+        if is_instance_valid(_pause_panel):
+            _pause_panel.visible = false)
+    AudioManager.play_ui_click()
+
+func _pause_retry():
+    _is_paused = false
+    get_tree().paused = false
+    AudioManager.play_ui_click()
+    get_tree().reload_current_scene()
+
+func _pause_settings():
+    _is_paused = false
+    get_tree().paused = false
+    AudioManager.play_ui_click()
+    get_tree().change_scene_to_file("res://scenes/settings.tscn")
+
+func _pause_to_menu():
+    _is_paused = false
+    get_tree().paused = false
+    AudioManager.play_cancel()
+    get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
+## v3.8: Setup low-HP vignette (red border pulse when HP < 30%)
+func _setup_hp_vignette():
+    _hp_vignette = ColorRect.new()
+    _hp_vignette.color = Color(0.6, 0.05, 0.05, 0.0)
+    _hp_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+    _hp_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    _hp_vignette.z_index = 95
+    hud.add_child(_hp_vignette)
+
+func _update_hp_vignette(delta):
+    if not _hp_vignette or not is_instance_valid(player):
+        return
+    var hp_ratio = GameManager.player_hp / GameManager.player_max_hp if GameManager.player_max_hp > 0 else 1.0
+    var target_alpha = 0.0
+    if hp_ratio < 0.30 and player.is_alive and GameManager.game_active:
+        # Pulse intensity based on how low HP is
+        var pulse = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 200.0)
+        var danger_intensity = (0.30 - hp_ratio) / 0.30  # 0..1
+        target_alpha = 0.20 + 0.25 * danger_intensity * pulse
+    var cur_alpha = _hp_vignette.color.a
+    var new_alpha = lerp(cur_alpha, target_alpha, 0.15)
+    _hp_vignette.color = Color(0.6, 0.05, 0.05, new_alpha)
+
+## v3.8: Setup kill streak label (top-right)
+func _setup_kill_streak_label():
+    _kill_streak_label = Label.new()
+    _kill_streak_label.text = ""
+    _kill_streak_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+    _kill_streak_label.offset_left = -260
+    _kill_streak_label.offset_right = -20
+    _kill_streak_label.offset_top = 60
+    _kill_streak_label.offset_bottom = 100
+    _kill_streak_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    _kill_streak_label.add_theme_font_size_override("font_size", 22)
+    _kill_streak_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    _kill_streak_label.add_theme_constant_override("shadow_offset_y", 2)
+    _kill_streak_label.add_theme_constant_override("shadow_outline_size", 3)
+    _kill_streak_label.visible = false
+    hud.add_child(_kill_streak_label)
+
+func _update_kill_streak(delta):
+    if _kill_streak > 0:
+        _kill_streak_timer -= delta
+        if _kill_streak_timer <= 0:
+            _kill_streak = 0
+            if _kill_streak_label:
+                _kill_streak_label.visible = false
+        else:
+            _update_kill_streak_label()
+
+func _update_kill_streak_label():
+    if not _kill_streak_label:
+        return
+    if _kill_streak < 2:
+        _kill_streak_label.visible = false
+        return
+    var text = ""
+    var color = Color(1.0, 0.85, 0.2)
+    match _kill_streak:
+        2:
+            text = "⚔⚔ DOUBLE KILL!"
+            color = Color(0.4, 1.0, 0.5)
+        3:
+            text = "⚔⚔⚔ TRIPLE KILL!"
+            color = Color(1.0, 0.7, 0.2)
+        4:
+            text = "⚔⚔⚔⚔ QUADRA KILL!"
+            color = Color(1.0, 0.5, 0.3)
+        5:
+            text = "⚔⚔⚔⚔⚔ PENTA KILL!"
+            color = Color(1.0, 0.4, 0.7)
+        6, 7, 8:
+            text = "🔥 KILLING SPREE x%d!" % _kill_streak
+            color = Color(1.0, 0.4, 0.5)
+        9, 10:
+            text = "💀 UNSTOPPABLE x%d!" % _kill_streak
+            color = Color(1.0, 0.3, 0.5)
+        _:
+            text = "👑 GODLIKE x%d!" % _kill_streak
+            color = Color(1.0, 0.2, 0.8)
+    _kill_streak_label.text = text
+    _kill_streak_label.add_theme_color_override("font_color", color)
+    _kill_streak_label.visible = true
+
+## v3.8: Hook HUD.register_player_kill để track kill streak ở main.gd
+## (gọi từ HUD._on_player_died path)
+func register_player_kill_main():
+    _kill_streak += 1
+    _kill_streak_timer = KILL_STREAK_WINDOW
+    _update_kill_streak_label()
+    if _kill_streak >= 3:
+        AudioManager.play_combo(min(_kill_streak, 5))
+
+## v3.8: Setup hit marker (x dấu khi dart trúng AI/boss)
+func _setup_hit_marker():
+    _hit_marker = Label.new()
+    _hit_marker.text = "✕"
+    _hit_marker.set_anchors_preset(Control.PRESET_CENTER)
+    _hit_marker.offset_left = -30
+    _hit_marker.offset_right = 30
+    _hit_marker.offset_top = -50
+    _hit_marker.offset_bottom = -20
+    _hit_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    _hit_marker.add_theme_font_size_override("font_size", 36)
+    _hit_marker.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2, 0.95))
+    _hit_marker.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    _hit_marker.add_theme_constant_override("shadow_offset_y", 2)
+    _hit_marker.add_theme_constant_override("shadow_outline_size", 3)
+    _hit_marker.visible = false
+    hud.add_child(_hit_marker)
+
+## v3.8: Hiển thị hit marker ngắn (0.2s) khi dart trúng AI
+func show_hit_marker(is_crit: bool = false):
+    if not _hit_marker:
+        return
+    if _hit_marker_tween and is_instance_valid(_hit_marker_tween):
+        _hit_marker_tween.kill()
+    _hit_marker.text = "✕" if not is_crit else "✕ CRIT!"
+    _hit_marker.add_theme_color_override("font_color",
+        Color(1.0, 0.3, 0.3, 0.95) if is_crit else Color(1.0, 0.85, 0.2, 0.95))
+    _hit_marker.scale = Vector2(1.4, 1.4)
+    _hit_marker.modulate.a = 1.0
+    _hit_marker.visible = true
+    _hit_marker_tween = create_tween()
+    _hit_marker_tween.set_parallel(true)
+    _hit_marker_tween.tween_property(_hit_marker, "scale", Vector2(0.9, 0.9), 0.2).set_trans(Tween.TRANS_QUAD)
+    _hit_marker_tween.tween_property(_hit_marker, "modulate:a", 0.0, 0.25).set_trans(Tween.TRANS_QUAD)
+    _hit_marker_tween.chain().tween_callback(func():
+        if is_instance_valid(_hit_marker):
+            _hit_marker.visible = false)
 
 func _on_mobile_teleport():
     player._teleport_to_dart()
@@ -137,6 +492,11 @@ func _on_player_died(p: CharacterBody2D):
         hud._add_kill_feed("Bạn đã bị tiêu diệt!", Color(1.0, 0.2, 0.2))
     AudioManager.play_warning()
     _spawn_screen_flash(Color(1.0, 0.05, 0.05, 0.45), 0.4)
+    # v3.8: Reset kill streak khi chết
+    _kill_streak = 0
+    _kill_streak_timer = 0.0
+    if _kill_streak_label:
+        _kill_streak_label.visible = false
     # v3.6: Đã bỏ gọi GameManager.on_player_died_in_stage() tại đây để fix
     # bug double-count mạng — player._die() đã gọi nó trước khi emit signal.
     # Trước đây player_deaths_this_stage bị +2 mỗi lần chết (1 từ _die(),
@@ -220,6 +580,10 @@ func _on_ai_died(ai: CharacterBody2D, killer: Node2D):
         AudioManager.play_achievement()
         _spawn_screen_flash(Color(1.0, 0.85, 0.3, 0.20), 0.25)
         apply_screen_shake(4.0, 0.2)
+        # v3.8: Tăng kill streak
+        _kill_streak += 1
+        _kill_streak_timer = KILL_STREAK_WINDOW
+        _update_kill_streak_label()
     else:
         hud._add_kill_feed("%s đã bị tiêu diệt" % ai.ai_name, Color(1.0, 0.5, 0.2))
 
@@ -254,5 +618,21 @@ func apply_screen_shake(intensity: float, duration: float):
     shake_timer = duration
 
 func _input(event: InputEvent):
-    if event.is_action_pressed("menu_back"):
-        get_tree().change_scene_to_file("res://scenes/menu.tscn")
+    # v3.8: Pause menu — ESC hoặc P
+    if event.is_action_pressed("pause") or event.is_action_pressed("menu_back"):
+        if _is_paused:
+            _pause_resume()
+        else:
+            _pause_show()
+        get_viewport().set_input_as_handled()
+        return
+    # v3.8: Quick Retry với phím R khi đang pause
+    if event.is_action_pressed("restart") and _is_paused:
+        _pause_retry()
+        get_viewport().set_input_as_handled()
+        return
+
+## v3.8: Hook player.dart_thrown để không hiện hit marker lúc ném (chỉ khi trúng)
+## Hit marker được trigger từ player.gd khi _on_dart_hit_player
+func _on_dart_hit_ai(amount: float, is_crit: bool):
+    show_hit_marker(is_crit)
