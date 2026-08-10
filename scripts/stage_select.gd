@@ -5,7 +5,7 @@ extends Control
 ## Hiển thị best time mỗi ải, số lần thử.
 ## Nút "Reset Tiến Độ" để chơi lại từ đầu.
 
-@onready var grid: GridContainer = $CenterContainer/ScrollContainer/Grid
+@onready var grid: GridContainer = $CenterContainer/VBox/ScrollContainer/Grid
 @onready var back_btn: Button = $CenterContainer/VBox/BackBtn
 @onready var title_label: Label = $CenterContainer/VBox/TitleLabel
 @onready var stats_label: Label = $CenterContainer/VBox/StatsLabel

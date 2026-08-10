@@ -170,12 +170,12 @@ func _apply_premium_styling():
 
 func _refresh_ui():
         if version_label:
-                version_label.text = "v3.5 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v3.6 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
                 if I18N.is_vi():
-                        new_feature_label.text = "[color=#ffaa00][b]v3.5 MỚI:[/b][/color] Vượt 20 ải — càng cao boss càng thông minh\n[color=#ff4444][b]ẢI 20 = BOSS CUỐI[/b][/color]: 10M HP, laser, sweep rage ở 10% HP\n[color=#44ff88][b]Cơ chế mới[/b][/color]: Dịch chuyển tới boss để gây sát thương lớn\n[color=#aa44ff][b]Cân bằng[/b][/color]: Fix kill-steal, AI chỉ tấn công player"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.6 MỚI:[/b][/color] Fix crash khi ấn VƯỢT ẢI + sửa double-count mạng/địch\n[color=#44ff88][b]Cơ chế[/b][/color]: Ném phi tiêu → dịch chuyển → tiêu diệt đối thủ\n[color=#ff4444][b]ẢI 20 = BOSS CUỐI[/b][/color]: 10M HP, laser, sweep rage ở 10% HP\n[color=#aa44ff][b]Cân bằng[/b][/color]: Fix kill-steal, AI chỉ tấn công player"
                 else:
-                        new_feature_label.text = "[color=#ffaa00][b]v3.5 NEW:[/b][/color] 20 stages — higher stage, smarter boss\n[color=#ff4444][b]STAGE 20 = FINAL BOSS[/b][/color]: 10M HP, laser, rage sweep at 10% HP\n[color=#44ff88][b]New mechanic[/b][/color]: Teleport to boss for big damage\n[color=#aa44ff][b]Balanced[/b][/color]: Fixed kill-steal, AI only attacks player"
+                        new_feature_label.text = "[color=#ffaa00][b]v3.6 NEW:[/b][/color] Fixed crash on STAGES button + fixed lives/enemy double-count\n[color=#44ff88][b]Mechanic[/b][/color]: Throw dart → teleport → kill enemy\n[color=#ff4444][b]STAGE 20 = FINAL BOSS[/b][/color]: 10M HP, laser, rage sweep at 10% HP\n[color=#aa44ff][b]Balanced[/b][/color]: Fixed kill-steal, AI only attacks player"
         if play_button:
                 play_button.text = "⚔ VƯỢT ẢI" if I18N.is_vi() else "⚔ STAGES"
         if continue_button:

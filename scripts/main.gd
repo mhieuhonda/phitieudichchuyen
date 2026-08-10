@@ -137,12 +137,12 @@ func _on_player_died(p: CharacterBody2D):
         hud._add_kill_feed("Bạn đã bị tiêu diệt!", Color(1.0, 0.2, 0.2))
     AudioManager.play_warning()
     _spawn_screen_flash(Color(1.0, 0.05, 0.05, 0.45), 0.4)
-    # v3.5: Kiểm tra stage fail
-    var can_respawn = GameManager.on_player_died_in_stage()
-    if not can_respawn:
-        # Stage fail — HUD sẽ hiển thị panel fail qua signal
-        pass
-    # Nếu respawn được, _respawn() sẽ tự động gọi sau delay
+    # v3.6: Đã bỏ gọi GameManager.on_player_died_in_stage() tại đây để fix
+    # bug double-count mạng — player._die() đã gọi nó trước khi emit signal.
+    # Trước đây player_deaths_this_stage bị +2 mỗi lần chết (1 từ _die(),
+    # 1 từ đây) → player thất bại sớm hơn số mạng quy định.
+    # Stage fail được phát signal qua GameManager.stage_failed_signal và
+    # HUD tự hiển thị panel tương ứng.
 
 func _on_player_respawned(p: CharacterBody2D):
     hud._add_kill_feed("Đã hồi sinh!", Color(0.2, 1.0, 0.2))

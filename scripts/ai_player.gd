@@ -592,9 +592,10 @@ func kill(killer: Node2D):
                 return
         is_alive = false
         GameManager.set_ai_alive(ai_id, false)
-        # v3.5: Thông báo cho stage manager
-        if GameManager.is_stage_mode:
-                GameManager.on_ai_killed_in_stage()
+        # v3.6: Đã bỏ gọi GameManager.on_ai_killed_in_stage() tại đây để fix
+        # bug double-count — main._on_ai_died (signal handler) đã gọi nó.
+        # Trước đây stage_alive_ai bị -2 mỗi lần AI chết (1 từ đây,
+        # 1 từ main._on_ai_died), gây hiển thị sai số địch còn lại.
         if SettingsManager.get_particle_multiplier() > 0:
                 var death_particles = CPUParticles2D.new()
                 death_particles.emitting = true; death_particles.one_shot = true; death_particles.explosiveness = 0.9

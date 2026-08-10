@@ -1,5 +1,58 @@
 # Changelog
 
+## v3.6 - Phi Tiêu Dịch Chuyển (2026-08-10)
+
+### Fix crash + Cân bằng lại số mạng / số địch
+
+#### Sửa lỗi nghiêm trọng (crash khi ấn "VƯỢT ẢI")
+- **FIX BUG #1**: Màn hình chọn ải bị crash ngay khi mở (`stage_select.gd`).
+  - Nguyên nhân: `@onready var grid` trỏ tới đường dẫn node sai
+    (`$CenterContainer/ScrollContainer/Grid` thay vì
+    `$CenterContainer/VBox/ScrollContainer/Grid`), khiến `grid` = null khi
+    `_populate_grid()` gọi `grid.get_children()` → game văng.
+  - Hành vi quan sát được: ấn nút "VƯỢT ẢI" ở sảnh chờ → game crash → không
+    vào được màn hình chọn ải.
+  - Sửa: đúng đường dẫn `$CenterContainer/VBox/ScrollContainer/Grid`.
+
+#### Sửa bug double-count mạng (player death)
+- **FIX BUG #2**: `player_deaths_this_stage` bị tăng 2 lần mỗi khi player chết.
+  - Nguyên nhân: `player._die()` gọi `GameManager.on_player_died_in_stage()`
+    (đúng), sau đó `emit player_died` → `main._on_player_died` lại gọi
+    `GameManager.on_player_died_in_stage()` một lần nữa (sai).
+  - Hệ quả: player thất bại sớm hơn số mạng quy định (ví dụ ải 1 có 3 mạng
+    nhưng chỉ cần chết 2 lần là fail).
+  - Sửa: bỏ lời gọi thừa trong `main._on_player_died`. Stage fail signal vẫn
+    được phát bình thường qua `GameManager.stage_failed_signal`.
+
+#### Sửa bug double-count địch (AI kill)
+- **FIX BUG #3**: `stage_alive_ai` bị giảm 2 lần mỗi khi AI bị tiêu diệt.
+  - Nguyên nhân: `ai_player.kill()` gọi `GameManager.on_ai_killed_in_stage()`
+    (sai), sau đó `emit ai_died` → `main._on_ai_died` lại gọi
+    `GameManager.on_ai_killed_in_stage()` (đúng).
+  - Hệ quả: HUD hiện sai số địch còn lại (có thể âm tạm thời), và
+    `_complete_stage()` được gọi sớm. Có guard `stage_cleared_flag` nên không
+    crash, nhưng UX sai.
+  - Sửa: bỏ lời gọi thừa trong `ai_player.kill()`.
+
+#### Bump version
+- `project.godot`: `config/version` 3.5 → 3.6
+- `export_presets.cfg`: Android `version/code` 33 → 36, `version/name` "3.3" → "3.6"
+- `export_presets.cfg`: Windows `file_version`/`product_version` 3.3.0.0 → 3.6.0.0
+- `menu.tscn`: version label cập nhật "v3.6 - Phi Tiêu Dịch Chuyển"
+- `menu.gd`: NewFeatureLabel hiển thị tóm tắt thay đổi v3.6
+- `README.md`: viết lại gọn gàng hơn, version badge 3.6
+
+#### Tóm tắt file đã đổi
+- `scripts/stage_select.gd` — fix `grid` path
+- `scripts/main.gd` — bỏ `on_player_died_in_stage()` thừa
+- `scripts/ai_player.gd` — bỏ `on_ai_killed_in_stage()` thừa trong `kill()`
+- `project.godot`, `export_presets.cfg`, `scenes/menu.tscn`, `scripts/menu.gd`
+  — bump version
+- `README.md` — viết lại
+- `CHANGELOG.md` — thêm entry v3.6
+
+---
+
 ## v3.5 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### Vượt 20 ải + Boss cuối 10M HP + Lưu tiến độ local + Fix kill-steal

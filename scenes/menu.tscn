@@ -46,7 +46,7 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(700, 110)
 layout_mode = 2
 bbcode_enabled = true
-text = "[color=#ffaa00][b]v3.5:[/b][/color] Vượt 20 ải — Boss cuối ở ải 20"
+text = "[color=#ffaa00][b]v3.6:[/b][/color] Fix crash + cân bằng lại số mạng/địch"
 
 [node name="Spacer1" type="Control" parent="CenterContainer/MenuVBox"]
 custom_minimum_size = Vector2(0, 12)
@@ -120,4 +120,4 @@ theme_override_colors/font_color = Color(0.4, 0.55, 0.75, 0.7)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
 theme_override_constants/shadow_offset_y = 1
 theme_override_constants/shadow_outline_size = 2
-text = "v3.5 - Phi Tiêu Dịch Chuyển"
+text = "v3.6 - Phi Tiêu Dịch Chuyển"
