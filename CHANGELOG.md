@@ -27,6 +27,47 @@
 - Animated fade-in overlay + scale-in panel, premium styling.
 - Không cho pause khi stage đã kết thúc (cleared/failed).
 
+#### Thêm Minimap radar
+- Top-right corner 140x140px panel hiển thị:
+  + Player: chấm cyan 4px + viền trắng
+  + AI: chấm đỏ 2.5px
+  + Boss: chấm cam 5px lớn + vòng tròn cam xung quanh
+  + Player darts: chấm vàng 1.5px
+  + Zone circle: viền xanh mảnh
+- Map 2000x2000 → 140x140 scale, semi-transparent panel.
+- Toggle on/off trong Settings (default: on).
+
+#### Thêm Boss Phase 2 (50% HP)
+- Boss giờ có 2 cấp escalation:
+  + **Phase 2 ở 50% HP**: bắn 3-dart spread (center + 2 góc ±20°), move_speed 60→75, dart interval 2.5s→1.8s.
+  + **Rage mode ở 12% HP** (đã có từ v3.5): sweep laser 360°.
+- Phase 2 trigger emit `boss_phase2_started` signal → main.gd hiển thị big banner "PHASE 2!" + kill feed + screen flash + shake.
+- Refactor `_throw_dart()` dùng helper `_spawn_boss_dart()`.
+- Đổi `DART_THROW_INTERVAL` từ `const` → `var` để phase 2 có thể giảm interval.
+
+#### Thêm Stage transition animation
+- Khi click "ẢI TIẾP THEO" hoặc "THỬ LẠI" → fade-to-black overlay + label "ẢI X" / "↻ THỬ LẠI ẢI X" / "⚠ ẢI CUỐI — BOSS ⚠".
+- Label scale-in 0.7→1.0 với TRANS_BACK ease-out.
+- Total duration ~1.2s (0.4 fade-in + 0.8 hold) trước khi reload scene.
+- Sound: drum_crash variation khi bắt đầu reload.
+
+#### Thêm Dart glow power-scale
+- Glow color & intensity scale theo throw power:
+  + Low power (0.2): soft cyan glow, alpha 0.35, scale 0.8x
+  + Max power (1.0): bright red-orange glow, alpha 0.85, scale 1.5x
+- Visual feedback cho player biết throw strength.
+- Chỉ hoạt động khi glow enabled (MEDIUM+ graphics quality).
+
+#### Thêm Settings UI cho v3.8 toggles
+- Section mới "✦ v3.8 NEW UI" trong Settings menu với 5 CheckButton toggles:
+  + Hit Markers (✕ khi trúng đích)
+  + Kill Streak (DOUBLE/TRIPLE KILL label)
+  + Low-HP Vignette (đỏ mờ khi HP<30%)
+  + Boss Off-screen Arrow (mũi tên chỉ boss)
+  + Minimap Radar (bản đồ nhỏ)
+- Code-based setup trong `settings_menu.gd` — không cần sửa .tscn.
+- All toggles saved/loaded via ConfigFile section `ui_v38`.
+
 #### Thêm Low-HP vignette + Heartbeat
 - **Vignette**: full-screen tint đỏ pulse khi HP < 30%. Intensity scale theo HP% (càng thấp càng đậm) + sin pulse cho breathing effect.
 - **Heartbeat sound**: phát `heartbeat` SFX mỗi 1.5s khi HP < 30%, mỗi 1.0s khi HP < 20% (beat nhanh hơn, tăng tension). Tự tắt khi HP >= 30% hoặc player chết.

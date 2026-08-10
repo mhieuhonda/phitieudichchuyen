@@ -44,15 +44,27 @@
 
 ### Thêm mới
 - **Pause menu** (code-based): P/ESC mở overlay với 4 nút TIẾP TỤC/CHƠI LẠI/CÀI ĐẶT/VỀ MENU. R = quick retry.
-- **Low-HP vignette + Heartbeat**: full-screen tint đỏ pulse + sound heartbeat khi HP < 30% (1.5s interval) hoặc < 20% (1.0s).
+- **Minimap radar**: 140x140px panel ở góc phải hiển thị player (cyan), AI (red), boss (orange), darts (yellow), zone circle.
+- **Boss Phase 2 (50% HP)**: boss bắn 3-dart spread thay vì 1, move_speed +25%, dart interval 2.5s→1.8s. Banner "PHASE 2!" khi kích hoạt.
+- **Stage transition animation**: fade-to-black + label "ẢI X" / "ẢI CUỐI — BOSS" khi chuyển ải hoặc retry.
+- **Low-HP vignette + Heartbeat**: full-screen tint đỏ pulse + sound heartbeat khi HP < 30% (1.5s) hoặc < 20% (1.0s).
 - **Kill streak UI**: DOUBLE/TRIPLE/QUADRA/PENTA KILL, KILLING SPREE, UNSTOPPABLE, GODLIKE ở top-right HUD.
 - **Hit marker**: ✕ symbol center-top khi dart trúng AI/boss (0.25s animation).
-- **Boss HP segments**: 11 vạch chia HP bar thành 12 đoạn + % label lớn bên dưới.
+- **Boss HP segments + % label**: 11 vạch chia HP bar thành 12 đoạn + % lớn bên dưới.
 - **Boss off-screen arrow**: mũi tên đỏ ở rìa màn hình chỉ hướng boss khi boss ngoài tầm nhìn (chỉ ải 20).
 - **Aim ricochet preview**: line preview bending tại điểm chạm tường + hướng nảy.
+- **Dart glow power-scale**: glow color & intensity scale theo throw power (cyan→red).
 - **Onboarding hints**: panel hướng dẫn controls ở ải 1 lần đầu.
-- **Stage stats display**: time elapsed, PB badge, attempts, lives remaining ở stage clear/fail panel.
+- **Stage stats display**: time elapsed, PB badge 🏆, attempts, lives remaining ở stage clear/fail panel.
 - **Reset confirm dialog**: stage select giờ hỏi xác nhận trước khi xóa tiến độ.
+
+### Settings UI (v3.8 section)
+5 toggles mới trong Settings menu (saved/loaded qua ConfigFile):
+- Hit Markers
+- Kill Streak
+- Low-HP Vignette
+- Boss Off-screen Arrow
+- Minimap Radar
 
 ### Tối ưu hiệu năng
 - Cache dart count: gộp `_get_dart_info()` + `_has_flying_darts()` thành `_get_dart_stats()` duy nhất.
