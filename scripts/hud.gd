@@ -176,16 +176,31 @@ func set_stage(stage: int):
     _refresh_ui()
 
 ## v3.5: Set boss ref (khi vào ải 20)
+## v3.8: FIX BUG — trước đây hardcode "BOSS — 10,000,000 HP" trong khi BOSS_MAX_HP
+## thực tế đã được đổi thành 12M (v3.7). Dùng dynamic text từ constant để đồng bộ.
 func set_boss(boss: Node2D):
     boss_ref = boss
     if boss_hp_container:
         boss_hp_container.visible = true
     if boss_name_label:
-        boss_name_label.text = "BOSS — 10,000,000 HP"
+        var max_hp_int = int(StageManager.BOSS_MAX_HP)
+        boss_name_label.text = "BOSS — %s HP" % _format_big_number(max_hp_int)
         boss_name_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
     if boss_hp_bar:
         boss_hp_bar.max_value = StageManager.BOSS_MAX_HP
         boss_hp_bar.value = StageManager.BOSS_MAX_HP
+
+## v3.8: Format số lớn với dấu phẩy ngăn cách hàng nghìn (VD: 12000000 → "12,000,000")
+func _format_big_number(n: int) -> String:
+    var s = str(n)
+    var out = ""
+    var count = 0
+    for i in range(s.length() - 1, -1, -1):
+        if count > 0 and count % 3 == 0:
+            out = "," + out
+        out = s[i] + out
+        count += 1
+    return out
 
 func _setup_touch_scale(btn: Control):
     if not btn:

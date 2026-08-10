@@ -222,6 +222,14 @@ func _choose_next_action():
         current_state = BossState.IDLE
         state_timer = 1.0
         return
+    # v3.8: FIX BUG — nếu laser đang active mà vào IDLE, _choose_next_action
+    # có thể spawn laser thứ hai trùng lặp (gây double damage + visual glitch).
+    # Chỉ cho phép bắn laser mới khi không có laser active.
+    if is_instance_valid(active_laser):
+        # Đang có laser active → idle ngắn rồi check lại
+        current_state = BossState.IDLE
+        state_timer = randf_range(0.4, 0.8)
+        return
     # Quyết định hành động tiếp theo:
     # - Nếu laser sẵn sàng (cooldown = 0) → 60% chance bắn laser (hoặc sweep nếu rage)
     # - Nếu dart sẵn sàng → 30% chance ném dart

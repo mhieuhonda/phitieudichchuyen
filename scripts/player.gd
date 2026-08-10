@@ -355,6 +355,10 @@ func _spawn_single_dart(direction: Vector2, power: float):
         dart.set_direction(direction, power)
         dart.owner_player = self
         dart.owner_player_id = player_id
+        # v3.8: FIX BUG — player darts PHẢI add vào group "darts" để AI có thể
+        # phát hiện và né (trước đây chỉ AI/boss thêm group, player không thêm →
+        # AI không bao giờ dodge được dart của player dù có dodge_chance cao).
+        dart.add_to_group("darts")
         get_parent().add_child(dart)
         dart.dart_stuck.connect(_on_dart_stuck)
         dart.dart_expired.connect(_on_dart_expired)
