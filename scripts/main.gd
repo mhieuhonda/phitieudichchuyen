@@ -107,6 +107,9 @@ func _ready():
     # v3.8: Achievement toast notifications
     if ProgressionManager:
         ProgressionManager.achievement_unlocked.connect(_on_achievement_unlocked)
+        # v3.8: Coin pickup feedback
+        if ProgressionManager.has_signal("coins_added"):
+            ProgressionManager.coins_added.connect(_on_coins_added)
 
     _setup_camera()
 
@@ -166,6 +169,47 @@ func _on_achievement_unlocked(achievement_id: String):
     _show_achievement_toast(name, desc, coins)
     AudioManager.play_achievement()
     AudioManager.play_variation("sparkle", 1.0, 1.1)
+
+## v3.8: Coin pickup feedback — spawn floating "+X coin" text + particle burst
+## ở vị trí player hiện tại. Chỉ hiển thị nếu amount > 5 để không spam.
+func _on_coins_added(amount: int, _total: int):
+    if not is_instance_valid(player) or amount < 5:
+        return
+    # Floating text ở vị trí player
+    var label = Label.new()
+    label.text = "+%d 💰" % amount
+    label.add_theme_font_size_override("font_size", 18)
+    label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2, 1.0))
+    label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+    label.add_theme_constant_override("shadow_offset_y", 2)
+    label.add_theme_constant_override("shadow_outline_size", 3)
+    label.z_index = 95
+    label.position = player.global_position + Vector2(randf_range(-20, 20), -50)
+    add_child(label)
+    var tween = label.create_tween().set_parallel(true)
+    tween.tween_property(label, "position:y", label.position.y - 60, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+    tween.tween_property(label, "modulate:a", 0.0, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+    tween.chain().tween_callback(label.queue_free)
+    # Coin particle burst (gold)
+    if SettingsManager.get_particle_multiplier() > 0:
+        var burst = CPUParticles2D.new()
+        burst.emitting = true
+        burst.one_shot = true
+        burst.explosiveness = 0.85
+        burst.amount = max(1, int(min(amount / 5, 20) * SettingsManager.get_particle_multiplier()))
+        burst.lifetime = 0.6
+        burst.direction = Vector2(0, -1)
+        burst.spread = 100.0
+        burst.initial_velocity_min = 60
+        burst.initial_velocity_max = 140
+        burst.gravity = Vector2(0, 80)
+        burst.scale_amount_min = 2
+        burst.scale_amount_max = 5
+        burst.color = Color(1.0, 0.85, 0.2, 0.95)
+        add_child(burst)
+        burst.global_position = player.global_position
+        get_tree().create_timer(1.0).timeout.connect(burst.queue_free)
+    AudioManager.play_variation("coin", 1.0, 1.1)
 
 ## v3.8: Show achievement toast popup ở giữa-top màn hình
 var _achievement_toast_panel: Panel = null
