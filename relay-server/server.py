@@ -1,6 +1,8 @@
-# Phi Tiêu Dịch Chuyển — Multiplayer + Auth + Profile + Leaderboard Server (v4.3)
+# Phi Tiêu Dịch Chuyển — Multiplayer + Auth + Profile + Leaderboard Server (v4.4)
 # Python aiohttp + asyncpg (PostgreSQL) + redis.
 # Runs behind Traefik reverse proxy at https://phitieu.louis.vangioitutien.com
+#
+# v4.4: Better handling of empty scores in end_game_after; more logging.
 #
 # Endpoints:
 #     GET  /health                 → {"status": "ok"} (Coolify healthcheck)
@@ -14,7 +16,7 @@
 #     WS   /ws?token=xxx            → Game protocol (JSON messages, optional auth)
 
 """
-Phi Tiêu Dịch Chuyển — Server v4.3
+Phi Tiêu Dịch Chuyển — Server v4.4
 
 Aiohttp server with:
   - PostgreSQL for persistent storage (users, sessions, match history)
@@ -339,7 +341,7 @@ async def health_handler(request: web.Request) -> web.Response:
     return web.json_response({
         "status": "ok",
         "service": "phitieu-multiplayer",
-        "version": "4.3",
+        "version": "4.4",
         "db_ready": db_pool is not None,
         "redis_ready": redis_client is not None,
         "clients_online": len(clients),
@@ -364,7 +366,7 @@ async def index_handler(request: web.Request) -> web.Response:
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<title>Phi Tiêu Dịch Chuyển — Server v4.3</title>
+<title>Phi Tiêu Dịch Chuyển — Server v4.4</title>
 <style>
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
        background: linear-gradient(135deg, #0a0a18 0%, #1a1a2e 100%);
@@ -388,9 +390,9 @@ ul {{ line-height: 1.9; padding-left: 20px; }}
 </head>
 <body>
 <div class="container">
-    <h1>🎯 Phi Tiêu Dịch Chuyển — Server v4.3</h1>
+    <h1>🎯 Phi Tiêu Dịch Chuyển — Server v4.4</h1>
     <div class="subtitle">Multiplayer + Auth + Profile + Leaderboard</div>
-    <p>Server backend cho game <b>Phi Tiêu Dịch Chuyển v4.3</b>. Bao gồm:</p>
+    <p>Server backend cho game <b>Phi Tiêu Dịch Chuyển v4.4</b>. Bao gồm:</p>
     <ul>
         <li>🌐 WebSocket deathmatch (rooms 2-4 người, 3 phút/match)</li>
         <li>🔐 Đăng ký / đăng nhập (bcrypt + token)</li>
@@ -421,7 +423,7 @@ ul {{ line-height: 1.9; padding-left: 20px; }}
     </div>
 
     <div class="footer">
-        Phi Tiêu Dịch Chuyển v4.3 — by Hieu Louis<br>
+        Phi Tiêu Dịch Chuyển v4.4 — by Hieu Louis<br>
         Backend: Python aiohttp · DB: PostgreSQL 16 · Cache: Redis 7.2 · Proxy: Traefik v3.6 + TLS
     </div>
 </div>
@@ -1025,6 +1027,7 @@ async def end_game_after(room: Room, delay: float):
     for c in room.clients:
         scores[c.player_id] = c.score
         kills_map[c.player_id] = c.kills
+    log.info(f"Game ending in room {room.id}. Players: {len(room.clients)}, scores: {scores}")
     await room.broadcast({
         "type": "game_end",
         "scores": scores,
@@ -1033,19 +1036,23 @@ async def end_game_after(room: Room, delay: float):
     log.info(f"Game ended in room {room.id}. Scores: {scores}")
     room.game_end_task = None
 
+    # v4.4: Compute max_score ONCE, handle empty scores safely.
+    # (Previously, if room.clients was empty after broadcast, max(scores.values())
+    # would throw ValueError. Now we guard with `if scores`.)
+    max_score = max(scores.values()) if scores else 0
+
     # Award EXP for authenticated users
     if not db_pool:
+        log.warning("DB unavailable — skipping EXP award after game end")
         return
     for c in room.clients:
         if not c.user:
             continue
         score = c.score
         kills = c.kills
-        won = False
-        # Determine winner: highest score
-        max_score = max(scores.values()) if scores else 0
-        if max_score > 0 and c.score == max_score:
-            won = True
+        # v4.4: Determine winner safely — only if there are scores AND player has max score
+        # (Previously: `if max_score > 0 and c.score == max_score` — same logic, just clearer)
+        won = bool(scores) and max_score > 0 and c.score == max_score
         exp_gained = 10 + kills * 5 + (20 if won else 0) + score // 4
         if exp_gained <= 0:
             continue
@@ -1187,7 +1194,7 @@ def create_app() -> web.Application:
 
 def main():
     log.info("=" * 60)
-    log.info("Phi Tiêu Dịch Chuyển — Server v4.3")
+    log.info("Phi Tiêu Dịch Chuyển — Server v4.4")
     log.info(f"Listening on 0.0.0.0:{PORT}")
     log.info("Endpoints:")
     log.info("  GET  /health  → Coolify healthcheck")

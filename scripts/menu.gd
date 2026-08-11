@@ -215,9 +215,9 @@ func _apply_premium_styling():
 
 func _refresh_ui():
         if version_label:
-                version_label.text = "v4.3 - Phi Tiêu Dịch Chuyển"
+                version_label.text = "v4.4 - Phi Tiêu Dịch Chuyển"
         if new_feature_label:
-                new_feature_label.text = "[color=#ffaa00][b]v4.3:[/b][/color] Sửa lỗi không đăng nhập/đăng ký được trên Godot 4.7 (tls_options property đã bị xóa, phải dùng set_tls_options method) · Thêm Host header · HTTPClient fallback\n[color=#44ff88][b]Multiplayer:[/b][/color] Vào menu → 🌐 MULTIPLAYER → (đăng nhập) → Tạo phòng → Mời bạn bè → Deathmatch 3 phút + nhận EXP!"
+                new_feature_label.text = "[color=#ffaa00][b]v4.4:[/b][/color] Fix lỗi không phân giải được tên miền server (DNS pre-resolve + IP fallback + HTTPClient direct) · Fix treo 00:00 sau trận (nút Về sảnh chờ + auto-transition + safety timeout) · Bỏ double-EXP bug\n[color=#44ff88][b]Multiplayer:[/b][/color] Vào menu → 🌐 MULTIPLAYER → (đăng nhập) → Tạo phòng → Mời bạn bè → Deathmatch 3 phút + nhận EXP!"
         if play_button:
                 play_button.text = "⚔ VƯỢT ẢI" if I18N.is_vi() else "⚔ STAGES"
         if world_button:

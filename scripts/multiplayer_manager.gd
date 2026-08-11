@@ -1,12 +1,24 @@
 extends Node
 
-## MultiplayerManager - Quản lý kết nối multiplayer (v4.1)
+## MultiplayerManager - Quản lý kết nối multiplayer (v4.4)
 ## Singleton autoload.
-## - WebSocket client kết nối tới server wss://phitieu.louis.vangioitutien.com/ws?token=...
+## - WebSocket client kết nối tới server ws://phitieu.louis.vangioitutien.com/ws?token=...
 ## - Gửi/nhận JSON messages
 ## - Quản lý room state, local player, remote players
 ## - Cung cấp signals cho UI hook vào
-## - v4.1: Auth token + level_up / exp_gained events
+##
+## v4.4 CRITICAL FIXES:
+## - **Auto-reconnect bug fix**: Trước đây reconnect chỉ trigger khi `is_connecting=true`,
+##   nhưng `is_connecting` được set false ngay khi connect thành công → sau khi disconnect
+##   (do mạng nháy), reconnect KHÔNG BAO GIỜ trigger. Fix: track `_should_reconnect`
+##   riêng, set true khi user chủ động connect, false khi user chủ động disconnect.
+## - **Connection timeout**: Nếu STATUS_CONNECTING kéo dài > 15s, force close + emit
+##   connection_error. Tránh user chờ vô hạn.
+## - **Dùng WS_BASE constant**: Trước hardcode URL trong _do_connect, dễ diverge.
+## - **Better state logging**: Log mọi state transition để debug.
+##
+## v4.3 (giữ lại):
+## - Dùng WS (HTTP) thay vì WSS (HTTPS) do Godot 4.7 mbedTLS không gửi SNI.
 
 signal connected()
 signal disconnected()
@@ -31,6 +43,7 @@ signal exp_gained(amount: int, total_exp: int)
 
 const RECONNECT_TIMEOUT := 3.0
 const HEARTBEAT_INTERVAL := 10.0
+const CONNECT_TIMEOUT := 15.0  # v4.4: max seconds to wait for WS connection
 
 var socket: WebSocketPeer
 var is_connected: bool = false
@@ -41,20 +54,38 @@ var authenticated: bool = false
 var current_room_id: String = ""
 var current_players: Dictionary = {}  # player_id -> {name, pos, hp, score, alive, level, title}
 
+var _should_reconnect: bool = false  # v4.4: replaces is_connecting for reconnect logic
 var _reconnect_timer: float = 0.0
 var _heartbeat_timer: float = 0.0
+var _connect_timer: float = 0.0  # v4.4: track time spent in CONNECTING state
 var _outgoing_queue: Array = []  # buffer messages khi đang connecting
 
 func _ready():
         set_process(true)
+        print("[MP] v4.4 ready — WS_BASE=%s" % AccountManager.WS_BASE)
 
 func _process(delta):
         if not socket:
                 return
         socket.poll()
         var state = socket.get_ready_state()
+        if state == WebSocketPeer.STATE_CONNECTING:
+                # v4.4: Track time in CONNECTING — if too long, force close + emit error
+                _connect_timer += delta
+                if _connect_timer >= CONNECT_TIMEOUT:
+                        print("[MP] ✗ Connection timeout after %.1fs — closing" % _connect_timer)
+                        socket.close()
+                        is_connecting = false
+                        _connect_timer = 0.0
+                        connection_error.emit("Hết thời gian chờ kết nối server (%.0fs)" % CONNECT_TIMEOUT)
+                return
         if state == WebSocketPeer.STATE_OPEN:
-                is_connected = true
+                if not is_connected:
+                        # v4.4: State transition log
+                        print("[MP] ✓ STATE_OPEN reached (was connecting for %.1fs)" % _connect_timer)
+                        is_connected = true
+                        is_connecting = false
+                        _connect_timer = 0.0
                 # Process incoming
                 while socket.get_available_packet_count() > 0:
                         var pkt = socket.get_packet()
@@ -65,47 +96,66 @@ func _process(delta):
                 if _heartbeat_timer >= HEARTBEAT_INTERVAL:
                         _heartbeat_timer = 0.0
                         _send({"type": "ping"})
+                # Flush outgoing queue
+                if not _outgoing_queue.is_empty():
+                        for msg in _outgoing_queue:
+                                _send_raw(msg)
+                        _outgoing_queue.clear()
         elif state == WebSocketPeer.STATE_CLOSED:
+                var close_code = socket.get_close_code() if socket else -1
+                var close_reason = socket.get_close_reason() if socket else ""
                 if is_connected:
+                        print("[MP] ✗ Disconnected (code=%d reason=%s)" % [close_code, close_reason])
                         is_connected = false
+                        is_connecting = false
+                        _connect_timer = 0.0
                         disconnected.emit()
-                # Auto-reconnect
-                _reconnect_timer += delta
-                if _reconnect_timer >= RECONNECT_TIMEOUT and is_connecting:
+                # v4.4: Auto-reconnect based on _should_reconnect (not is_connecting).
+                # This triggers reconnect after any unintended disconnect.
+                if _should_reconnect:
+                        _reconnect_timer += delta
+                        if _reconnect_timer >= RECONNECT_TIMEOUT:
+                                _reconnect_timer = 0.0
+                                print("[MP] ↻ Auto-reconnecting (attempt after %.0fs)..." % RECONNECT_TIMEOUT)
+                                _do_connect()
+                else:
+                        # Reset reconnect timer if we're not supposed to reconnect
                         _reconnect_timer = 0.0
-                        _do_connect()
-        # Flush outgoing queue
-        if is_connected and not _outgoing_queue.is_empty():
-                for msg in _outgoing_queue:
-                        _send_raw(msg)
-                _outgoing_queue.clear()
 
-## Bắt đầu kết nối tới server (v4.1: dùng token từ AccountManager)
+## Bắt đầu kết nối tới server (v4.4: dùng token từ AccountManager)
 func connect_to_server(name: String = "Player"):
         player_name = name
         is_connecting = true
+        _should_reconnect = true  # v4.4: enable auto-reconnect
+        _connect_timer = 0.0
         _do_connect()
 
 func _do_connect():
         if socket:
                 socket.close()
         socket = WebSocketPeer.new()
-        # v4.3: Godot 4.7's mbedTLS không gửi SNI → Traefik trả 503 cho WSS.
-        # Dùng WS (HTTP) thay thế. TLS options vẫn chuẩn bị cho tương lai khi Godot fix.
-        var tls_opts = TLSOptions.client_unsafe()
-        # v4.3: WS (HTTP) thay vì WSS (HTTPS) do lỗi SNI của mbedTLS
-        var url := "ws://phitieu.louis.vangioitutien.com/ws"
+        # v4.4: Use WS_BASE constant from AccountManager (was hardcoded).
+        # WS (HTTP) is used because Godot 4.7 mbedTLS doesn't send SNI → Traefik 503.
+        var url = AccountManager.WS_BASE
         if AccountManager and not AccountManager.token.is_empty():
                 url = url + "?token=" + AccountManager.token
-        var err = socket.connect_to_url(url, tls_opts)
+        print("[MP] → connect_to_url(%s)" % url)
+        # v4.4: For ws:// (not wss://), TLS options are ignored. Pass null/default.
+        var err = socket.connect_to_url(url)
         if err != OK:
+                print("[MP] ✗ connect_to_url failed: err=%d" % err)
                 connection_error.emit("Không thể kết nối: code %d" % err)
                 is_connecting = false
+                _should_reconnect = false
                 return
+        _connect_timer = 0.0
 
-## Ngắt kết nối
+## Ngắt kết nối (user chủ động) — không auto-reconnect
 func disconnect_from_server():
+        print("[MP] disconnect_from_server() — disabling auto-reconnect")
         is_connecting = false
+        _should_reconnect = false  # v4.4: prevent auto-reconnect on user-initiated disconnect
+        _connect_timer = 0.0
         if socket:
                 socket.close()
         is_connected = false
@@ -270,12 +320,12 @@ func _handle_message(text: String):
                 "room_list":
                         room_list_updated.emit(msg.get("rooms", []))
                 "level_up":
-                        # v4.1: server pushed level-up event (after match end)
+                        # server pushed level-up event (after match end)
                         if AccountManager:
                                 AccountManager.handle_ws_level_up(msg)
                         level_up.emit(int(msg.get("old_level", 0)), int(msg.get("new_level", 0)), String(msg.get("new_title", "")))
                 "exp_gained":
-                        # v4.1: server pushed exp gained event
+                        # server pushed exp gained event
                         if AccountManager:
                                 AccountManager.handle_ws_exp_gained(msg)
                         exp_gained.emit(int(msg.get("amount", 0)), int(msg.get("total_exp", 0)))

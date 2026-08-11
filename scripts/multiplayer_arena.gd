@@ -1,10 +1,24 @@
 extends Node2D
 
-## MultiplayerArena - Arena deathmatch online (v4.1)
+## MultiplayerArena - Arena deathmatch online (v4.4)
 ## Scene: scenes/multiplayer_arena.tscn
 ## Top-down 2D arena, 2-4 players, throw darts at each other.
 ## Server-authoritative: positions, hits, scores.
-## v4.1: Submit match result + handle level_up/exp_gained events.
+##
+## v4.4 CRITICAL FIXES:
+## - **Fix freeze at 00:00**: Trước đây khi timer client chạm 0, game_active=false
+##   nhưng KHÔNG có UI nào cho user quay lại lobby → user stuck. Fix: hiển thị
+##   nút "← Về sảnh chờ" to rõ ở giữa màn hình + auto-transition sau 10s.
+## - **Safety timeout**: Nếu server's game_end không tới trong 5s sau khi client
+##   timer chạm 0, force _on_game_end với data cục bộ (tránh chờ vô hạn).
+## - **Bỏ double-EXP**: Trước đây client gọi AccountManager.submit_match_result()
+##   → POST /api/match_result → server award EXP. NHƯNG server cũng tự award EXP
+##   qua end_game_after() task → DOUBLE EXP! Fix: bỏ client-side submit hoàn toàn,
+##   chỉ nhận EXP qua WS events (level_up, exp_gained) do server push.
+## - **Better disconnect handling**: Hiển thị nút "← Về sảnh chờ" khi mất kết nối.
+## - **game_ended guard**: Đảm bảo _on_game_end và _end_game không trigger 2 lần.
+##
+## v4.1: Submit match result + handle level_up/exp_gained events (v4.4: removed submit).
 
 @onready var players_container: Node2D = $PlayersContainer
 @onready var darts_container: Node2D = $DartsContainer
@@ -19,6 +33,14 @@ extends Node2D
 @onready var leave_button: Button = $HUD/LeaveButton
 @onready var message_label: Label = $HUD/MessageLabel
 @onready var exp_label: Label = $HUD/ExpLabel
+
+# v4.4: Back-to-lobby button (created dynamically, shown after match ends)
+var back_to_lobby_button: Button = null
+# v4.4: Safety timeout — if server's game_end doesn't arrive within 5s of
+# client timer reaching 0, force _on_game_end with local data.
+const SERVER_GAME_END_TIMEOUT := 5.0
+var _waiting_for_server_end: bool = false
+var _server_end_timer: float = 0.0
 
 const ARENA_WIDTH := 1280.0
 const ARENA_HEIGHT := 720.0
@@ -148,15 +170,41 @@ func _welcome_chat():
                 _chat_system("⚠ Chưa đăng nhập — sẽ không nhận EXP. Quay lại để đăng nhập.")
 
 func _process(delta):
+        # v4.4: Safety timeout runs FIRST, before the game_active check, so it fires
+        # even after _end_game() set game_active=false (which would otherwise early-return).
+        if _waiting_for_server_end and not game_ended:
+                _server_end_timer += delta
+                if _server_end_timer >= SERVER_GAME_END_TIMEOUT:
+                        print("[Arena] ⚠ Server game_end timeout — forcing end with local data")
+                        _waiting_for_server_end = false
+                        _on_game_end({}, {})
+        # v4.4: Auto-transition to lobby after BACK_TO_LOBBY_AUTO_TRANSITION_SEC seconds
+        # (only if back button is shown and user hasn't clicked it)
+        if _back_to_lobby_auto_active:
+                _back_to_lobby_auto_timer += delta
+                if back_to_lobby_button and is_instance_valid(back_to_lobby_button):
+                        var remaining = int(BACK_TO_LOBBY_AUTO_TRANSITION_SEC - _back_to_lobby_auto_timer)
+                        if remaining > 0:
+                                back_to_lobby_button.text = "← Về sảnh chờ (%ds)" % remaining
+                        else:
+                                back_to_lobby_button.text = "← Đang chuyển..."
+                if _back_to_lobby_auto_timer >= BACK_TO_LOBBY_AUTO_TRANSITION_SEC:
+                        _back_to_lobby_auto_active = false
+                        print("[Arena] Auto-transitioning to lobby (user didn't click back button)")
+                        _on_leave()
+                        return
+        # v4.4: Always update timer display (even after game ended, so user sees 0:00)
+        timer_label.text = "⏱ %d:%02d" % [int(game_time_left) / 60, int(game_time_left) % 60]
+
         if not game_active:
                 return
 
         # Game timer
-        game_time_left -= delta
-        if game_time_left <= 0:
-                game_time_left = 0
-                _end_game()
-        timer_label.text = "⏱ %d:%02d" % [int(game_time_left) / 60, int(game_time_left) % 60]
+        if not game_ended:
+                game_time_left -= delta
+                if game_time_left <= 0:
+                        game_time_left = 0
+                        _end_game()
 
         # Local player movement
         if local_alive:
@@ -433,19 +481,29 @@ func _on_chat(sender_id: int, sender_name: String, message: String):
                 chat_display.append_text("\n[color=#aaffaa]%s:[/color] %s" % [safe_name, safe_msg])
 
 func _on_game_end(scores: Dictionary, kills: Dictionary):
+        # v4.4: Guard against double-trigger (timer-end + server-end)
+        if game_ended:
+                return
+        game_ended = true
         game_active = false
+        _waiting_for_server_end = false  # we got the server end, no need for safety timeout
         # Determine if local player won
         var winner_id = -1
         var winner_score = -1
-        for pid in scores.keys():
-                if int(scores[pid]) > winner_score:
-                        winner_score = int(scores[pid])
-                        winner_id = int(pid)
+        if not scores.is_empty():
+                for pid in scores.keys():
+                        if int(scores[pid]) > winner_score:
+                                winner_score = int(scores[pid])
+                                winner_id = int(pid)
         # Update local kills from server (more authoritative)
         if kills.has(MultiplayerManager.get_local_player_id()):
                 local_kills = int(kills[MultiplayerManager.get_local_player_id()])
         # Display result
-        if winner_id == MultiplayerManager.get_local_player_id():
+        if scores.is_empty():
+                # No scores (e.g., server timeout fallback) — show local stats
+                message_label.text = "⏱ Hết giờ!\nBạn: %d điểm • %d kills" % [local_score, local_kills]
+                message_label.modulate = Color(0.85, 0.85, 0.95)
+        elif winner_id == MultiplayerManager.get_local_player_id():
                 message_label.text = "🏆 BẠN THẮNG! Score: %d  •  Kills: %d" % [winner_score, local_kills]
                 message_label.modulate = Color(1.0, 0.85, 0.3)
         else:
@@ -453,18 +511,21 @@ func _on_game_end(scores: Dictionary, kills: Dictionary):
                 message_label.text = "🏆 Người thắng: %s (%d điểm)\nBạn: %d điểm • %d kills" % [wname, winner_score, local_score, local_kills]
                 message_label.modulate = Color(0.7, 0.85, 1.0)
         AudioManager.play_variation("chime", 1.0, 1.1)
-        # v4.1: Submit match result to backend for EXP
-        _submit_match_result(winner_id == MultiplayerManager.get_local_player_id())
-
-func _submit_match_result(won: bool):
-        if game_ended:
-                return
-        game_ended = true
-        if not AccountManager.is_logged_in():
+        # v4.4: KHÔNG gọi _submit_match_result nữa — server tự award EXP qua
+        # end_game_after() task khi trận kết thúc. Client chỉ nhận EXP qua WS
+        # events (level_up, exp_gained) do server push.
+        if AccountManager.is_logged_in():
+                _show_exp_msg("✓ EXP sẽ được server tự cộng — chờ thông báo", Color(0.5, 1.0, 0.5))
+        else:
                 _show_exp_msg("⚠ Chưa đăng nhập — không nhận EXP", Color(0.9, 0.7, 0.3))
-                return
-        _show_exp_msg("Đang nộp kết quả match...", Color(0.7, 0.85, 1.0))
-        AccountManager.submit_match_result(local_kills, local_score, won)
+        # v4.4: Show "Back to Lobby" button
+        _show_back_to_lobby_button()
+        _kill_feed_add("— Trận kết thúc —")
+
+## v4.4: DEPRECATED — server tự award EXP qua end_game_after() task.
+## Giữ hàm để tránh breaking reference, nhưng là no-op.
+func _submit_match_result(won: bool):
+        pass
 
 func _on_level_up(old_level: int, new_level: int, new_title: String):
         _show_exp_msg("🎉 LÊN LEVEL %d → %d! Danh hiệu: %s" % [old_level, new_level, new_title], Color(1.0, 0.85, 0.3))
@@ -483,16 +544,25 @@ func _show_exp_msg(text: String, color: Color):
         tween.tween_property(exp_label, "modulate:a", 0.0, 1.5)
 
 func _on_disconnect():
-        message_label.text = "⚠ Mất kết nối server"
+        message_label.text = "⚠ Mất kết nối server\nĐang thử kết nối lại..."
         message_label.modulate = Color(1.0, 0.4, 0.3)
         game_active = false
+        # v4.4: Show back-to-lobby button so user can leave if reconnect fails
+        _show_back_to_lobby_button()
+        _chat_system("⚠ Mất kết nối server — đang thử lại...")
 
 func _end_game():
-        if not game_active:
+        # v4.4: Guard with game_ended (not just game_active) to prevent double-trigger
+        if game_ended or not game_active:
                 return
         game_active = false
-        message_label.text = "Hết giờ! Đang chờ kết quả..."
+        message_label.text = "Hết giờ! Đang chờ kết quả từ server..."
         message_label.modulate = Color(0.7, 0.85, 1.0)
+        # v4.4: Start safety timeout — if server's game_end doesn't arrive within
+        # SERVER_GAME_END_TIMEOUT seconds, force _on_game_end with local data.
+        # This prevents the user from being stuck at 00:00 forever.
+        _waiting_for_server_end = true
+        _server_end_timer = 0.0
 
 # === Chat ===
 func _chat_system(text: String):
@@ -519,6 +589,81 @@ func _on_leave():
         MultiplayerManager.leave_room()
         # Stay connected to server, go back to lobby
         get_tree().change_scene_to_file("res://scenes/multiplayer_lobby.tscn")
+
+# v4.4: Show "Back to Lobby" button after match ends or disconnect.
+# Button is created dynamically, positioned center-bottom, large + visible.
+# Auto-transition to lobby after 10 seconds if user doesn't click.
+const BACK_TO_LOBBY_AUTO_TRANSITION_SEC := 10.0
+var _back_to_lobby_auto_timer: float = 0.0
+var _back_to_lobby_auto_active: bool = false
+
+func _show_back_to_lobby_button():
+        if back_to_lobby_button and is_instance_valid(back_to_lobby_button):
+                return  # already shown
+        back_to_lobby_button = Button.new()
+        back_to_lobby_button.text = "← Về sảnh chờ"
+        back_to_lobby_button.custom_minimum_size = Vector2(280, 64)
+        # Position center-bottom
+        back_to_lobby_button.anchor_left = 0.5
+        back_to_lobby_button.anchor_right = 0.5
+        back_to_lobby_button.anchor_top = 1.0
+        back_to_lobby_button.anchor_bottom = 1.0
+        back_to_lobby_button.offset_left = -140
+        back_to_lobby_button.offset_right = 140
+        back_to_lobby_button.offset_top = -130
+        back_to_lobby_button.offset_bottom = -60
+        back_to_lobby_button.add_theme_font_size_override("font_size", 22)
+        # Premium styling (gold accent, large shadow)
+        _style_large_button(back_to_lobby_button, Color(1.0, 0.85, 0.3))
+        # Hover effect
+        back_to_lobby_button.mouse_entered.connect(func():
+                AudioManager.play_ui_hover()
+                var t = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+                t.tween_property(back_to_lobby_button, "scale", Vector2(1.06, 1.06), 0.1))
+        back_to_lobby_button.mouse_exited.connect(func():
+                var t = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+                t.tween_property(back_to_lobby_button, "scale", Vector2(1.0, 1.0), 0.15))
+        back_to_lobby_button.pressed.connect(_on_back_to_lobby_pressed)
+        hud.add_child(back_to_lobby_button)
+        AudioManager.play_confirm()
+        # Start auto-transition timer
+        _back_to_lobby_auto_timer = 0.0
+        _back_to_lobby_auto_active = true
+        _chat_system("💡 Tự động về sảnh chờ sau %d giây (hoặc ấn nút)" % int(BACK_TO_LOBBY_AUTO_TRANSITION_SEC))
+
+func _style_large_button(btn: Button, accent: Color):
+        var normal = StyleBoxFlat.new()
+        normal.bg_color = Color(0.10, 0.08, 0.18, 0.98)
+        normal.corner_radius_top_left = 12
+        normal.corner_radius_top_right = 12
+        normal.corner_radius_bottom_left = 12
+        normal.corner_radius_bottom_right = 12
+        normal.border_width_top = 3
+        normal.border_width_bottom = 3
+        normal.border_width_left = 3
+        normal.border_width_right = 3
+        normal.border_color = Color(accent.r, accent.g, accent.b, 0.85)
+        normal.content_margin_top = 12
+        normal.content_margin_bottom = 12
+        normal.content_margin_left = 24
+        normal.content_margin_right = 24
+        normal.shadow_color = Color(accent.r * 0.6, accent.g * 0.4, 0.0, 0.65)
+        normal.shadow_size = 12
+        normal.shadow_offset = Vector2(0, 4)
+        var hover = normal.duplicate()
+        hover.bg_color = Color(0.18, 0.14, 0.24, 1.0)
+        hover.border_color = Color(accent.r, accent.g, accent.b, 1.0)
+        var pressed = normal.duplicate()
+        pressed.bg_color = Color(0.05, 0.04, 0.10, 1.0)
+        btn.add_theme_stylebox_override("normal", normal)
+        btn.add_theme_stylebox_override("hover", hover)
+        btn.add_theme_stylebox_override("pressed", pressed)
+        btn.add_theme_stylebox_override("focus", normal)
+
+func _on_back_to_lobby_pressed():
+        AudioManager.play_ui_click()
+        _back_to_lobby_auto_active = false  # cancel auto-transition
+        _on_leave()
 
 func _unhandled_input(event: InputEvent):
         if event.is_action_pressed("menu_back"):

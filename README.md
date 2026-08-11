@@ -3,12 +3,77 @@
 > Vượt 20 ải · Ném phi tiêu · Dịch chuyển · Tiêu diệt Boss
 > Game 2D top-down Godot 4.7 — Offline PvE + Online Multiplayer Deathmatch.
 
-![Version](https://img.shields.io/badge/version-4.3-gold.svg)
+![Version](https://img.shields.io/badge/version-4.4-gold.svg)
 ![Engine](https://img.shields.io/badge/Godot-4.7-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 > **Game developed by Hieu Louis**
+
+---
+
+## v4.4 — Fix DNS resolution + Fix freeze at 00:00 + Bỏ double-EXP
+
+Bản v4.4 sửa 2 lỗiCritical mà người chơi vẫn gặp sau v4.3, cộng thêm 1 bug nghiêm trọng phát hiện khi audit:
+
+### 1. Fix "Không phân giải được tên miền server" khi login/register
+
+**Nguyên nhân gốc** (sau khi audit `account_manager.gd` v4.3):
+- HTTPRequest pool 4 nodes dùng `cancel_request()` rồi reuse ngay → race condition khiến request sau fail với `RESULT_CANT_RESOLVE`.
+- Manual `Host:` header + `Connection: close` đôi khi conflict với internal logic của Godot 4.7 HTTPRequest.
+- `set_tls_options(TLSOptions.client_unsafe())` được gọi cho URL HTTP (no-op nhưng có thể trigger mbedTLS init không cần thiết).
+- Không có cơ chế retry khi DNS fail (network just came up on Android).
+
+**Fix v4.4:**
+- **DNS pre-resolve at startup**: Gọi `IP.resolve_hostname(SERVER_HOST, IP.TYPE_IPV4)` khi AccountManager `_ready()`. Cache IP vào `_resolved_ip`. Nếu fail (network chưa sẵn sàng), retry sau 2s.
+- **Triple-layer fallback**:
+  1. `HTTPRequest` với URL domain gốc `http://phitieu.louis.vangioitutien.com/api/...`
+  2. Nếu #1 fail với CANT_RESOLVE → `HTTPRequest` với URL IP `http://<IP>:80/api/...` + `Host: phitieu.louis.vangioitutien.com` header (Traefik route theo Host header).
+  3. Nếu #2 cũng fail → `HTTPClient` trực tiếp (low-level, bypass HTTPRequest wrapper) tới IP + Host header.
+- **Per-request HTTPRequest** (bỏ pool): mỗi request tạo 1 node mới, `queue_free()` sau khi xong. Không còn race condition.
+- **Bỏ manual Host/Connection headers** cho layer 1 (Godot tự set từ URL).
+- **Bỏ `set_tls_options`** cho HTTP URL (chỉ cần cho HTTPS).
+- **Better error messages**: log full URL, IP, error code, response preview.
+
+### 2. Fix "Treo 00:00 sau khi kết thúc trận"
+
+**Nguyên nhân gốc** (sau khi audit `multiplayer_arena.gd` v4.1):
+- Khi timer client chạm 0:00, `_end_game()` set `game_active = false` và hiện "Hết giờ! Đang chờ kết quả..." — nhưng KHÔNG có UI nào cho user quay lại lobby.
+- Nếu server's `game_end` message không tới (do timing drift, WS disconnect, hoặc room bị xoá), user stuck vĩnh viễn tại 0:00.
+- `_process()` early-return khi `game_active = false`, nên không có cách nào thoát.
+
+**Fix v4.4:**
+- **Back-to-Lobby button**: Sau khi trận kết thúc (cả từ server's `game_end` lẫn client's timeout), hiển thị nút lớn "← Về sảnh chờ" ở giữa-bottom màn hình, có hover effect + premium styling (gold accent, shadow).
+- **Auto-transition**: Nếu user không ấn nút trong 10s, tự chuyển về `multiplayer_lobby.tscn`. Nút hiển thị countdown "(10s) → (9s) → ...".
+- **Safety timeout**: Nếu server's `game_end` không tới trong 5s sau khi client timer chạm 0, force `_on_game_end({}, {})` với data cục bộ → hiển thị nút back ngay.
+- **`_process()` restructured**: Safety timeout + timer display chạy TRƯỚC `if not game_active: return`, đảm bảo countdown vẫn update và safety timeout vẫn fire.
+- **Disconnect handling**: Khi mất kết nối WS giữa trận, cũng hiển thị nút "← Về sảnh chờ" (MultiplayerManager sẽ tự reconnect trong nền).
+
+### 3. Bỏ double-EXP bug (Critical!)
+
+**Bug phát hiện khi audit**: Trước đây, EXP được award **2 lần** cho mỗi trận:
+1. **Client-side**: `multiplayer_arena._on_game_end()` gọi `AccountManager.submit_match_result()` → POST `/api/match_result` → server award EXP.
+2. **Server-side**: `server.py:end_game_after()` tự award EXP qua DB direct khi timer 180s hết.
+
+→ User nhận **gấp đôi EXP** thực tế!
+
+**Fix v4.4:**
+- Bỏ hoàn toàn client-side `submit_match_result()` call (function giờ là no-op, giữ lại chỉ để compat).
+- Server's `end_game_after()` là **source of truth duy nhất** cho EXP award.
+- Client chỉ nhận EXP qua WS events `level_up` / `exp_gained` do server push.
+- Cập nhật `server.py:end_game_after()`: handle empty scores safely, thêm logging chi tiết.
+
+### 4. Fix auto-reconnect bug trong MultiplayerManager
+
+**Bug**: `MultiplayerManager._process()` chỉ auto-reconnect khi `is_connecting == true`. Nhưng `is_connecting` được set false ngay khi connect thành công → sau khi disconnect (do mạng nháy), reconnect KHÔNG BAO GIỜ trigger.
+
+**Fix v4.4**: Track `_should_reconnect` riêng, set true khi user chủ động connect, false khi user chủ động disconnect. Reconnect trigger dựa trên flag này, không phụ thuộc `is_connecting`.
+
+### 5. Connection timeout cho WebSocket
+
+**Fix**: Nếu `STATUS_CONNECTING` kéo dài > 15s, force close + emit `connection_error`. Tránh user chờ vô hạn khi server không phản hồi.
+
+Xem [CHANGELOG.md](CHANGELOG.md) để biết chi tiết đầy đủ.
 
 ---
 
@@ -137,7 +202,9 @@ phitieudichchuyen/
 
 | Version | Tóm tắt |
 |---|---|
-| **4.2** | Sửa UI online đồng bộ với sảnh · Fix nút bấm đóng băng khi login/register · Auto-connect WS khi vào lobby · Yêu cầu đăng nhập trước khi vào Multiplayer · Branding "Game developed by Hieu Louis" trên mọi scene · Fix mouse_filter cho ArenaBg/ArenaBorder · Hover scale effects cho profile/leaderboard · `tls_options` cho profile HTTPRequest |
+| **4.4** | Fix "Không phân giải được tên miền server" (DNS pre-resolve + IP fallback + HTTPClient direct) · Fix "Treo 00:00 sau trận" (nút Về sảnh chờ + auto-transition + safety timeout) · Bỏ double-EXP bug (client + server cùng award → chỉ server) · Fix auto-reconnect WS (is_connecting race) · Connection timeout 15s cho WS |
+| 4.3 | Sửa tls_options property đã bị xóa trong Godot 4.7 (dùng set_tls_options method) · Dùng HTTP thay HTTPS (mbedTLS không gửi SNI) · Fix ConfigFile.clear() 0 args · HTTPRequest pool + Host header + HTTPClient fallback |
+| 4.2 | Sửa UI online đồng bộ với sảnh · Fix nút bấm đóng băng khi login/register · Auto-connect WS khi vào lobby · Yêu cầu đăng nhập trước khi vào Multiplayer · Branding "Game developed by Hieu Louis" trên mọi scene · Fix mouse_filter cho ArenaBg/ArenaBorder · Hover scale effects cho profile/leaderboard · `tls_options` cho profile HTTPRequest |
 | 4.1 | Server backend mới (PostgreSQL + Redis + bcrypt) · Auth + Profile + Leaderboard + EXP không giới hạn level · Sửa crash multiplayer (sai node path) · Accept Traefik self-signed cert · Renames DB tables `phitieu_*` prefix |
 | 3.9 | Quest scene chơi được (kill/boss-mini/find) · Meta-progression áp dụng combat · Fix 30 bugs · Cân bằng AI dmg/hp curve · Quest tab trong Sổ Tay · 4-tier quest difficulty |
 | 3.8 | Combat polish & boss arena quality: Pause menu, minimap, Boss Phase 2, kill streak, hit markers, low-HP heartbeat, boss off-screen arrow, aim ricochet preview, onboarding, 5 achievements mới, perfect/speed bonus, perf optimizations |
@@ -169,6 +236,6 @@ Mọi góp ý / bug report / feature request — tạo issue tại:
 ---
 
 <p align="center">
-  <strong>Phi Tiêu Dịch Chuyển v4.2</strong><br>
+  <strong>Phi Tiêu Dịch Chuyển v4.4</strong><br>
   <em>Game developed by Hieu Louis</em>
 </p>

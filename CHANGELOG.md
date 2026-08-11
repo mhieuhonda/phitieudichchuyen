@@ -1,5 +1,164 @@
 # Changelog
 
+## v4.4 - Phi Tiêu Dịch Chuyển (2026-08-11)
+
+### Fix DNS resolution + Fix freeze at 00:00 + Bỏ double-EXP
+
+Bản v4.4 sửa 2 lỗi Critical mà người chơi vẫn gặp sau v4.3, cộng thêm 1 bug nghiêm trọng phát hiện khi audit source code. Đây là bản fix bắt buộc phải deploy trước khi release public.
+
+#### 1. Fix "Không phân giải được tên miền server" khi login/register
+
+**Bug:** Người chơi ấn "Đăng nhập" hoặc "Đăng ký" → nút loading xoay 20s → báo lỗi "✗ Không phân giải được tên miền server — kiểm tra mạng và thử lại". VPS vẫn online (curl tới `http://phitieu.louis.vangioitutien.com/health` trả 200 OK), DNS server vẫn resolve đúng (nslookup trả IP), nhưng Godot 4.7 HTTPRequest trả `RESULT_CANT_RESOLVE = 3`.
+
+**Root cause (sau khi audit `account_manager.gd` v4.3):**
+
+1. **HTTPRequest pool race condition**: `_get_idle_http()` duyệt 4 nodes, nếu tất cả đều bận thì `cancel_request()` node đầu rồi return ngay. Nhưng `cancel_request()` không đồng bộ — status HTTPClient vẫn `STATUS_REQUESTING` vài frame sau. `_do_request` có `await get_tree().process_frame` để chờ, nhưng 1 frame không đủ. Request tiếp theo fail với `RESULT_CANT_RESOLVE` vì HTTPRequest internal state bị confuse.
+
+2. **Manual Host header + Connection: close**: Set `Host: phitieu.louis.vangioitutien.com` thủ công trong khi Godot HTTPRequest đã tự set từ URL → conflict. `Connection: close` ép đóng connection sau mỗi request → Traefik không giữ keep-alive → chậm hơn + đôi khi drop request.
+
+3. **`set_tls_options(TLSOptions.client_unsafe())` cho HTTP URL**: Trong Godot 4.7, method này là no-op cho HTTP (chỉ dùng cho HTTPS), nhưng nó vẫn trigger mbedTLS initialization không cần thiết. Trên một số thiết bị (đặc biệt Android), init này có thể fail silently → HTTPRequest vào trạng thái lạ.
+
+4. **Không có retry khi DNS fail**: Nếu network chưa sẵn sàng khi app start (Android cold start), DNS resolve fail. Không có cơ chế retry → user phải restart app.
+
+**Fix v4.4:**
+
+- **DNS pre-resolve at startup**: Trong `AccountManager._ready()`, gọi `IP.resolve_hostname(SERVER_HOST, IP.TYPE_IPV4)`. Cache IP vào `_resolved_ip`. Nếu fail (network chưa sẵn sàng), retry sau 2s.
+  ```gdscript
+  var ips = IP.resolve_hostname(SERVER_HOST, IP.TYPE_IPV4)
+  if ips is String and not ips.is_empty():
+      _resolved_ip = ips
+  ```
+
+- **Triple-layer fallback** trong `_do_request()`:
+  1. **Layer 1**: `HTTPRequest` với URL domain gốc `http://phitieu.louis.vangioitutien.com/api/...` (default path, Godot tự set Host header từ URL).
+  2. **Layer 2**: Nếu layer 1 fail với CANT_RESOLVE → `HTTPRequest` với URL IP `http://<resolved_ip>:80/api/...` + manual `Host: phitieu.louis.vangioitutien.com` header. Traefik route theo Host header, nên request vẫn tới backend.
+  3. **Layer 3**: Nếu layer 2 cũng fail → `HTTPClient` trực tiếp (low-level, bypass HTTPRequest wrapper) `connect_to_host(resolved_ip, 80)` + Host header. Đảm bảo request tới server ngay cả khi HTTPRequest có bug.
+
+- **Per-request HTTPRequest (bỏ pool)**: Mỗi request tạo 1 `HTTPRequest` mới, add child, `queue_free()` sau khi `request_completed` fire. Không còn race condition. Tradeoff: hơi chậm hơn (tạo node mỗi request), nhưng request HTTP ở đây rất ít (login, register, profile, leaderboard, match result) nên không đáng kể.
+
+- **Bỏ manual Host/Connection headers** ở layer 1: Godot tự set từ URL. Set thủ công gây conflict trong một số edge case.
+
+- **Bỏ `set_tls_options`** cho HTTP URL: Chỉ set nếu sau này đổi sang HTTPS.
+
+- **Better error messages**: Log full URL, IP, error code, response preview để debug dễ hơn.
+
+#### 2. Fix "Treo 00:00 sau khi kết thúc trận"
+
+**Bug:** Người chơi vào arena deathmatch, chơi 3 phút → timer hiển thị 0:00 → game stuck, không có nút nào để quay lại lobby, phải ấn ESC hoặc kill app.
+
+**Root cause (sau khi audit `multiplayer_arena.gd` v4.1):**
+
+1. **Không có UI back-to-lobby sau match**: `_on_game_end()` chỉ set `game_active = false` và hiện message "🏆 BẠN THẮNG!..." hoặc "🏆 Người thắng: ...". Không có nút "Continue" hay "Back to Lobby". User chỉ có thể ấn "← Rời phòng" ở góc dưới phải — nhưng nút này nhỏ, khó thấy, và không có feedback rằng trận đã kết thúc.
+
+2. **Safety timeout missing**: Client's timer 180s và server's `end_game_after(180s)` chạy song song, nhưng có timing drift. Nếu server's `game_end` message không tới (do WS disconnect, room bị xoá, hoặc server lag), client's `_end_game()` set `game_active = false` + hiện "Hết giờ! Đang chờ kết quả..." — và stuck vĩnh viễn.
+
+3. **`_process()` early-return**: Sau khi `game_active = false`, `_process()` return ngay ở dòng đầu tiên. Không có cách nào trigger escape.
+
+**Fix v4.4:**
+
+- **Back-to-Lobby button**: Hàm `_show_back_to_lobby_button()` tạo dynamically một `Button` lớn (280x64, font 22, gold accent, shadow 12px) ở center-bottom. Premium styling đồng bộ với menu. Hover scale effect 1.06.
+
+- **Auto-transition 10s**: Nếu user không ấn nút trong 10s, tự `change_scene_to_file("res://scenes/multiplayer_lobby.tscn")`. Nút hiển thị countdown live: "← Về sảnh chờ (10s)" → "← Về sảnh chờ (9s)" → ... → "← Đang chuyển...".
+
+- **Safety timeout 5s**: Khi client's `_end_game()` fire (timer = 0), set `_waiting_for_server_end = true` + `_server_end_timer = 0`. Trong `_process()`, nếu 5s mà server's `game_end` chưa tới, force `_on_game_end({}, {})` với data rỗng → hiển thị kết quả cục bộ + nút back.
+
+- **`_process()` restructured**: Safety timeout + timer display + auto-transition countdown chạy TRƯỚC `if not game_active: return`. Đảm bảo countdown vẫn update và safety timeout vẫn fire ngay cả khi `game_active = false`.
+
+- **Disconnect handling**: `_on_disconnect()` cũng gọi `_show_back_to_lobby_button()` — nếu WS mất kết nối giữa trận, user có nút để thoát (MultiplayerManager sẽ tự reconnect trong nền).
+
+- **`game_ended` guard**: `_on_game_end()` check `if game_ended: return` ở đầu. `_end_game()` check `if game_ended or not game_active: return`. Đảm bảo không double-trigger.
+
+#### 3. Bỏ double-EXP bug (Critical!)
+
+**Bug phát hiện khi audit:** EXP được award **2 lần** cho mỗi trận:
+
+1. **Client-side** (`multiplayer_arena.gd:_on_game_end`):
+   ```gdscript
+   _submit_match_result(winner_id == MultiplayerManager.get_local_player_id())
+   # → AccountManager.submit_match_result(kills, score, won)
+   # → POST /api/match_result
+   # → server.py:api_match_result award EXP qua DB
+   ```
+
+2. **Server-side** (`server.py:end_game_after`, chạy khi `asyncio.sleep(180)` xong):
+   ```python
+   # Award EXP for authenticated users
+   for c in room.clients:
+       if not c.user: continue
+       exp_gained = 10 + kills * 5 + (20 if won else 0) + score // 4
+       # ... UPDATE phitieu_users SET exp = exp + exp_gained ...
+       # ... INSERT phitieu_match_history ...
+   ```
+
+→ User nhận **gấp đôi EXP** thực tế! Ví dụ: thắng trận 5 kills, 20 score → client award `10 + 25 + 20 + 5 = 60 EXP`, server cũng award `60 EXP` → total `120 EXP` thay vì `60`.
+
+**Fix v4.4:**
+
+- **Bỏ client-side `submit_match_result()` call**: Trong `multiplayer_arena.gd:_on_game_end`, thay vì gọi `_submit_match_result()`, chỉ hiện message "✓ EXP sẽ được server tự cộng — chờ thông báo".
+- **`AccountManager.submit_match_result()` thành no-op**: Giữ function để tránh breaking reference, nhưng body chỉ `return` + log warning. Có thể xóa hoàn toàn trong v4.5.
+- **Server's `end_game_after()` là source of truth duy nhất**: Đã có từ v4.1, giờ là cách duy nhất award EXP.
+- **Client nhận EXP qua WS events**: `MultiplayerManager._handle_message` handle `level_up` và `exp_gained` do server push → emit signals → `multiplayer_arena._on_level_up` / `_on_exp_gained` hiển thị.
+- **`server.py:end_game_after` cải thiện**: Handle empty scores safely (`max_score = max(scores.values()) if scores else 0`), thêm logging chi tiết (`log.info(f"Game ending in room {room.id}. Players: {len(room.clients)}, scores: {scores}")`).
+
+#### 4. Fix auto-reconnect bug trong MultiplayerManager
+
+**Bug:** `MultiplayerManager._process()` có logic auto-reconnect:
+```gdscript
+if _reconnect_timer >= RECONNECT_TIMEOUT and is_connecting:
+    _reconnect_timer = 0.0
+    _do_connect()
+```
+
+Chỉ reconnect khi `is_connecting == true`. Nhưng `is_connecting` được set false ngay khi WS connection thành công (`STATE_OPEN`). Sau khi disconnect (mạng nháy, server restart), `is_connecting` vẫn false → reconnect **KHÔNG BAO GIỜ** trigger. User phải restart app.
+
+**Fix v4.4:**
+
+- Track `_should_reconnect` riêng:
+  - `connect_to_server()`: set `_should_reconnect = true`
+  - `disconnect_from_server()`: set `_should_reconnect = false` (user chủ động, không reconnect)
+  - `_process()`: reconnect dựa trên `_should_reconnect`, không phụ thuộc `is_connecting`.
+
+- Log state transitions: `print("[MP] ✓ STATE_OPEN reached (was connecting for %.1fs)" % _connect_timer)`.
+
+#### 5. Connection timeout cho WebSocket
+
+**Bug:** Nếu server không phản hồi WS handshake, `STATUS_CONNECTING` kéo dài vô hạn. User thấy "⏳ Đang kết nối..." vĩnh viễn.
+
+**Fix v4.4:**
+
+- Thêm `CONNECT_TIMEOUT := 15.0` constant.
+- Track `_connect_timer` trong `_process()` khi `STATE_CONNECTING`.
+- Nếu `_connect_timer >= CONNECT_TIMEOUT` → `socket.close()` + `connection_error.emit("Hết thời gian chờ kết nối server (15s)")`.
+
+#### Files changed
+
+- `scripts/account_manager.gd` — Major refactor (DNS pre-resolve, triple-layer fallback, per-request HTTPRequest)
+- `scripts/multiplayer_manager.gd` — Fix auto-reconnect, connection timeout, dùng WS_BASE constant
+- `scripts/multiplayer_arena.gd` — Back-to-lobby button, auto-transition, safety timeout, bỏ double-EXP
+- `scripts/menu.gd` — Update version label + new_feature_label
+- `relay-server/server.py` — Bump v4.4, handle empty scores, more logging
+- `relay-server/Dockerfile` — Bump version label
+- `project.godot` — Bump config_version
+- `export_presets.cfg` — Bump version code (44) + name ("4.4")
+- `README.md` — Add v4.4 section
+- `CHANGELOG.md` — This entry
+
+---
+
+## v4.3 - Phi Tiêu Dịch Chuyển (2026-08-11)
+
+### Sửa lỗi không đăng nhập/đăng ký được trên Godot 4.7
+
+Bản v4.3 sửa triệt để lỗi người chơi **không thể đăng ký hoặc đăng nhập**. 3 root cause chồng lên nhau:
+
+1. **Godot 4.7 đã xóa property `tls_options` trên HTTPRequest** — gán trực tiếp `_http_request.tls_options = ...` gây runtime error.
+2. **Godot 4.7's mbedTLS không gửi SNI** — Traefik v3.6 trả 503.
+3. **`ConfigFile.clear()` trong Godot 4.7 nhận 0 args** — code cũ `cfg.clear(SAVE_PATH)` gây parse error.
+
+Cải thiện: HTTPRequest pool, Host header, HTTPClient fallback, extensive logging.
+
+---
+
 ## v4.2 - Phi Tiêu Dịch Chuyển (2026-08-11)
 
 ### Sửa UI Online + Fix Nút Bấm Đóng Băng + Branding Hieu Louis
