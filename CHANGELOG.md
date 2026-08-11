@@ -1,5 +1,111 @@
 # Changelog
 
+## v4.2 - Phi Tiêu Dịch Chuyển (2026-08-11)
+
+### Sửa UI Online + Fix Nút Bấm Đóng Băng + Branding Hieu Louis
+
+Bản v4.2 tập trung sửa trải nghiệm online: đồng bộ style toàn bộ UI online với sảnh chờ, fix lỗi nút bấm bị "đóng băng" khi đăng nhập/đăng ký, yêu cầu đăng nhập trước khi vào Multiplayer, và ghi danh "Game developed by Hieu Louis" trên mọi màn hình.
+
+#### 1. Yêu cầu đăng nhập trước khi vào Multiplayer
+
+**Bug:** Khi ấn "🌐 MULTIPLAYER" từ menu → vào thẳng sảnh chờ mà không yêu cầu đăng nhập. Người chơi guest không nhận EXP và không chat được.
+
+**Fix v4.2:** `menu.gd` `_on_multiplayer_pressed()` kiểm tra `AccountManager.is_logged_in()`:
+- Chưa login → set `LoginRouter.next_scene = "res://scenes/multiplayer_lobby.tscn"` → chuyển sang `login.tscn`. Sau khi đăng nhập OK, `login.gd` tự forward sang `multiplayer_lobby.tscn`.
+- Đã login → vào thẳng `multiplayer_lobby.tscn`.
+
+Thêm autoload `LoginRouter` (singleton) để phối hợp chuyển scene giữa login và scene gọi nó.
+
+#### 2. Sửa nút "Đăng nhập/Đăng ký" bị đóng băng
+
+**Bug:** Sau khi điền đầy đủ thông tin và ấn "Đăng nhập" / "Đăng ký", nút trở nên cứng đơ, không phản hồi.
+
+**Nguyên nhân:** `submit_button.disabled = true` được set khi bắt đầu request, và chỉ reset khi nhận được signal `login_failed` / `register_failed` / `logged_in`. Nếu HTTPRequest timeout không fire signal đúng cách, nút stay disabled vĩnh viễn.
+
+**Fix v4.2:** 
+- Thêm `_submit_lock` boolean để chống double-submit.
+- Hiển thị text "⏳ Đang xử lý..." trên nút khi đang chờ.
+- Thêm spinner (modulate pulse tween) để user thấy rõ đang load.
+- **Safety net 20s:** nếu sau 20s vẫn chưa có response, tự re-enable nút + báo lỗi "Hết thời gian chờ server — kiểm tra mạng và thử lại".
+- Re-enable nút trên MỌI outcome (success, fail, timeout, logout).
+- Enter key trong ô input cũng trigger submit (text_submitted signal).
+
+#### 3. Sửa chat không gửi được + nút "tê liệt" trong sảnh chờ
+
+**Bug:** Ấn "Gửi" chat không hoạt động; tổng quan các nút online cảm giác "tê liệt".
+
+**Nguyên nhân:** 
+- Chat gửi yêu cầu kết nối WS trước. User không nhận ra mình phải bấm "Kết nối" trước.
+- Các nút không có hover scale effect như ngoài sảnh, nên không có feedback khi hover/click → cảm giác "chết".
+
+**Fix v4.2:**
+- **Auto-connect:** Khi vào `multiplayer_lobby.tscn`, tự động kết nối WS sau 1 frame (call_deferred). User không cần bấm "Kết nối" thủ công.
+- Nếu chat khi chưa connect → tự trigger reconnect thay vì chỉ báo lỗi.
+- **Hover scale effects:** Thêm `_setup_hover_effects()` + `_setup_touch_scale(btn)` cho mọi nút trong lobby (match `menu.gd` pattern). Hover → scale 1.05 + sound `ui_hover`. Press → scale 1.05 → release về 1.0.
+- **Premium styling:** Tất cả nút giờ có shadow + border + corner radius 8px + 3 stylebox (normal/hover/pressed) — đồng bộ với `menu.gd`.
+- **Title glow animation:** Label "🌐 MULTIPLAYER — Sảnh chờ v4.2" có pulse modulate tween (sáng → tối → sáng) giống `GameTitle` ngoài sảnh.
+- Thêm text shadow cho title (offset_y=4, outline_size=10).
+- Connect button text đổi sang "⏳ Đang kết nối..." khi đang connect, "✓ Đã kết nối" khi OK, "🔄 Kết nối lại" khi mất kết nối.
+- Âm thanh confirm/cancel khi các action thành công/thất bại.
+
+#### 4. Sửa HUD arena cho premium styling
+
+- `ArenaBg` và `ArenaBorder` (ColorRect) set `mouse_filter = 2` (IGNORE) để không chặn input meant cho HUD buttons.
+- `LeaveButton` thêm premium StyleBoxFlat + hover scale effect + `AudioManager.play_ui_hover()` khi hover.
+- Thêm `DeveloperLabel` "Game developed by Hieu Louis" ở bottom-right HUD.
+
+#### 5. Premium styling đồng bộ cho Profile + Leaderboard
+
+- Thêm hover scale effects cho RefreshButton / LogoutButton / BackButton (profile) và RefreshButton / BackButton (leaderboard).
+- Upgrade `_style_button()` để có shadow + 3 stylebox (normal/hover/pressed) + focus override — match `menu.gd`.
+- Thêm `DeveloperLabel` "Game developed by Hieu Louis" ở bottom-right cả 2 scene.
+- `profile.gd` HTTPRequest thêm `tls_options = TLSOptions.client_unsafe()` để accept Traefik self-signed cert (trước đó thiếu).
+
+#### 6. Login scene v4.2
+
+- Thêm nút "👤 Chơi guest" — cho phép bỏ qua đăng nhập, forward thẳng sang `next_scene`.
+- Title đổi sang "🔐 ĐĂNG NHẬP" / "📝 ĐĂNG KÝ" (uppercase) với glow pulse animation.
+- Tất cả input field height tăng từ 36 → 40px, button height tăng từ 40 → 42-48px (dễ bấm trên mobile).
+- Tab Login/Register width tăng từ 180 → 200px.
+- Enter key trong UsernameEdit/PasswordEdit/DisplayNameEdit cũng trigger submit.
+- Thêm `DeveloperLabel` "Game developed by Hieu Louis" ở bottom-right.
+- Background ColorRect set `mouse_filter = 2` (IGNORE) để không chặn click trên empty area.
+
+#### 7. Branding "Game developed by Hieu Louis"
+
+Thêm `DeveloperLabel` ở bottom-right của mọi scene online + menu:
+- `menu.tscn` — gold (#ffaa00) shadow text
+- `login.tscn` — gold shadow text
+- `multiplayer_lobby.tscn` — gold shadow text
+- `multiplayer_arena.tscn` HUD — gold shadow text
+- `profile.tscn` — gold shadow text
+- `leaderboard.tscn` — gold shadow text
+
+Server `index.html` footer cũng đổi từ "by mhieuhonda" → "by Hieu Louis". Dockerfile LABEL maintainer đổi sang "Hieu Louis".
+
+#### 8. Sửa mạng cho sub-VPS
+
+**Constraint:** VPS là sub-VPS, không thể connect trực tiếp tới IP:Port.
+
+**Đã xử lý từ v4.1:** Toàn bộ traffic đi qua Traefik reverse proxy ở `https://phitieu.louis.vangioitutien.com`:
+- REST API: `https://phitieu.louis.vangioitutien.com/api/*`
+- WebSocket: `wss://phitieu.louis.vangioitutien.com/ws`
+- TLS: `TLSOptions.client_unsafe()` để accept Traefik default self-signed cert (cho đến khi Let's Encrypt issue cert thật).
+
+Không có kết nối trực tiếp IP:Port nào trong code. Sub-VPS constraint được thoả mãn.
+
+#### 9. Update version metadata
+
+- `project.godot` `config/version` → "4.2"
+- `export_presets.cfg` Android `version/code=42`, `version/name="4.2"`
+- `export_presets.cfg` Windows `file_version`/`product_version` → "4.2.0.0"
+- Server `health_handler` version → "4.2"
+- Dockerfile LABEL version → "4.2"
+- Menu version label → "v4.2 - Phi Tiêu Dịch Chuyển"
+- Lobby title → "🌐 MULTIPLAYER — Sảnh chờ v4.2"
+
+---
+
 ## v4.1 - Phi Tiêu Dịch Chuyển (2026-08-10)
 
 ### Server Backend Mới + Auth + Profile + Leaderboard + EXP + UI Fix
