@@ -36,7 +36,9 @@ const SCALE_NORMAL := Vector2(1.0, 1.0)
 func _ready():
         _http_request = HTTPRequest.new()
         _http_request.timeout = 15.0
-        _http_request.tls_options = TLSOptions.client_unsafe()
+        # v4.3 FIX: Godot 4.7 xóa property `tls_options`, phải dùng method set_tls_options()
+        # v4.3: Dùng HTTP nên TLS không cần thiết, nhưng vẫn set để đề phòng đổi lại HTTPS
+        _http_request.set_tls_options(TLSOptions.client_unsafe())
         add_child(_http_request)
         refresh_button.pressed.connect(_on_refresh)
         logout_button.pressed.connect(_on_logout)

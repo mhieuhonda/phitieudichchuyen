@@ -11,10 +11,10 @@ config_version=5
 [application]
 
 config/name="Phi Tiêu Dịch Chuyển"
-config/description="Vượt 20 ải - Ném phi tiêu - Dịch chuyển - Tiêu diệt Boss! Game 2D top-down với hướng dẫn chi tiết + Multiplayer online. v4.2: Sửa UI online đồng bộ với sảnh chờ, sửa lỗi nút bấm đóng băng, yêu cầu đăng nhập trước khi vào Multiplayer. Game developed by Hieu Louis."
+config/description="Vượt 20 ải - Ném phi tiêu - Dịch chuyển - Tiêu diệt Boss! Game 2D top-down với hướng dẫn chi tiết + Multiplayer online. v4.3: Sửa lỗi không đăng nhập/đăng ký được trên Godot 4.7 (tls_options property đã bị xóa, phải dùng set_tls_options method). Game developed by Hieu Louis."
 run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
-config/version="4.2"
+config/version="4.3"
 config/icon="res://icon.svg"
 
 [autoload]

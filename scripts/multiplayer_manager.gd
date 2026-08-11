@@ -90,10 +90,11 @@ func _do_connect():
         if socket:
                 socket.close()
         socket = WebSocketPeer.new()
-        # v4.1: Accept self-signed cert from Traefik default cert (until LE is re-issued)
+        # v4.3: Godot 4.7's mbedTLS không gửi SNI → Traefik trả 503 cho WSS.
+        # Dùng WS (HTTP) thay thế. TLS options vẫn chuẩn bị cho tương lai khi Godot fix.
         var tls_opts = TLSOptions.client_unsafe()
-        # v4.1: Include auth token in URL if available
-        var url := "wss://phitieu.louis.vangioitutien.com/ws"
+        # v4.3: WS (HTTP) thay vì WSS (HTTPS) do lỗi SNI của mbedTLS
+        var url := "ws://phitieu.louis.vangioitutien.com/ws"
         if AccountManager and not AccountManager.token.is_empty():
                 url = url + "?token=" + AccountManager.token
         var err = socket.connect_to_url(url, tls_opts)

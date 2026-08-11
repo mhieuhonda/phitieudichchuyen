@@ -1,4 +1,4 @@
-# Phi Tiêu Dịch Chuyển — Multiplayer + Auth + Profile + Leaderboard Server (v4.2)
+# Phi Tiêu Dịch Chuyển — Multiplayer + Auth + Profile + Leaderboard Server (v4.3)
 # Python aiohttp + asyncpg (PostgreSQL) + redis.
 # Runs behind Traefik reverse proxy at https://phitieu.louis.vangioitutien.com
 #
@@ -14,7 +14,7 @@
 #     WS   /ws?token=xxx            → Game protocol (JSON messages, optional auth)
 
 """
-Phi Tiêu Dịch Chuyển — Server v4.2
+Phi Tiêu Dịch Chuyển — Server v4.3
 
 Aiohttp server with:
   - PostgreSQL for persistent storage (users, sessions, match history)
@@ -339,7 +339,7 @@ async def health_handler(request: web.Request) -> web.Response:
     return web.json_response({
         "status": "ok",
         "service": "phitieu-multiplayer",
-        "version": "4.2",
+        "version": "4.3",
         "db_ready": db_pool is not None,
         "redis_ready": redis_client is not None,
         "clients_online": len(clients),
@@ -364,7 +364,7 @@ async def index_handler(request: web.Request) -> web.Response:
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<title>Phi Tiêu Dịch Chuyển — Server v4.2</title>
+<title>Phi Tiêu Dịch Chuyển — Server v4.3</title>
 <style>
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
        background: linear-gradient(135deg, #0a0a18 0%, #1a1a2e 100%);
@@ -388,9 +388,9 @@ ul {{ line-height: 1.9; padding-left: 20px; }}
 </head>
 <body>
 <div class="container">
-    <h1>🎯 Phi Tiêu Dịch Chuyển — Server v4.2</h1>
+    <h1>🎯 Phi Tiêu Dịch Chuyển — Server v4.3</h1>
     <div class="subtitle">Multiplayer + Auth + Profile + Leaderboard</div>
-    <p>Server backend cho game <b>Phi Tiêu Dịch Chuyển v4.2</b>. Bao gồm:</p>
+    <p>Server backend cho game <b>Phi Tiêu Dịch Chuyển v4.3</b>. Bao gồm:</p>
     <ul>
         <li>🌐 WebSocket deathmatch (rooms 2-4 người, 3 phút/match)</li>
         <li>🔐 Đăng ký / đăng nhập (bcrypt + token)</li>
@@ -421,7 +421,7 @@ ul {{ line-height: 1.9; padding-left: 20px; }}
     </div>
 
     <div class="footer">
-        Phi Tiêu Dịch Chuyển v4.2 — by Hieu Louis<br>
+        Phi Tiêu Dịch Chuyển v4.3 — by Hieu Louis<br>
         Backend: Python aiohttp · DB: PostgreSQL 16 · Cache: Redis 7.2 · Proxy: Traefik v3.6 + TLS
     </div>
 </div>
@@ -1187,7 +1187,7 @@ def create_app() -> web.Application:
 
 def main():
     log.info("=" * 60)
-    log.info("Phi Tiêu Dịch Chuyển — Server v4.2")
+    log.info("Phi Tiêu Dịch Chuyển — Server v4.3")
     log.info(f"Listening on 0.0.0.0:{PORT}")
     log.info("Endpoints:")
     log.info("  GET  /health  → Coolify healthcheck")

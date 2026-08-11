@@ -1,12 +1,12 @@
-# Phi Tiêu Dịch Chuyển — Multiplayer + Auth + Profile + Leaderboard Server (v4.2)
+# Phi Tiêu Dịch Chuyển — Multiplayer + Auth + Profile + Leaderboard Server (v4.3)
 # Python aiohttp + asyncpg (PostgreSQL) + redis.
 # Listens on port 3000. HTTP /health for Coolify healthcheck. WS /ws for game.
 
 FROM python:3.12-slim
 
 LABEL maintainer="Hieu Louis"
-LABEL description="Phi Tiêu Dịch Chuyển server v4.2 - multiplayer + auth + profile + leaderboard"
-LABEL version="4.2"
+LABEL description="Phi Tiêu Dịch Chuyển server v4.3 - multiplayer + auth + profile + leaderboard"
+LABEL version="4.3"
 
 WORKDIR /app
 
