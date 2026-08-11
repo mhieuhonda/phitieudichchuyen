@@ -3,12 +3,26 @@
 > Vượt 20 ải · Ném phi tiêu · Dịch chuyển · Tiêu diệt Boss
 > Game 2D top-down Godot 4.7 — Offline PvE + Online Multiplayer Deathmatch.
 
-![Version](https://img.shields.io/badge/version-4.2-gold.svg)
+![Version](https://img.shields.io/badge/version-4.3-gold.svg)
 ![Engine](https://img.shields.io/badge/Godot-4.7-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 > **Game developed by Hieu Louis**
+
+---
+
+## v4.3 — Sửa lỗi không đăng nhập/đăng ký được trên Godot 4.7
+
+Bản v4.3 sửa triệt để lỗi người chơi **không thể đăng ký hoặc đăng nhập** sau ~50 lần fix không thành công. 3 root cause chồng lên nhau:
+
+1. **Godot 4.7 đã xóa property `tls_options` trên HTTPRequest** — gán trực tiếp `_http_request.tls_options = ...` gây runtime error → TLS không được set → mọi request fail. Fix: dùng method `_http_request.set_tls_options(...)`.
+2. **Godot 4.7's mbedTLS không gửi SNI trong TLS ClientHello** — Traefik v3.6 trả HTTP 503 cho request thiếu SNI. Workaround: dùng HTTP (port 80) thay HTTPS, đã remove redirect-to-https trên Traefik. HTTPS vẫn available cho browser/curl.
+3. **`ConfigFile.clear()` trong Godot 4.7 nhận 0 args** — code cũ `cfg.clear(SAVE_PATH)` gây parse error → autoload AccountManager fail hoàn toàn.
+
+Cải thiện thêm: HTTPRequest pool (4 nodes) tránh race condition, explicit Host header, HTTPClient fallback, extensive logging.
+
+Xem [CHANGELOG.md](CHANGELOG.md) để biết chi tiết đầy đủ.
 
 ---
 
